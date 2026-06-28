@@ -26,7 +26,7 @@
 | `chatuserlist.h/cpp` | 聊天用户列表（左侧最近聊天列表） |
 | `chatuserwidget.h/cpp/ui` | 聊天用户列表的单项 |
 | `searchlist.h/cpp` | 搜索结果列表 |
-| `adduseritem.h/cpp/ui` | 搜索结果列表中的用户项 |
+| `adduseritem.h/cpp/ui` | 向服务端发起搜素请求的点击框 |
 
 ### 好友管理
 | 文件 | 说明 |
