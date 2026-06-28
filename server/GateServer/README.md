@@ -20,7 +20,6 @@
 | `MysqlManager.h/cpp` | MySQL 连接池 |
 | `StatusGrpcClient.h/cpp` | gRPC 客户端：向 StatusServer 查询 ChatServer 列表 |
 | `VerifyGrpcClient.h` | gRPC 客户端：向 VerifyServer 发送验证码 |
-| `ChatGrpcClient.h/cpp` | gRPC 客户端存根（未完成） |
 
 ## 依赖
 
