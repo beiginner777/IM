@@ -43,12 +43,12 @@
 ---
 
 ## 4.2 抢红包 (Redis Lua 原子操作)
-![](drawio/1782684406499v2.drawio.svg)
+![](drawio/1782684406499.drawio.svg)
 
 ---
 
 ## 4.3 通讯录匹配 + 布隆过滤器
-![](drawio/1782684446469v2.drawio.svg)
+![](drawio/1782684446469.drawio.svg)
 
 ---
 
@@ -79,3 +79,21 @@
 ## 4.8 文件分片上传 + 断点续传
 
 ![](drawio/1782689152458.drawio.svg)
+
+---
+
+## 4.9 Client→ChatServer（一致性哈希路由 + 节点扩缩容）
+
+![1782690636108.drawio](drawio/1782690636108.drawio.svg)
+
+---
+
+## 4.10 ChatServer→ResourceServer（一致性哈希文件路由）
+
+![1782690658441.drawio](drawio/1782690658441.drawio.svg)
+
+---
+
+## 4.11 MySQL 分表（一致性哈希分片 + 扩容）
+
+![1782690690788.drawio](drawio/1782690690788.drawio.svg)
