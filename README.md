@@ -43,12 +43,12 @@
 ---
 
 ## 4.2 抢红包 (Redis Lua 原子操作)
-![](drawio/1782684406499.drawio.svg)
+![](drawio/1782684406499v2.drawio.svg)
 
 ---
 
 ## 4.3 通讯录匹配 + 布隆过滤器
-![](drawio/1782684446469.drawio.svg)
+![](drawio/1782684446469v2.drawio.svg)
 
 ---
 
