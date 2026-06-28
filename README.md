@@ -5,24 +5,24 @@
 # 二、各服务架构图
 
 ## 2.1 GateServer
-![1782687112256.drawio](drawio/1782687112256.drawio.svg)
+![](drawio/1782687112256.drawio.svg)
 
 ---
 
 ## 2.2 StatusServer
-![1782687211724.drawio](drawio/1782687211724.drawio.svg)
+![](drawio/1782687211724.drawio.svg)
 
 ---
 
 ## 2.3 ChatServer
 
-![1782687278041.drawio](drawio/1782687278041.drawio.svg)
+![](drawio/1782687278041.drawio.svg)
 
 --- 
 
 ## 2.4 ResourceServer
 
-![1782687310607.drawio](drawio/1782687310607.drawio.svg)
+![](drawio/1782687310607.drawio.svg)
 
 ---
 
