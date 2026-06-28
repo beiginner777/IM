@@ -21,6 +21,14 @@ Global
 		{CA514BCB-4953-49DF-9F99-51D564127B40}.Release|x64.Build.0 = Release|x64
 		{CA514BCB-4953-49DF-9F99-51D564127B40}.Release|x86.ActiveCfg = Release|Win32
 		{CA514BCB-4953-49DF-9F99-51D564127B40}.Release|x86.Build.0 = Release|Win32
+		{8A3F1B2C-5D6E-4F7A-9B0C-1D2E3F4A5B6C}.Debug|x64.ActiveCfg = Debug|x64
+		{8A3F1B2C-5D6E-4F7A-9B0C-1D2E3F4A5B6C}.Debug|x64.Build.0 = Debug|x64
+		{8A3F1B2C-5D6E-4F7A-9B0C-1D2E3F4A5B6C}.Debug|x86.ActiveCfg = Debug|Win32
+		{8A3F1B2C-5D6E-4F7A-9B0C-1D2E3F4A5B6C}.Debug|x86.Build.0 = Debug|Win32
+		{8A3F1B2C-5D6E-4F7A-9B0C-1D2E3F4A5B6C}.Release|x64.ActiveCfg = Release|x64
+		{8A3F1B2C-5D6E-4F7A-9B0C-1D2E3F4A5B6C}.Release|x64.Build.0 = Release|x64
+		{8A3F1B2C-5D6E-4F7A-9B0C-1D2E3F4A5B6C}.Release|x86.ActiveCfg = Release|Win32
+		{8A3F1B2C-5D6E-4F7A-9B0C-1D2E3F4A5B6C}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

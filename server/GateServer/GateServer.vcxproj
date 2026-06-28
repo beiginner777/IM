@@ -131,8 +131,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="AsioIOContextThread.cpp" />
-    <ClCompile Include="ConfigManager.cpp" />
     <ClCompile Include="GateServer.cpp" />
     <ClCompile Include="HttpConnection.cpp" />
     <ClCompile Include="LogicSystem.cpp" />
@@ -141,13 +139,9 @@
     <ClCompile Include="message.pb.cc" />
     <ClCompile Include="MysqlDao.cpp" />
     <ClCompile Include="MysqlManager.cpp" />
-    <ClCompile Include="RedisLocker.cpp" />
-    <ClCompile Include="RedisManager.cpp" />
     <ClCompile Include="StatusGrpcClient.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AsioIOContextThreadPool.h" />
-    <ClInclude Include="ConfigManager.h" />
     <ClInclude Include="data.h" />
     <ClInclude Include="GateServer.h" />
     <ClInclude Include="global.h" />
@@ -157,9 +151,6 @@
     <ClInclude Include="message.pb.h" />
     <ClInclude Include="MysqlDao.h" />
     <ClInclude Include="MysqlManager.h" />
-    <ClInclude Include="RedisLocker.h" />
-    <ClInclude Include="RedisManager.h" />
-    <ClInclude Include="SingleTon.h" />
     <ClInclude Include="StatusGrpcClient.h" />
     <ClInclude Include="VerifyGrpcClient.h" />
   </ItemGroup>

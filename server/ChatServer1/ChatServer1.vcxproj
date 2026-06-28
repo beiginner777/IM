@@ -109,12 +109,12 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..mmon;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>common.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -135,10 +135,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="AsioIOContextThread.cpp" />
     <ClCompile Include="ChatGrpcClient.cpp" />
     <ClCompile Include="ChatServiceImpl.cpp" />
-    <ClCompile Include="ConfigManager.cpp" />
     <ClCompile Include="CServer.cpp" />
     <ClCompile Include="CSession.cpp" />
     <ClCompile Include="LogicSystem.cpp" />
@@ -148,16 +146,12 @@
     <ClCompile Include="MsgNode.cpp" />
     <ClCompile Include="MysqlDao.cpp" />
     <ClCompile Include="MysqlManager.cpp" />
-    <ClCompile Include="RedisLocker.cpp" />
-    <ClCompile Include="RedisManager.cpp" />
     <ClCompile Include="UserManager.cpp" />
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AsioIOContextThreadPool.h" />
     <ClInclude Include="ChatGrpcClient.h" />
     <ClInclude Include="ChatServiceImpl.h" />
-    <ClInclude Include="ConfigManager.h" />
     <ClInclude Include="CServer.h" />
     <ClInclude Include="CSession.h" />
     <ClInclude Include="data.h" />
@@ -168,9 +162,6 @@
     <ClInclude Include="MsgNode.h" />
     <ClInclude Include="MysqlDao.h" />
     <ClInclude Include="MysqlManager.h" />
-    <ClInclude Include="RedisLocker.h" />
-    <ClInclude Include="RedisManager.h" />
-    <ClInclude Include="SingleTon.h" />
     <ClInclude Include="UserManager.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
