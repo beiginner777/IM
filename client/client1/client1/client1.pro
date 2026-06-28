@@ -26,7 +26,6 @@ SOURCES += \
     data/chatdatalist.cpp \
     dialogs/chatdialog.cpp \
     dialogs/chatinterface.cpp \
-    widgets/chatitembase.cpp \
     data/chatthreaddata.cpp \
     dialogs/chatuserlist.cpp \
     dialogs/chatuserwidget.cpp \
@@ -75,7 +74,6 @@ HEADERS += \
     data/chatdatalist.h \
     dialogs/chatdialog.h \
     dialogs/chatinterface.h \
-    widgets/chatitembase.h \
     data/chatthreaddata.h \
     dialogs/chatuserlist.h \
     dialogs/chatuserwidget.h \
