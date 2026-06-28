@@ -1,2 +1,0 @@
-#include "ChatGrpcClient_.h"
-
