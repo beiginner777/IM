@@ -1,0 +1,165 @@
+#emojiLabel[state='normal']{
+    border-image: url(:/res/smile.png);
+}
+
+#emojiLabel[state='hover']{
+    border-image: url(:/res/smile_hover.png);
+}
+
+#emojiLabel[state='pressed']{
+    border-image: url(:/res/smile_press.png);
+}
+
+#emojiLabel[state='selected_normal']{
+    border-image: url(:/res/smile_press.png);
+}
+
+#emojiLabel[state='selected_hover']{
+    border-image: url(:/res/smile_press.png);
+}
+
+#emojiLabel[state='selected_pressed']{
+    border-image: url(:/res/smile_press.png);
+}
+
+#fileLabel[state='normal']{
+    border-image: url(:/res/filedir.png);
+}
+
+#fileLabel[state='hover']{
+    border-image: url(:/res/filedir_hover.png);
+}
+
+#fileLabel[state='pressed']{
+    border-image: url(:/res/filedir_press.png);
+}
+
+#fileLabel[state='selected_normal']{
+    border-image: url(:/res/filedir_press.png);
+}
+
+#fileLabel[state='selected_hover']{
+    border-image: url(:/res/filedir_press.png);
+}
+
+#fileLabel[state='selected_pressed']{
+    border-image: url(:/res/filedir_press.png);
+}
+
+#redPoint {
+    background-color: red;
+    border-radius: 5px;
+    width: 10px;
+    height: 10px;
+}
+
+#messageLabel[state='normal']{
+    border-image: url(:/res/chat_icon.png);
+}
+
+#messageLabel[state='hover']{
+    border-image: url(:/res/chat_icon_hover.png);
+}
+
+#messageLabel[state='pressed']{
+    border-image: url(:/res/chat_icon_press.png);
+}
+
+#messageLabel[state='selected_normal']{
+    border-image: url(:/res/chat_icon_press.png);
+}
+
+#messageLabel[state='selected_hover']{
+    border-image: url(:/res/chat_icon_press.png);
+}
+
+#messageLabel[state='selected_pressed']{
+    border-image: url(:/res/chat_icon_press.png);
+}
+
+#userLabel[state='normal']{
+    border-image: url(:/res/contact_list.png);
+}
+
+#userLabel[state='hover']{
+    border-image: url(:/res/contact_list_hover.png);
+}
+
+#userLabel[state='pressed']{
+    border-image: url(:/res/contact_list_press.png);
+}
+
+#userLabel[state='selected_normal']{
+    border-image: url(:/res/contact_list_press.png);
+}
+
+#userLabel[state='selected_hover']{
+    border-image: url(:/res/contact_list_press.png);
+}
+
+#userLabel[state='selected_pressed']{
+    border-image: url(:/res/contact_list_press.png);
+}
+
+#settingLabel[state='normal']{
+    border-image: url(:/res/settings.png);
+}
+
+#settingLabel[state='hover']{
+    border-image: url(:/res/settings_hover.png);
+}
+
+#settingLabel[state='pressed']{
+    border-image: url(:/res/settings_press.png);
+}
+
+#settingLabel[state='selected_normal']{
+    border-image: url(:/res/settings_press.png);
+}
+
+#settingLabel[state='selected_hover']{
+    border-image: url(:/res/settings_press.png);
+}
+
+#settingLabel[state='selected_pressed']{
+    border-image: url(:/res/settings_press.png);
+}
+
+/* 用户列表样式 */
+QListWidget {
+    background-color: #ffffff;
+    border: none;
+    outline: 0;
+    font-size: 13px;
+    alternate-background-color: #fafafa;
+}
+
+QListWidget::item {
+    height: 60px;
+    border-bottom: 1px solid #f0f0f0;
+    padding-left: 10px;
+}
+
+QListWidget::item:selected {
+    background-color: #e6e6e6;
+    color: #000000;
+}
+
+QListWidget::item:hover {
+    background-color: #f5f5f5;
+}
+
+/* 聊天输入框样式 */
+QTextEdit#chatEdit {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 10px;
+    /* font-size: 14px; */
+    background-color: white;
+    margin: 10px;
+    selection-background-color: #b4d7ff;
+}
+
+QTextEdit#chatEdit:focus {
+    border: 1px solid #07C160; /* 微信绿色边框 */
+}

@@ -1,0 +1,94 @@
+
+#tipLabelWidget {
+    /* 背景样式 */
+    background-color: white;
+    background: white;          /* 另一种写法 */
+
+    /* 边框和内边距 */
+    border: none;
+    border-radius: 4px;         /* 圆角 */
+    padding: 8px 12px;          /* 上下8px，左右12px */
+
+    /* 其他样式 */
+    margin: 2px;                /* 外边距 */
+}
+
+#tipLabel{
+    /* 文字样式 */
+    color: blue;
+    color: #0000FF;             /* 蓝色十六进制 */
+    color: rgb(0, 0, 255);      /* 蓝色RGB */
+}
+
+#newLabel[state='normal'] {
+    padding: 2px;
+    background: #e1e1e1;
+    color: #1e1e1e;
+    border-radius: 10px;
+}
+
+#newLabel[state='hover'] {
+    padding: 2px;
+    background: #e1e1e1;
+    color: #1e1e1e;
+    border-radius: 10px;
+}
+
+#newLabel[state='press'] {
+    padding: 2px;
+    background: #e1e1e1;
+    color: #48bf56;
+    border-radius: 10px;
+}
+
+#newLabel[state='selected_normal'] {
+    padding: 2px;
+    background: #e1e1e1;
+    color: #48bf56;
+    border-radius: 10px;
+}
+
+#newLabel[state='selected_hover'] {
+    padding: 2px;
+    background: #e1e1e1;
+    color: #48bf56;
+    border-radius: 10px;
+}
+
+#newLabel[state='selected_press'] {
+    padding: 2px;
+    background: #e1e1e1;
+    color: #1e1e1e;
+    border-radius: 10px;
+}
+
+#FriendLabel {
+    background: #daf6e7;
+    color: #48bf56;
+    border-radius: 10px;
+}
+
+#closeLabel[state='normal'] {
+    border-image: url(:/res/tipclose.png);
+}
+
+#closeLabel[state='hover'] {
+    border-image: url(:/res/tipclose.png);
+}
+
+#closeLabel[state='press'] {
+    border-image: url(:/res/tipclose.png);
+}
+
+#closeLabel[state='selected_normal'] {
+    border-image: url(:/res/tipclose.png);
+}
+
+#closeLabel[state='selected_hover'] {
+    border-image: url(:/res/tipclose.png);
+}
+
+#closeLabel[state='selected_press'] {
+    border-image: url(:/res/tipclose.png);
+}
+

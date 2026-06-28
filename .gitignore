@@ -1,0 +1,72 @@
+# ============================================
+# 编译中间产物 / Build intermediates
+# ============================================
+
+# Visual Studio 构建输出
+x64/
+Debug/
+Release/
+*.exe
+*.dll
+*.lib
+*.exp
+*.ilk
+*.pdb
+*.obj
+*.o
+*.lo
+*.la
+*.al
+
+# Visual Studio 用户设置
+.vs/
+*.vcxproj.user
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio 编译中间文件
+*.tlog/
+*.idb
+*.pch
+*.ipch
+*.aps
+*.ncb
+*.opendb
+*.opensdf
+*.sdf
+*.cachefile
+*.VC.db
+*.VC.VC.opendb
+*.lastbuildstate
+*.unsuccessfulbuild
+*.log
+
+# Qt 构建输出
+build-*/
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+*.pro.user
+.qmake.stash
+Makefile
+Makefile.Debug
+Makefile.Release
+
+# gRPC / Protobuf 生成文件（由 .proto 编译产生）
+*.pb.cc
+*.pb.h
+*.grpc.pb.cc
+*.grpc.pb.h
+
+# ============================================
+# IDE / 编辑器
+# ============================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

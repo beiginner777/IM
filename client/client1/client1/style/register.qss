@@ -1,0 +1,89 @@
+QLabel#passVisible[state='normal']{
+   border-image: url(:/res/unvisible.png);
+}
+QLabel#passVisible[state='hover']{
+   border-image: url(:/res/unvisible_hover.png);
+}
+QLabel#passVisible[state='pressed']{
+   border-image: url(:/res/unvisible_hover.png);
+}
+QLabel#passVisible[state='selected_normal']{
+   border-image: url(:/res/visible.png);
+}
+QLabel#passVisible[state='selected_hover']{
+   border-image: url(:/res/unvisible_hover.png);
+}
+QLabel#passVisible[state='selected_pressed']{
+   border-image: url(:/res/visible_hover.png);
+}
+
+QLabel#confirmVisible[state='normal']{
+   border-image: url(:/res/unvisible.png);
+}
+QLabel#confirmVisible[state='hover']{
+   border-image: url(:/res/unvisible_hover.png);
+}
+QLabel#confirmVisible[state='pressed']{
+   border-image: url(:/res/unvisible_hover.png);
+}
+QLabel#confirmVisible[state='selected_normal']{
+   border-image: url(:/res/visible.png);
+}
+QLabel#confirmVisible[state='selected_hover']{
+   border-image: url(:/res/unvisible_hover.png);
+}
+QLabel#confirmVisible[state='selected_pressed']{
+   border-image: url(:/res/visible_hover.png);
+}
+
+QLabel#tip[state='correct']{
+    color:green;
+}
+
+QLabel#tip[state='normal']{
+    color:black;
+}
+
+QLabel#tip[state='error']{
+    color:red;
+}
+
+/* 注册对话框主样式 */
+QDialog {
+    background-color: #f5f7fa;
+    border-radius: 10px;
+    border: 1px solid #d1d9e6;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+/* 输入框通用样式 */
+QLineEdit {
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 10px 15px;
+    // font-size: 14px;
+    background-color: white;
+    min-width: 250px;
+    selection-background-color: #a6c1ee;
+}
+
+QLineEdit:focus {
+    border-color: #5b9cf8;
+    background-color: #f8fbff;
+}
+
+/* 输入框提示文字样式 */
+QLineEdit::placeholder {
+    color: #adb5bd;
+    font-style: italic;
+}
+
+/* 主框架样式 */
+QFrame#mainFrame {
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+    border: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+

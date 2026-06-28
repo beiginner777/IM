@@ -1,0 +1,110 @@
+/* 主窗口样式 */
+QDialog {
+    background-color: #f5f7fa;
+    border-radius: 10px;
+    border: 1px solid #d1d9e6;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+/* 标题样式 */
+QLabel#titleLabel {
+    // font-size: 24px;
+    font-weight: bold;
+    color: #3a4a6d;
+    padding-bottom: 20px;
+}
+
+/* 输入框通用样式 */
+QLineEdit {
+    border: 2px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 10px 15px;
+    font-size: 14px;
+    background-color: white;
+    min-width: 250px;
+    selection-background-color: #a6c1ee;
+}
+
+QLineEdit:focus {
+    border-color: #5b9cf8;
+    background-color: #f8fbff;
+}
+
+/* 按钮通用样式 */
+QPushButton {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    // font-size: 14px;
+    font-weight: 500;
+    color: white;
+    background-color: #5b9cf8;
+    min-width: 100px;
+}
+
+QPushButton:hover {
+    background-color: #4a8be8;
+}
+
+QPushButton:pressed {
+    background-color: #3a7bd8;
+}
+
+/* 登录按钮特殊样式 */
+QPushButton#loginButton {
+    background-color: #5b9cf8;
+}
+
+QPushButton#loginButton:hover {
+    background-color: #4a8be8;
+}
+
+/* 注册按钮特殊样式 */
+QPushButton#registerButton {
+    background-color: #6c757d;
+}
+
+QPushButton#registerButton:hover {
+    background-color: #5a6268;
+}
+
+/* 忘记密码链接样式 */
+QPushButton#forgotButton {
+    color: #5b9cf8;
+    text-decoration: underline;
+    background-color: transparent;
+    border: none;
+    padding: 5px;
+    // font-size: 12px;
+}
+
+QPushButton#forgotButton:hover {
+    color: #4a8be8;
+}
+
+/* 标签样式 */
+QLabel {
+    font-size: 13px;
+    color: #6c757d;
+    padding: 5px 0;
+}
+
+/* 图标样式（如果有） */
+QLabel#iconLabel {
+    qproperty-pixmap: url(:/res/cute.jpg);
+}
+
+/* 输入框提示文字样式 */
+QLineEdit::placeholder {
+    color: #adb5bd;
+    font-style: italic;
+}
+
+/* 添加一些阴影效果 */
+QFrame#mainFrame {
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+    border: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}

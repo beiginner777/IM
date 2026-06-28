@@ -1,0 +1,21 @@
+#confirmButton[state = 'normal']{
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #6A11CB, stop:1 #2575FC);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-weight: bold;
+}
+
+#confirmButton[state = 'hover']{
+    /* 悬停状态 - 更亮的渐变 */
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #7B1CFF, stop:1 #3A86FF);
+}
+
+#confirmButton[state = 'press']{
+    /* 按下状态 - 更深的渐变 */
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #5900B3, stop:1 #1A5FC4);
+}

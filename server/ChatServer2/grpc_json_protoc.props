@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- 1. 定义宏变量（路径变量） -->
+  <PropertyGroup Label="UserMacros">
+    <!-- 头文件目录 -->
+    <BoostDir>D:\Program Files\boost</BoostDir>
+    <JsonCppDir>D:\Program Files\jsoncpp\jsoncpp-src-0.5.0.tar\dist\jsoncpp-src-0.5.0\jsoncpp-src-0.5.0\include</JsonCppDir>
+    <GrpcDir>D:\Program Files\grpc\grpc\include</GrpcDir>
+    <ProtobufDir>D:\Program Files\grpc\grpc\third_party\protobuf\src</ProtobufDir>
+    <AbseilDir>D:\Program Files\grpc\grpc\third_party\abseil-cpp</AbseilDir>
+    <Re2Dir>D:\Program Files\grpc\grpc\third_party\re2</Re2Dir>
+    <AddressSortingDir>D:\Program Files\grpc\grpc\third_party\address_sorting\include</AddressSortingDir>
+    <RedisDir>E:\File\DownloadFromGithub\redis\include</RedisDir>
+    <MysqlDir>D:\MySQL80\mysql-connector-c++-8.0.29-winx64-debug\include</MysqlDir>
+	
+    <!-- 库目录（x64 专用） -->
+    <BoostLibDir>D:\Program Files\boost\stage\lib</BoostLibDir>
+    <JsonCppLibDir>D:\Program Files\jsoncpp\jsoncpp-src-0.5.0.tar\dist\jsoncpp-src-0.5.0\jsoncpp-src-0.5.0\makefiles\vs71\x64\Debug</JsonCppLibDir>
+    <GrpcLibDir>D:\Program Files\grpc\grpc\visualpro\Debug</GrpcLibDir>
+    <AbseilBaseLibDir>D:\Program Files\grpc\grpc\visualpro\third_party\abseil-cpp\absl\base\Debug</AbseilBaseLibDir>
+    <AbseilTypesLibDir>D:\Program Files\grpc\grpc\visualpro\third_party\abseil-cpp\absl\types\Debug</AbseilTypesLibDir>
+    <AbseilSyncLibDir>D:\Program Files\grpc\grpc\visualpro\third_party\abseil-cpp\absl\synchronization\Debug</AbseilSyncLibDir>
+    <AbseilStatusLibDir>D:\Program Files\grpc\grpc\visualpro\third_party\abseil-cpp\absl\status\Debug</AbseilStatusLibDir>
+    <AbseilRandomLibDir>D:\Program Files\grpc\grpc\visualpro\third_party\abseil-cpp\absl\random\Debug</AbseilRandomLibDir>
+    <AbseilFlagsLibDir>D:\Program Files\grpc\grpc\visualpro\third_party\abseil-cpp\absl\flags\Debug</AbseilFlagsLibDir>
+    <AbseilDebuggingLibDir>D:\Program Files\grpc\grpc\visualpro\third_party\abseil-cpp\absl\debugging\Debug</AbseilDebuggingLibDir>
+    <AbseilContainerLibDir>D:\Program Files\grpc\grpc\visualpro\third_party\abseil-cpp\absl\container\Debug</AbseilContainerLibDir>
+    <AbseilHashLibDir>D:\Program Files\grpc\grpc\visualpro\third_party\abseil-cpp\absl\hash\Debug</AbseilHashLibDir>
+    <AbseilNumericLibDir>D:\Program Files\grpc\grpc\visualpro\third_party\abseil-cpp\absl\numeric\Debug</AbseilNumericLibDir>
+    <AbseilTimeLibDir>D:\Program Files\grpc\grpc\visualpro\third_party\abseil-cpp\absl\time\Debug</AbseilTimeLibDir>
+    <AbseilStringsLibDir>D:\Program Files\grpc\grpc\visualpro\third_party\abseil-cpp\absl\strings\Debug</AbseilStringsLibDir>
+    <BoringSslLibDir>D:\Program Files\grpc\grpc\visualpro\third_party\boringssl-with-bazel\Debug</BoringSslLibDir>
+    <ProtobufLibDir>D:\Program Files\grpc\grpc\visualpro\third_party\protobuf\Debug</ProtobufLibDir>
+    <ZlibLibDir>D:\Program Files\grpc\grpc\visualpro\third_party\zlib\Debug</ZlibLibDir>
+    <CaresLibDir>D:\Program Files\grpc\grpc\visualpro\third_party\cares\cares\lib\Debug</CaresLibDir>
+    <Re2LibDir>D:\Program Files\grpc\grpc\visualpro\third_party\re2\Debug</Re2LibDir>
+    <RedisLibDir>E:\File\DownloadFromGithub\redis\lib</RedisLibDir>
+    <MysqlLibDir>D:\MySQL80\mysql-connector-c++-8.0.29-winx64-debug\lib64\vs14\debug</MysqlLibDir>
+    <!-- 系统库目录（x64） -->
+    <MsvcLibDir>C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.40.33807\lib\x64</MsvcLibDir>
+    <AtlmfcLibDir>C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.40.33807\atlmfc\lib\x64</AtlmfcLibDir>
+    <VSLibDir>C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\VS\lib\x64</VSLibDir>
+    <UcrtLibDir>C:\Program Files (x86)\Windows Kits\10\lib\10.0.22621.0\ucrt\x64</UcrtLibDir>
+    <UmLibDir>C:\Program Files (x86)\Windows Kits\10\lib\10.0.22621.0\um\x64</UmLibDir>
+  </PropertyGroup>
+  <PropertyGroup>
+    <IncludePath>E:\File\DownloadFromGithub\redis\include;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <!-- 2. 配置包含目录（头文件路径） -->
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>
+        $(BoostDir);
+        $(JsonCppDir);
+        $(GrpcDir);
+        $(ProtobufDir);
+        $(AbseilDir);
+        $(Re2Dir);
+        $(AddressSortingDir);
+		$(RedisDir);
+		$(MysqlDir);
+        %(AdditionalIncludeDirectories)
+      </AdditionalIncludeDirectories>
+      <!-- 强制使用 /MDd（动态调试运行时库）避免冲突 -->
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <!-- 3. 配置库目录（.lib 文件路径） -->
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalLibraryDirectories>
+        $(BoostLibDir);
+        $(JsonCppLibDir);
+        $(GrpcLibDir);
+        $(AbseilBaseLibDir);
+        $(AbseilTypesLibDir);
+        $(AbseilSyncLibDir);
+        $(AbseilStatusLibDir);
+        $(AbseilRandomLibDir);
+        $(AbseilFlagsLibDir);
+        $(AbseilDebuggingLibDir);
+        $(AbseilContainerLibDir);
+        $(AbseilHashLibDir);
+        $(AbseilNumericLibDir);
+        $(AbseilTimeLibDir);
+        $(AbseilStringsLibDir);
+        $(BoringSslLibDir);
+        $(ProtobufLibDir);
+        $(ZlibLibDir);
+        $(CaresLibDir);
+        $(Re2LibDir);
+        $(MsvcLibDir);
+        $(AtlmfcLibDir);
+        $(VSLibDir);
+        $(UcrtLibDir);
+        $(UmLibDir);
+		$(RedisLibDir);
+		$(MysqlLibDir);
+        %(AdditionalLibraryDirectories)
+      </AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <!-- 4. 配置依赖库（需要链接的 .lib 文件） -->
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>
+        json_vc71_libmtd.lib;
+        libprotobufd.lib;
+        gpr.lib;
+        grpc.lib;
+        grpc++.lib;
+        grpc++_reflection.lib;
+        address_sorting.lib;
+        ws2_32.lib;
+        cares.lib;
+        zlibstaticd.lib;
+        upb.lib;
+        ssl.lib;
+        crypto.lib;
+        absl_bad_any_cast_impl.lib;
+        absl_bad_optional_access.lib;
+        absl_bad_variant_access.lib;
+        absl_base.lib;
+        absl_city.lib;
+        absl_civil_time.lib;
+        absl_cord.lib;
+        absl_debugging_internal.lib;
+        absl_demangle_internal.lib;
+        absl_examine_stack.lib;
+        absl_exponential_biased.lib;
+        absl_failure_signal_handler.lib;
+        absl_flags.lib;
+        absl_flags_config.lib;
+        absl_flags_internal.lib;
+        absl_flags_marshalling.lib;
+        absl_flags_parse.lib;
+        absl_flags_program_name.lib;
+        absl_flags_usage.lib;
+        absl_flags_usage_internal.lib;
+        absl_graphcycles_internal.lib;
+        absl_hash.lib;
+        absl_hashtablez_sampler.lib;
+        absl_int128.lib;
+        absl_leak_check.lib;
+        absl_leak_check_disable.lib;
+        absl_log_severity.lib;
+        absl_malloc_internal.lib;
+        absl_periodic_sampler.lib;
+        absl_random_distributions.lib;
+        absl_random_internal_distribution_test_util.lib;
+        absl_random_internal_pool_urbg.lib;
+        absl_random_internal_randen.lib;
+        absl_random_internal_randen_hwaes.lib;
+        absl_random_internal_randen_hwaes_impl.lib;
+        absl_random_internal_randen_slow.lib;
+        absl_random_internal_seed_material.lib;
+        absl_random_seed_gen_exception.lib;
+        absl_random_seed_sequences.lib;
+        absl_raw_hash_set.lib;
+        absl_raw_logging_internal.lib;
+        absl_scoped_set_env.lib;
+        absl_spinlock_wait.lib;
+        absl_stacktrace.lib;
+        absl_status.lib;
+        absl_strings.lib;
+        absl_strings_internal.lib;
+        absl_str_format_internal.lib;
+        absl_symbolize.lib;
+        absl_synchronization.lib;
+        absl_throw_delegate.lib;
+        absl_time.lib;
+        absl_time_zone.lib;
+        absl_statusor.lib;
+        re2.lib;
+		Win32_Interop.lib;
+		hiredis.lib;
+		mysqlcppconn.lib;
+        %(AdditionalDependencies)
+      </AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+</Project>
