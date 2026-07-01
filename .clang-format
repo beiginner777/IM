@@ -1,0 +1,95 @@
+---
+# ==============================================================================
+# IM 项目 clang-format 配置
+# 统一代码风格: Tab 缩进 + Allman 大括号 + 左对齐指针/引用
+# 使用方法: clang-format -i <file>  或  VS: Ctrl+K, Ctrl+D
+# ==============================================================================
+BasedOnStyle: LLVM
+Language: Cpp
+
+# ── 缩进 ──────────────────────────────────────
+UseTab:          ForIndentation   # Tab 缩进，空格对齐
+TabWidth:        4
+IndentWidth:     4
+ContinuationIndentWidth: 8        # 续行缩进 2 个 Tab
+AccessModifierOffset: -4          # public/private 与 class 对齐（4-4=0）
+
+# ── 大括号 ────────────────────────────────────
+BreakBeforeBraces: Allman          # 大括号独立一行
+# Allman 下各细项:
+# AfterClass: true, AfterControlStatement: Always, AfterEnum: true
+# AfterFunction: true, AfterNamespace: true, AfterStruct: true
+# AfterUnion: true, BeforeElse: true, BeforeLambdaBody: true
+
+# ── 指针与引用 ────────────────────────────────
+PointerAlignment: Left             # int* p (星号靠左)
+ReferenceAlignment: Left           # int& r (引用靠左)
+
+# ── 换行与列宽 ────────────────────────────────
+ColumnLimit:     120
+# 函数参数/参数过多时行为
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+BinPackArguments: true             # 参数尽量放一行
+BinPackParameters: true
+# 模板声明不强制换行 (VS 讨厌它拆成多行)
+AlwaysBreakTemplateDeclarations: false
+
+# ── 短语句策略 ─────────────────────────────────
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortCaseExpressionOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: true
+AllowShortBlocksOnASingleLine: Empty
+AllowShortLambdasOnASingleLine: All
+AllowShortCompoundRequirementOnASingleLine: true
+
+# ── 空格与空行 ─────────────────────────────────
+SpaceAfterCStyleCast: true         # (int) ptr → (int)ptr
+SpaceBeforeAssignmentOperators: true
+SpacesBeforeTrailingComments: 1    # 代码 ; // 注释
+SpaceBeforeParens: ControlStatements  # if () / for () 等保留空格
+SpacesInAngles: Leave
+SpacesInCStyleCastParentheses: false  # (int) ptr 不要空格
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+MaxEmptyLinesToKeep: 2
+
+# ── Include 排序 ───────────────────────────────
+SortIncludes: false                # 不自动排序 #include (保留自定义顺序)
+IncludeBlocks: Preserve
+
+# ── 注释对齐 ───────────────────────────────────
+AlignTrailingComments: false       # 不强制对齐行尾注释
+
+# ── 对齐策略 ───────────────────────────────────
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignOperands: Align
+
+# ── 尾随返回类型 ───────────────────────────────
+AlwaysBreakAfterReturnType: None
+
+# ── 大括号包空 ─────────────────────────────────
+Cpp11BracedListStyle: true         # 大括号初始化 {1,2,3} 不加多余空格
+SpaceBeforeCpp11BracedList: false
+
+# ── 其他 ───────────────────────────────────────
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: true
+DerivePointerAlignment: false      # 不自动推导指针对齐
+FixNamespaceComments: true         # } // namespace xxx
+IndentCaseLabels: false            # case 与 switch 对齐
+InsertBraces: false                # 不自动加括号 (Allman 风格已有括号)
+KeepEmptyLinesAtTheStartOfBlocks: false
+NamespaceIndentation: None         # namespace 不缩进内容
+PenaltyBreakAssignment: 2
+PenaltyBreakBeforeFirstCallParameter: 1
+PenaltyBreakComment: 300
+PenaltyExcessCharacter: 1000000
+RemoveBracesLLVM: false
+SeparateDefinitionBlocks: Leave
+# ...

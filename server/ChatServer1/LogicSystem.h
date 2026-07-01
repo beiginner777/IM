@@ -26,7 +26,7 @@ class LogicSystem : public SingleTon<LogicSystem>
 {
 	friend class SingleTon<LogicSystem>;
 
-	using functionCallback = std::function<void(std::shared_ptr<CSession>, short msgId, std::string msgData)>;
+	using functionCallback = std::function<void(std::shared_ptr<CSession>, short msgId, std::string msgData, std::string uuid)>;
 public:
 	~LogicSystem();
 	// 向提供接口，向逻辑队列投递 逻辑结点
@@ -39,35 +39,36 @@ private:
 	// 注册逻辑层的回调函数
 	void registerFunctionCallbacks();
 	// 向状态服务器注册的回调函数
-	void registerToStatusServer(std::shared_ptr<CSession> session, short msgId, std::string msgData);
+	void registerToStatusServer(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid);
 	// 登录的回调函数（向状态服务器验证token 并且 再次验证用户的 name 和 password）
-	void loginHandle(std::shared_ptr<CSession> session,short msgId,std::string msgData);
+	void loginHandle(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid);
 	// 搜索的回调函数（向ChatServer发送搜索某个用户的请求）
-	void searchHandle(std::shared_ptr<CSession> session, short msgId, std::string msgData);
+	void searchHandle(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid);
 	// 申请好友的回调函数
-	void applyHandle(std::shared_ptr<CSession> session, short msgId, std::string msgData);
+	void applyHandle(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid);
 	// 通过好友申请的回调函数
-	void authAccess(std::shared_ptr<CSession> session, short msgId, std::string msgData);
+	void authAccess(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid);
 	// 收到好友申请的回调函数
-	void receiveFriendApply(std::shared_ptr<CSession> session, short msgId, std::string msgData);
+	void receiveFriendApply(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid);
 	// 收到文本消息的回调函数
-	void dealTextChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData);
+	void dealTextChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid);
 	// 心跳检测的回调函数
-	void heartCheck(std::shared_ptr<CSession> session, short msgId, std::string msgData);
+	void heartCheck(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid);
 	// 加载用户的聊天列表
-	void loadChatList(std::shared_ptr<CSession> session, short msgId, std::string msgData);
+	void loadChatList(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid);
 	// 创建私聊线程
-	void createPrivateThread(std::shared_ptr<CSession> session, short msgId, std::string msgData);
+	void createPrivateThread(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid);
 	// 加载用户的好友列表
-	void loadConnList(std::shared_ptr<CSession> session, short msgId, std::string msgData);
+	void loadConnList(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid);
 	// 收到图片消息的回调函数
-	void dealImageChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData);
+	void dealImageChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid);
 	// 加载好友申请列表
-	void loadFriendApplyList(std::shared_ptr<CSession> session, short msgId, std::string msgData);
+	void loadFriendApplyList(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid);
 	// 加载聊天消息
-	void loadChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData);
+	void loadChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid);
 	// 与StatusServer心跳检测的回包
-	void heartCheckWithStatusServer(std::shared_ptr<CSession> session, short msgId, std::string msgData);
+	void heartCheckWithStatusServer(std::shared_ptr<CSession> session, short msgId, std::string msgData,
+	                                std::string uuid);
 
 private:
 	// 工作线程

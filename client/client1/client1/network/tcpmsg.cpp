@@ -1000,6 +1000,12 @@ void TcpMsg::slotTcpConnect(ServerInfo si)
 void TcpMsg::slotSendData(REQUEST_ID reqId,QByteArray data)
 {
     //qDebug() << "slotSendData current:" << QThread::currentThread() << "socket thread:" << socket_->thread();
+
+    // 每次发送都生成新的 protocol-layer UUID，拼在包头前 36 字节
+    QString uuidStr = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    QByteArray uuidBytes = uuidStr.toUtf8();
+    QByteArray uuidPadded = uuidBytes.leftJustified(36, '\0', true);
+
     uint16_t id = reqId;
     // 计算数据长度
     quint16 len = static_cast<quint16>(data.size());
@@ -1008,7 +1014,8 @@ void TcpMsg::slotSendData(REQUEST_ID reqId,QByteArray data)
     QDataStream out(&block,QIODevice::WriteOnly);
     // 设置数据流使用网络字节序
     out.setByteOrder(QDataStream::BigEndian);
-    // 写入消息id 和 消息长度
+    // 写入 UUID (36B) + 消息id (2B) + 消息长度 (2B)
+    out.writeRawData(uuidPadded.constData(), 36);
     out << id << len;
     // 添加字符数据
     block.append(data);

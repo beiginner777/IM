@@ -29,6 +29,7 @@ SOURCES += \
     data/chatthreaddata.cpp \
     dialogs/chatuserlist.cpp \
     dialogs/chatuserwidget.cpp \
+    widgets/chatitembase.cpp \
     widgets/clickbutton.cpp \
     widgets/clicklabel.cpp \
     widgets/clickoncelabel.cpp \
@@ -77,6 +78,7 @@ HEADERS += \
     data/chatthreaddata.h \
     dialogs/chatuserlist.h \
     dialogs/chatuserwidget.h \
+    widgets/chatitembase.h \
     widgets/clickbutton.h \
     widgets/clicklabel.h \
     widgets/clickoncelabel.h \

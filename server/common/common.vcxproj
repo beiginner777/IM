@@ -104,6 +104,7 @@
   <ItemGroup>
     <ClCompile Include="AsioIOContextThread.cpp" />
     <ClCompile Include="ConfigManager.cpp" />
+    <ClCompile Include="MessageDeduplicator.cpp" />
     <ClCompile Include="RedisLocker.cpp" />
     <ClCompile Include="RedisManager.cpp" />
   </ItemGroup>
@@ -111,6 +112,7 @@
     <ClInclude Include="AsioIOContextThreadPool.h" />
     <ClInclude Include="ConfigManager.h" />
     <ClInclude Include="RedisLocker.h" />
+    <ClInclude Include="MessageDeduplicator.h" />
     <ClInclude Include="RedisManager.h" />
     <ClInclude Include="SingleTon.h" />
   </ItemGroup>
