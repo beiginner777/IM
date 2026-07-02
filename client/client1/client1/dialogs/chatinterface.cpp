@@ -145,10 +145,10 @@ void ChatInterface::on_sendButton_clicked()
         CHAT_MSG_TYPE type = msgList[i]->msg_type_;
         if(type == CHAT_MSG_TYPE::TEXT_MSG)
         {
-            //生成唯一id
+            //生成不带大括号的唯一id
             uuid = QUuid::createUuid();
             //转为字符串
-            uuidString = uuid.toString();
+            uuidString = uuid.toString(QUuid::WithoutBraces);
             if(txt_size + msgList[i]->text_or_url_.length()> 1024){
                 //qDebug() << "txt_size + msgList[i].content.length() = " << txt_size + msgList[i].content.length();
 
@@ -206,7 +206,7 @@ void ChatInterface::on_sendButton_clicked()
              //生成唯一id
              uuid = QUuid::createUuid();
              //转为字符串
-             uuidString = uuid.toString();
+             uuidString = uuid.toString(QUuid::WithoutBraces);
              // 将图片消息封装成ImageMsg
              std::shared_ptr<ImageDataBase> image = std::make_shared<ImageDataBase>(msgList[i],-1,uuidString,thread_id,CHAT_THREAD_TYPE::CHAT_THREAD_TYPE_PRIVATE,
                                                                                     type, selfInfo->uid_,peerInfo_->uid_, 0,QDateTime());

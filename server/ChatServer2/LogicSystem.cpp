@@ -3,6 +3,7 @@
 #include "CSession.h"
 #include "RedisManager.h"
 #include "MysqlManager.h"
+#include "MessageDeduplicator.h"
 #include "UserManager.h"
 #include "ChatGrpcClient.h"
 #include "CServer.h"
@@ -11,7 +12,6 @@
 LogicSystem::LogicSystem() : b_stop_(false)
 {
 	registerFunctionCallbacks();
-	// 开启子线程
 	work_thread_ = std::thread(&LogicSystem::dealTask, this);
 }
 
@@ -31,7 +31,7 @@ void LogicSystem::dealTask()
 			std::cout << "LoginSystem is waiting for data . . ." << std::endl;
 			cond_.wait(locker);
 		}
-		// 逻辑层停止工作
+
 		if (b_stop_)
 		{
 			while (!que_.empty())
@@ -39,33 +39,32 @@ void LogicSystem::dealTask()
 				std::shared_ptr<LogicNode> node = que_.front();
 				que_.pop();
 
-				// 获取逻辑结点对应的 消息id
 				short msgId = node->recvNode_->msg_id_;
+				std::string uuid = node->recvNode_->uuid_;
 			
 				if (handlers_.count(msgId)) {
 					std::cout << "handle task whose id = " << msgId << ":" << std::endl;
-					handlers_[msgId](node->session_, msgId, std::string(node->recvNode_->data_, node->recvNode_->totol_len_));
+					handlers_[msgId](node->session_, msgId,
+					                 std::string(node->recvNode_->data_, node->recvNode_->totol_len_), uuid);
 				}
 				else {
 					std::cout << "system error: can't find FunctinCallback: " << msgId << std::endl;
 				}
 			}
-			// detail break
 			break;
 		}
 
-		// 逻辑层没有退出，那么就正常取数据
 		if (!que_.empty())
 		{
 			std::shared_ptr<LogicNode> node = que_.front();
 			que_.pop();
 
-			// 获取逻辑结点对应的 消息id
 			short msgId = node->recvNode_->msg_id_;
+			std::string uuid = node->recvNode_->uuid_;
 
 			if (handlers_.count(msgId)) {
 				std::cout << "handle task whose id = " << msgId << ":" << std::endl;
-				handlers_[msgId](node->session_, msgId, std::string(node->recvNode_->data_, node->recvNode_->totol_len_));
+				handlers_[msgId](node->session_, msgId, std::string(node->recvNode_->data_, node->recvNode_->totol_len_), uuid);
 			}
 			else {
 				std::cout << "system error: can't find FunctinCallback: " << msgId << std::endl;
@@ -76,39 +75,24 @@ void LogicSystem::dealTask()
 
 void LogicSystem::registerFunctionCallbacks()
 {
-	// 向状态服务器注册 -- ID_REGISTER_REQ（向状态服务器注册的消息）
-	handlers_[ID_REGISTER_REQ] = std::bind(&LogicSystem::registerToStatusServer, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	// 登录验证 -- ID_CHAT_LOGIN_RSP（返回登录验证的结果）
-	handlers_[ID_CHAT_LOGIN] = std::bind(&LogicSystem::loginHandle, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	// 搜索用户信息 -- ID_SEARCH_USER_RSP（返回搜索的结果）
-	handlers_[ID_SEARCH_USER_REQ] = std::bind(&LogicSystem::searchHandle, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	// 申请添加好友 -- ID_APPLY_FRIEND_RSP(需要告知他申请成功，同时向对方发送申请 -- ID_NOTIFY_ADD_FRIEND_REQ)
-	handlers_[ID_APPLY_FRIEND_REQ] = std::bind(&LogicSystem::applyHandle, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	// 通过好友申请 -- ID_AUTH_FRIEND_RSP (需要告知他通过好友成功，同时告知对方添加好友成功 -- ID_NOTIFY_ACCESS_VERIFY)
-	handlers_[ID_AUTH_FRIEND_REQ] = std::bind(&LogicSystem::authAccess, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	// 处理发送的文本消息 -- ID_TEXT_CHAT_MSG_RSP (并且告诉对方有新的聊天消息)
-	handlers_[ID_TEXT_CHAT_MSG_REQ] = std::bind(&LogicSystem::dealTextChatMsg, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	// 心跳检测 -- 更新Session的时间戳
-	handlers_[ID_HEADT_CHECK_REQ] = std::bind(&LogicSystem::heartCheck, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	// 返回用户的聊天列表
-	handlers_[ID_LOAD_CHAT_THREAD_REQ] = std::bind(&LogicSystem::loadChatList, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	// 创建私聊线程
-	handlers_[ID_CREATE_PRIVATE_CHAT_THREAD_REQ] = std::bind(&LogicSystem::createPrivateThread, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	// 加载用户的好友列表
-	handlers_[ID_LOAD_MORE_FRIEND_REQ] = std::bind(&LogicSystem::loadConnList, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	// 获取离线的通知消息
-	//handlers_[ID_GET_NOTIFY_MESSAGE_RSP] = std::bind(&LogicSystem::loadNotifyMsg, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	// 处理发送的图片消息 -- ID_IMAGE_CHAT_MSG_RSP (并且告诉对方有新的聊天消息)
-	handlers_[ID_IMAGE_CHAT_MSG_REQ] = std::bind(&LogicSystem::dealImageChatMsg, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	// 加载好友申请列表
-	handlers_[ID_LOAD_FRIEND_APPLY_REQ] = std::bind(&LogicSystem::loadFriendApplyList, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	// 加载聊天消息
-	handlers_[ID_REGISTER_RSP] = std::bind(&LogicSystem::registerToStatusServer,this,std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	// 心跳检测的回包
-	handlers_[ID_HEADT_CHECK_RSP] = std::bind(&LogicSystem::heartCheckWithStatusServer, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+	handlers_[ID_REGISTER_REQ] = std::bind(&LogicSystem::registerToStatusServer, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+	handlers_[ID_CHAT_LOGIN] = std::bind(&LogicSystem::loginHandle, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+	handlers_[ID_SEARCH_USER_REQ] = std::bind(&LogicSystem::searchHandle, this, std::placeholders::_1,std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+	handlers_[ID_APPLY_FRIEND_REQ] = std::bind(&LogicSystem::applyHandle, this, std::placeholders::_1,std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+	handlers_[ID_AUTH_FRIEND_REQ] = std::bind(&LogicSystem::authAccess, this, std::placeholders::_1,std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+	handlers_[ID_TEXT_CHAT_MSG_REQ] = std::bind(&LogicSystem::dealTextChatMsg, this, std::placeholders::_1,std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+	handlers_[ID_HEADT_CHECK_REQ] = std::bind(&LogicSystem::heartCheck, this, std::placeholders::_1,std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+	handlers_[ID_LOAD_CHAT_THREAD_REQ] = std::bind(&LogicSystem::loadChatList, this, std::placeholders::_1,std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+	handlers_[ID_CREATE_PRIVATE_CHAT_THREAD_REQ] = std::bind(&LogicSystem::createPrivateThread, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+	handlers_[ID_LOAD_MORE_FRIEND_REQ] = std::bind(&LogicSystem::loadConnList, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+	handlers_[ID_IMAGE_CHAT_MSG_REQ] = std::bind(&LogicSystem::dealImageChatMsg, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+	handlers_[ID_LOAD_FRIEND_APPLY_REQ] = std::bind(&LogicSystem::loadFriendApplyList, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+	handlers_[ID_REGISTER_RSP] = std::bind(&LogicSystem::registerToStatusServer, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+	handlers_[ID_HEADT_CHECK_RSP] = std::bind(&LogicSystem::heartCheckWithStatusServer, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 }
 
-void LogicSystem::registerToStatusServer(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+void LogicSystem::registerToStatusServer(std::shared_ptr<CSession> session, short msgId, std::string msgData,
+                                         std::string uuid)
 {
 	Json::Reader reader;
 	Json::Value root;
@@ -120,8 +104,8 @@ void LogicSystem::registerToStatusServer(std::shared_ptr<CSession> session, shor
 	std::string msg = root["msg"].asString();
 
 	if (code != SUCCESS) {
-		std::cout << "registerToStatusServer failed：" << msg << std::endl;
-		exit(-1); // TODO: 可以改成重试机制
+		std::cout << "registerToStatusServer failed." << msg << std::endl;
+		exit(-1);
 	}
 	else {
 		std::cout << "Register to StatusServer successfully." << std::endl;
@@ -140,7 +124,6 @@ bool LogicSystem::getUserByUid(std::string uid, Json::Value& rtvalue)
 
 	std::string base_key = USERBASEINFO + uid;
 
-	//优先查redis中查询用户信息
 	std::string info_str = RedisManager::getInstance()->Get(base_key);
 
 	if (!info_str.empty()) {
@@ -168,7 +151,6 @@ bool LogicSystem::getUserByUid(std::string uid, Json::Value& rtvalue)
 		return true;
 	}
 
-	//查询mysql数据库
 	std::shared_ptr<UserInfo> userInfo = MysqlManager::getInstance()->getUserByUid(std::atoi(uid.c_str()));
 
 	if (userInfo == nullptr) {
@@ -176,7 +158,6 @@ bool LogicSystem::getUserByUid(std::string uid, Json::Value& rtvalue)
 		return false;
 	}
 
-	//将数据库内容写入redis缓存
 	Json::Value redis_root;
 	redis_root["uid"] = userInfo->uid_;
 	redis_root["password"] = userInfo->pwd_;
@@ -191,7 +172,6 @@ bool LogicSystem::getUserByUid(std::string uid, Json::Value& rtvalue)
 		std::cout << "read user("<< uid << ") to redis failed." << std::endl;
 	}
 
-	//返回数据
 	rtvalue["uid"] = userInfo->uid_;
 	rtvalue["password"] = userInfo->pwd_;
 	rtvalue["name"] = userInfo->name_;
@@ -210,7 +190,6 @@ bool LogicSystem::getUserByName(std::string name, Json::Value& rtvalue)
 
 	std::string base_key = USERBASEINFO + name;
 
-	//优先查redis中查询用户信息
 	std::string info_str = RedisManager::getInstance()->Get(base_key);
 
 	if (!info_str.empty()) {
@@ -229,9 +208,7 @@ bool LogicSystem::getUserByName(std::string name, Json::Value& rtvalue)
 			<< name << " pwd is " << pwd << " email is " << email << " icon is " << icon << std::endl;
 
 		rtvalue["uid"] = uid;
-		//rtvalue["password"] = pwd;
 		rtvalue["name"] = name;
-		//rtvalue["email"] = email;
 		rtvalue["nick"] = nick;
 		rtvalue["desc"] = desc;
 		rtvalue["sex"] = sex;
@@ -239,7 +216,6 @@ bool LogicSystem::getUserByName(std::string name, Json::Value& rtvalue)
 		return true;
 	}
 
-	//查询mysql数据库
 	std::shared_ptr<UserInfo> userInfo = MysqlManager::getInstance()->getUserByName(name);
 
 	if (userInfo == nullptr) {
@@ -247,7 +223,6 @@ bool LogicSystem::getUserByName(std::string name, Json::Value& rtvalue)
 		return false;
 	}
 
-	//将数据库内容写入redis缓存
 	Json::Value redis_root;
 	redis_root["uid"] = userInfo->uid_;
 	redis_root["password"] = userInfo->pwd_;
@@ -262,11 +237,8 @@ bool LogicSystem::getUserByName(std::string name, Json::Value& rtvalue)
 		std::cout << "set user(uid) to redis failed." << std::endl;
 	}
 	
-	//返回数据
 	rtvalue["uid"] = userInfo->uid_;
-	//rtvalue["password"] = user.getPassword();
 	rtvalue["name"] = userInfo->name_;
-	//rtvalue["email"] = user.getEmail();
 	rtvalue["nick"] = userInfo->nick_;
 	rtvalue["desc"] = userInfo->desc_;
 	rtvalue["sex"] = userInfo->sex_;
@@ -282,7 +254,7 @@ void LogicSystem::postMsgToQue(std::shared_ptr<LogicNode> logicNode)
 	cond_.notify_all();
 }
 
-void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
 
@@ -313,12 +285,11 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 		chatMsg->sender_id = uid;
 		chatMsg->recv_id = touid;
 		chatMsg->content = content;
-		chatMsg->status = 2; // 发送成功
-		chatMsg->chat_time = GetCurrentTimestamp(); // 服务器端生成时间戳
+		chatMsg->status = 2;
+		chatMsg->chat_time = GetCurrentTimestamp();
 		chatMsg->type = CHAT_MSG_TYPE::TEXT_MSG;
 		chat_datas.push_back(chatMsg);
 	}
-	// 将消息插入到数据库当中
 	MysqlManager::getInstance()->AddChatMsg(chat_datas);
 	for (auto& chat_data : chat_datas) {
 		Json::Value  chat_msg;
@@ -330,11 +301,10 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 		rtvalue["chat_datas"].append(chat_msg);
 	}
 
-	Defer defer([session,this,rtvalue]() {
-		session->Send(rtvalue.toStyledString(), ID_TEXT_CHAT_MSG_RSP);
+	Defer defer([session,this,rtvalue,uuid]() {
+		session->Send(rtvalue.toStyledString(), ID_TEXT_CHAT_MSG_RSP, uuid);
 	});
 
-	//查询redis 查找touid对应的server ip
 	auto to_str = std::to_string(touid);
 	auto peer_ip_key = USERIPPREFIX + to_str;
 
@@ -343,7 +313,7 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 	if (peerIP.empty())
 	{
 		rtvalue["code"] = ERROR_FIND_PEER_IP;
-		rtvalue["messgae"] = "对方ip异常，发送文本消息失败.";
+		rtvalue["messgae"] = "???ip?????????????????.";
 		return;
 	}
 
@@ -353,8 +323,6 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 	auto cfg = ConfigManager::getInstance();
 	auto selfName = cfg["SelfServer"]["Name"];
 
-	// 连接在同一个ChatServer上，那么就直接通知对方
-
 	std::cout << "PeerIP: " << peerIP << " " << "SelfIP: " << selfName << std::endl;
 
 	rtvalue["text_array"] = arrays;
@@ -362,21 +330,18 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 	if (peerIP == selfName) {
 		auto session = UserManager::getInstance()->GetSession(touid);
 		if (session) {
-			//在内存中则直接发送通知对方
-			session->Send(rtvalue.toStyledString(), ID_NOTIFY_TEXT_CHAT_MSG_REQ);
+			session->Send(rtvalue.toStyledString(), ID_NOTIFY_TEXT_CHAT_MSG_REQ, uuid);
 		}
 		else
 		{
 			rtvalue["code"] = ERROE_CODR::ERROR_SEND_MSG_FAILED;
-			rtvalue["message"] = "未知的错误";
+			rtvalue["message"] = "锟斤拷??????";
 			std::cout << "Unknow error: can't find session in memory for uid = " << touid << std::endl;
 		}
 		return;
 	}
 
-	// 需要调用rpc服务
-
-	std::cout << "Need to call rpc Service.(发送文本消息)" << std::endl;
+	std::cout << "Need to call rpc Service.(??????????)" << std::endl;
 
 	TextChatMsgReq text_msg_req;
 	text_msg_req.set_fromuid(uid);
@@ -391,29 +356,24 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 		text_msg->set_msgcontent(content);
 	}
 
-	//发送通知 to do...
 	ChatGrpcClient::getInstance()->NotifyTextChatMsg(peerIP, text_msg_req, rtvalue);
 }
 
-void LogicSystem::receiveFriendApply(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+void LogicSystem::receiveFriendApply(std::shared_ptr<CSession> session, short msgId, std::string msgData,
+                                     std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
 
-	// 收到别人申请好友的消息
 	Json::Value root;
 	Json::Reader reader;
-	// 解析数据
 	if (!reader.parse(msgData, root))
 	{
-		// 解析失败，那么就返回错误提示
 		Json::Value value;
 		value["code"] = ERROE_CODR::ERROR_JSON;
 		value["message"] = "prase json failed.";
-		session->Send(value.toStyledString(), msgId);
+		session->Send(value.toStyledString(), msgId, uuid);
 		return;
 	}
-
-	// 解析成功，那么就通知对方有了
 
 	int applyuid = root["applyuid"].asInt();
 	std::string name = root["name"].asString();
@@ -428,80 +388,66 @@ void LogicSystem::receiveFriendApply(std::shared_ptr<CSession> session, short ms
 		return;
 	}
 	
-	session->Send(rtvalue.toStyledString(), ID_NOTIFY_ADD_FRIEND_REQ);
+	session->Send(rtvalue.toStyledString(), ID_NOTIFY_ADD_FRIEND_REQ, uuid);
 }
 
-void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
 
 	Json::Value root;
 	Json::Reader reader;
 	
-	// 解析数据
 	if (!reader.parse(msgData, root))
 	{
-		// 解析失败，那么就返回错误提示
 		Json::Value value;
 		value["code"] = ERROE_CODR::ERROR_JSON;
 		value["message"] = "prase json failed.";
-		session->Send(value.toStyledString(), msgId);
+		session->Send(value.toStyledString(), msgId, uuid);
 		return;
 	}
 	
-	// 解析成功，处理对应的逻辑
-
-	// client 发送的 信息
 	int uid = root["uid"].asInt();
 	std::string token = root["token"].asString();
 
 	std::cout << "uid = " << uid << " request login ChatServer,token = " << token << std::endl;
 
 	Json::Value value;
-	// 向状态服务器验证。（因为状态服务器已经将数据写在redis缓存当中，那么访问redis缓存就相当于是访问StatusServer了）
 	
-	// 访问 redis
 	std::string TokenValue = RedisManager::getInstance()->Get(USERUIDPREFIX + std::to_string(uid));
 
 	if (TokenValue == "")
 	{
-		// uid 不存在
 		value["code"] = ERROR_INVALIDUID;
 		value["message"] = "uid does not exists.";
-		session->Send(value.toStyledString(), msgId);
+		session->Send(value.toStyledString(), msgId, uuid);
 		return;
 	}
 
 	if (TokenValue !=  USERTOKENPREFIX + token)
 	{
-		// 说明用户发送的 Token 不正确
 		value["code"] = ERROR_INVALIDTOKEN;
 		value["message"] = "Token does not exists.";
-		session->Send(value.toStyledString(), msgId);
+		session->Send(value.toStyledString(), msgId, uuid);
 		return;
 	}
 
-	// 此处添加分布式锁，让线程独占登录
 	std::string lock_key = LOCKPREFIX + std::to_string(uid);
 	std::string identifier = RedisManager::getInstance()->acqueireLock(lock_key, LOCK_TIMEOUT, ACQUIRE_TIMEOUT);
 	
-	// 获取到了锁，那么就判断当前用户的登录状态，是本地登录还是异地登录
 	std::string ip = RedisManager::getInstance()->Get(USERIPPREFIX + std::to_string(uid));
 	auto cfg = ConfigManager::getInstance();
 	if (ip == "") {
-		// 第一次登陆，那么就不执行其它 if 判断
+
 	}
 	else if (ip == cfg["SelfServer"]["Name"]) {
-		// 本地登录
 		auto oldSession = UserManager::getInstance()->GetSession(uid);
 		if (oldSession) {
-			// 需要去通知old_session退出(先登录，后退出)
 			oldSession->notifyOffLine(uid);
 			std::cout << "old session = " << oldSession->getUuid() << std::endl;
 		}
 	}
 	else {
-		// 异地登录（grpc）
 		KickUserReq req;
 		req.set_uid(uid);
 		ChatGrpcClient::getInstance()->NotifyKickUser(ip, req);
@@ -509,15 +455,13 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 
 	std::string uid_str = std::to_string(uid);
 	if (!getUserByUid(uid_str, value)) {
-		session->Send(value.toStyledString(), ID_CHAT_LOGIN_RSP);
+		session->Send(value.toStyledString(), ID_CHAT_LOGIN_RSP, uuid);
 		return;
 	}
 
-	// 将离线的通知消息发送给Client
 	std::cout << "Get offline notify messages for uid = " << uid << std::endl;
 	std::vector<std::string> notify_messages = RedisManager::getInstance()->popOfflineMessages(uid);
 	for (std::string& msg : notify_messages) {
-		//std::cout << "\t\tnotify message: " << msg << std::endl;
 		Json::Reader tr;
 		Json::Value tv;
 		Json::Value vv;
@@ -534,41 +478,34 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 		}
 	}
 
-	// 验证成功
 	value["code"] = ERROE_CODR::SUCCESS;
 	value["message"] = "Verify success from ChatServer.";
 	value["token"] = token;
-	// 登录成功，那么就需要将当前ChatServer的连接数 + 1
 	std::string name = cfg["SelfServer"]["Name"];
 	std::string res = RedisManager::getInstance()->HGet(LOGINCOUNT, name);
 	int count = std::stoi(res);
 	count++;
 	RedisManager::getInstance()->HSet(LOGINCOUNT, name, std::to_string(count));
 
-	// 登录成功那么，就设置这个session对应的uid
 	session->setUserId(uid);
 
-	//为用户设置登录ip server的名字
 	std::string ipkey = USERIPPREFIX + std::to_string(uid);
 	RedisManager::getInstance()->Set(ipkey, name);
 
 	std::cout << "after user login: " << std::endl;
 	UserManager::getInstance()->printSessions();
 
-	//uid和session绑定管理,方便以后踢人操作
 	UserManager::getInstance()->addSession(uid, session);
 
-	// 注意这里发送回去的 msgid 应该是 ID_CHAT_LOGIN_RSP 
-	session->Send(value.toStyledString(), ID_CHAT_LOGIN_RSP);
+	session->Send(value.toStyledString(), ID_CHAT_LOGIN_RSP, uuid);
 
 	std::cout << "after user login: " << std::endl;
 	UserManager::getInstance()->printSessions();
 
-	// 释放分布式锁
 	RedisManager::getInstance()->releaseLock(lock_key, identifier);
 }
 
-void LogicSystem::authAccess(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+void LogicSystem::authAccess(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
 
@@ -577,13 +514,11 @@ void LogicSystem::authAccess(std::shared_ptr<CSession> session, short msgId, std
 	
 	Json::Value rtvalue;
 
-	// 解析数据
 	if (!reader.parse(msgData, root))
 	{
-		// 解析失败，那么就返回错误提示
 		rtvalue["code"] = ERROE_CODR::ERROR_JSON;
 		rtvalue["message"] = "prase json failed.";
-		session->Send(rtvalue.toStyledString(), ID_AUTH_FRIEND_RSP);
+		session->Send(rtvalue.toStyledString(), ID_AUTH_FRIEND_RSP, uuid);
 		return;
 	}
 
@@ -597,7 +532,7 @@ void LogicSystem::authAccess(std::shared_ptr<CSession> session, short msgId, std
 	if (!ret) {
 		rtvalue["code"] = ERROE_CODR::ERROR_AUTH_APPLY;
 		rtvalue["message"] = "verify friendApply failed.";
-		session->Send(rtvalue.toStyledString(), ID_AUTH_FRIEND_RSP);
+		session->Send(rtvalue.toStyledString(), ID_AUTH_FRIEND_RSP, uuid);
 		return;
 	}
 
@@ -611,13 +546,11 @@ void LogicSystem::authAccess(std::shared_ptr<CSession> session, short msgId, std
 		rtvalue["message"] = "verify friendApply failed.";
 	}
 	
-	// 好友关系加入表 friend 中
 	int thread_id1 = 0;
 	int thread_id2 = 0;
 	int friend_id1 = 0;
 	int friend_id2 = 0;
 
-	// to do ... 设置状态应该和添加好友关系是一个事务操作
 	if (status == FRIEND_APPLY::ACCEPTED) {
 		rtvalue["status"] = FRIEND_APPLY::ACCEPTED;
 		ret = MysqlManager::getInstance()->addFriendRelation(fromuid, touid, thread_id1, thread_id2, friend_id1, friend_id2);
@@ -628,35 +561,30 @@ void LogicSystem::authAccess(std::shared_ptr<CSession> session, short msgId, std
 			rtvalue["status"] = FRIEND_APPLY::ACCEPTED;
 			rtvalue["friend_id"] = friend_id2;
 			rtvalue["thread_id"] = thread_id1;
-			session->Send(rtvalue.toStyledString(), ID_AUTH_FRIEND_RSP);
+			session->Send(rtvalue.toStyledString(), ID_AUTH_FRIEND_RSP, uuid);
 		}
 	}
 	else {
 		rtvalue["status"] = FRIEND_APPLY::REFUSED;
-		session->Send(rtvalue.toStyledString(), ID_AUTH_FRIEND_RSP);
+		session->Send(rtvalue.toStyledString(), ID_AUTH_FRIEND_RSP, uuid);
 		return;
 	}
 
-	// 如果不是通过好友申请，那么就不需要通知对方
-
-	//查询redis 查找 fromuid 对应的 server ip
 	auto to_str = std::to_string(fromuid);
 	auto peer_ip_key = USERIPPREFIX + to_str;
 	std::string peerIP = RedisManager::getInstance()->Get(peer_ip_key);
 	auto cfg = ConfigManager::getInstance();
 	auto selfName = cfg["SelfServer"]["Name"];
 
-	// 连接在同一个ChatServer上，那么就直接通知对方
 	std::cout << "PeerIP: " << peerIP << " " << "SelfIP: " << selfName << std::endl;
 
 	if (peerIP == selfName) {
 		auto session = UserManager::getInstance()->GetSession(fromuid);
 		if (session) {
-			//在内存中则直接发送通知对方
 			Json::Value notify;
 			ret = getUserByUid(std::to_string(touid), notify);
 			if (!ret) {
-				session->Send(notify.toStyledString(), ID_NOTIFY_ACCESS_VERIFY);
+				session->Send(notify.toStyledString(), ID_NOTIFY_ACCESS_VERIFY, uuid);
 				return;
 			}
 			notify["password"] = "";
@@ -666,24 +594,22 @@ void LogicSystem::authAccess(std::shared_ptr<CSession> session, short msgId, std
 			notify["friend_id"] = friend_id1;
 			notify["thread_id"] = thread_id2;
 			
-			session->Send(notify.toStyledString(), ID_NOTIFY_ACCESS_VERIFY);
+			session->Send(notify.toStyledString(), ID_NOTIFY_ACCESS_VERIFY, uuid);
 		}
 		
 		return;
 	}
 
-	// 需要调用rpc服务
-	std::cout << "Need to call rpc Service.（发送通过好友的消息）" << std::endl;
+	std::cout << "Need to call rpc Service.???????????????????" << std::endl;
 
 	AuthFriendReq req;
 	req.set_fromuid(fromuid);
 	req.set_touid(touid);
 
-	// 告诉 fromuid 好友申请成功
 	ChatGrpcClient::getInstance()->NotifyAuthFriend(peerIP, req);
 }
 
-void LogicSystem::searchHandle(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+void LogicSystem::searchHandle(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
 
@@ -692,50 +618,41 @@ void LogicSystem::searchHandle(std::shared_ptr<CSession> session, short msgId, s
 	Json::Value root;
 	Json::Reader reader;
 
-	// 解析数据
 	if (!reader.parse(msgData, root))
 	{
-		// 解析失败，那么就返回错误提示
 		Json::Value value;
 		value["code"] = ERROE_CODR::ERROR_JSON;
 		value["message"] = "prase json failed.";
-		session->Send(value.toStyledString(), msgId);
+		session->Send(value.toStyledString(), msgId, uuid);
 		return;
 	}
 
-	// 解析成功，处理对应的逻辑
-
-	// Client发送的消息
 	std::string uid = root["uid"].asString();
 
 	Json::Value value;
 
 	bool searchRes = false;
 
-	// 判断用户查找的 uid 还是 用户名字
 	if (isAllDigits(uid))
 	{
-		// 根据uid查找
 		std::cout << "Client wants to search User( uid = " << uid << " )." << std::endl;
 		searchRes = getUserByUid(uid,value);
 	}
 	else 
 	{
-		// 根据用户名字查找
 		std::cout << "Client wants to search User( name = " << uid << " )." << std::endl;
 		searchRes = getUserByName(uid, value);
 	}
 
 	if (!searchRes)
 	{
-		// 用户不存在
 		std::cout << "user(" << uid << ") not exist." << std::endl;
 	}
 
-	session->Send(value.toStyledString(), ID_SEARCH_USER_RSP);
+	session->Send(value.toStyledString(), ID_SEARCH_USER_RSP, uuid);
 }
 
-void LogicSystem::applyHandle(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+void LogicSystem::applyHandle(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
 
@@ -753,28 +670,26 @@ void LogicSystem::applyHandle(std::shared_ptr<CSession> session, short msgId, st
 	
 	int current_id = -1;
 	std::string apply_time;
-	// 在数据库在添加添加字段
 	int ret = MysqlManager::getInstance()->addFriendApply(fromuid, touid,current_id, apply_time);
 	if(ret == ERROE_CODR::ERROR_MULTIPLE_FRIEND_APPLY)
 	{
 		rtvalue["code"] = ERROE_CODR::ERROR_MULTIPLE_FRIEND_APPLY;
-		rtvalue["message"] = "请勿重复发送申请";
-		session->Send(rtvalue.toStyledString(), ID_APPLY_FRIEND_RSP);
+		rtvalue["message"] = "???????????????";
+		session->Send(rtvalue.toStyledString(), ID_APPLY_FRIEND_RSP, uuid);
 		return;
 	}
 	else if (ret == ERROE_CODR::ERROR_FRIEND_APPLY)
 	{
 		rtvalue["code"] = ERROR_FRIEND_APPLY;
-		rtvalue["message"] = "发送申请失败";
-		session->Send(rtvalue.toStyledString(), ID_APPLY_FRIEND_RSP);
+		rtvalue["message"] = "???????????";
+		session->Send(rtvalue.toStyledString(), ID_APPLY_FRIEND_RSP, uuid);
 		return;
 	}
 
 	rtvalue["code"] = ERROE_CODR::SUCCESS;
 	rtvalue["messgae"] = "send appply success.";
-	session->Send(rtvalue.toStyledString(), ID_APPLY_FRIEND_RSP);
+	session->Send(rtvalue.toStyledString(), ID_APPLY_FRIEND_RSP, uuid);
 
-	//查询redis 查找 touid对应的 server ip
 	auto to_str = std::to_string(touid);
 	auto peer_ip_key = USERIPPREFIX + to_str;
 	std::string peerIP = RedisManager::getInstance()->Get(peer_ip_key);
@@ -786,7 +701,6 @@ void LogicSystem::applyHandle(std::shared_ptr<CSession> session, short msgId, st
 		std::cout << "user " << touid << " is online, notifying peer to verify apply ...\n";
 	}
 
-	// 获取对方的信息
 	Json::Value v;
 	bool searchRes = getUserByUid(std::to_string(fromuid), v);
 	if (!searchRes) {
@@ -797,11 +711,9 @@ void LogicSystem::applyHandle(std::shared_ptr<CSession> session, short msgId, st
 	auto cfg = ConfigManager::getInstance();
 	auto selfName = cfg["SelfServer"]["Name"];
 
-	// 连接在同一个ChatServer上，那么就直接通知对方有申请消息
 	if (peerIP == selfName) {
 		auto session = UserManager::getInstance()->GetSession(touid);
 		if (session) {
-			//在内存中则直接发送通知对方
 			Json::Value notify;
 			notify["id"] = current_id;
 			notify["fromuid"] = fromuid;
@@ -816,12 +728,10 @@ void LogicSystem::applyHandle(std::shared_ptr<CSession> session, short msgId, st
 			notify["code"] = ERROE_CODR::SUCCESS;
 			notify["message"] = "you have a new friend apply.";
 			std::string return_str = notify.toStyledString();
-			session->Send(return_str, ID_NOTIFY_ADD_FRIEND_REQ);
+			session->Send(return_str, ID_NOTIFY_ADD_FRIEND_REQ, uuid);
 		}
 		return;
 	}
-
-	// 需要调用rpc服务
 
 	std::cout << "Neeed to call rpc Service." << std::endl;
 
@@ -848,11 +758,10 @@ void LogicSystem::applyHandle(std::shared_ptr<CSession> session, short msgId, st
 		add_req.set_nick(v["nick"].asString());
 	}
 
-	//发送通知
 	ChatGrpcClient::getInstance()->NotifyAddFriend(peerIP, add_req);
 }
 
-void LogicSystem::heartCheck(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+void LogicSystem::heartCheck(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
 
@@ -868,16 +777,17 @@ void LogicSystem::heartCheck(std::shared_ptr<CSession> session, short msgId, std
 	Json::Value  rtvalue;
 	rtvalue["code"] = SUCCESS;
 	rtvalue["message"] = "update HeartCheckTime Success.\n";
-	session->Send(rtvalue.toStyledString(), ID_HEADT_CHECK_RSP);
+	session->Send(rtvalue.toStyledString(), ID_HEADT_CHECK_RSP, uuid);
 }
 
-void LogicSystem::heartCheckWithStatusServer(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+void LogicSystem::heartCheckWithStatusServer(std::shared_ptr<CSession> session, short msgId, std::string msgData,
+                                             std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
 	Json::Reader reader;
 	Json::Value root;
 	reader.parse(msgData, root);
-	std::string uuid = root["uuid"].asString();
+	std::string heartUuid = root["uuid"].asString();
 	int code = root["code"].asInt();
 	std::string msg = root["msg"].asString();
 
@@ -885,11 +795,11 @@ void LogicSystem::heartCheckWithStatusServer(std::shared_ptr<CSession> session, 
 		std::cout << "error code = " << code << ",error message = " << msg << std::endl;
 	}
 	else {
-		std::cout << "heart check with status server success, uuid = " << uuid << std::endl;
+		std::cout << "heart check with status server success, uuid = " << heartUuid << std::endl;
 	}
 }
 
-void LogicSystem::loadChatList(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+void LogicSystem::loadChatList(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
 
@@ -897,9 +807,8 @@ void LogicSystem::loadChatList(std::shared_ptr<CSession> session, short msgId, s
 	Json::Value root;
 	Json::Value rtvalue;
 
-
-	Defer defer([session, this, &rtvalue]() {
-		session->Send(rtvalue.toStyledString(), ID_LOAD_CHAT_THREAD_RSP);
+	Defer defer([session, this, &rtvalue, uuid]() {
+		session->Send(rtvalue.toStyledString(), ID_LOAD_CHAT_THREAD_RSP, uuid);
 		});
 
 	rtvalue["code"] = SUCCESS;
@@ -982,7 +891,8 @@ bool LogicSystem::RemoveUserThreadImageMsg(std::string unique_name)
 	return true;
 }
 
-void LogicSystem::createPrivateThread(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+void LogicSystem::createPrivateThread(std::shared_ptr<CSession> session, short msgId, std::string msgData,
+                                      std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
 
@@ -990,8 +900,8 @@ void LogicSystem::createPrivateThread(std::shared_ptr<CSession> session, short m
 	Json::Value root;
 	Json::Value rtvalue;
 
-	Defer defer([session, this, &rtvalue]() {
-		session->Send(rtvalue.toStyledString(), ID_CREATE_PRIVATE_CHAT_THREAD_RSP);
+	Defer defer([session, this, &rtvalue, uuid]() {
+		session->Send(rtvalue.toStyledString(), ID_CREATE_PRIVATE_CHAT_THREAD_RSP, uuid);
 		});
 
 	rtvalue["code"] = SUCCESS;
@@ -1008,9 +918,7 @@ void LogicSystem::createPrivateThread(std::shared_ptr<CSession> session, short m
 
 	std::cout << "uid = " << session->getUserId() << " create PrivateChat success. " << std::endl;
 
-	// 创建者
 	int user1_id = root["user1_id"].asInt();
-	// 对方UID
 	int user2_id = root["user2_id"].asInt();
 	int thread_id = 0;
 
@@ -1028,7 +936,7 @@ void LogicSystem::createPrivateThread(std::shared_ptr<CSession> session, short m
 	rtvalue["peer_uid"] = user2_id;
 }
 
-void LogicSystem::loadConnList(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+void LogicSystem::loadConnList(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
 
@@ -1036,8 +944,8 @@ void LogicSystem::loadConnList(std::shared_ptr<CSession> session, short msgId, s
 	Json::Value root;
 	Json::Value rtvalue;
 
-	Defer defer([session, this, &rtvalue]() {
-		session->Send(rtvalue.toStyledString(), ID_LOAD_MORE_FRIEND_RSP);
+	Defer defer([session, this, &rtvalue, uuid]() {
+		session->Send(rtvalue.toStyledString(), ID_LOAD_MORE_FRIEND_RSP, uuid);
 		});
 
 	rtvalue["code"] = SUCCESS;
@@ -1060,13 +968,12 @@ void LogicSystem::loadConnList(std::shared_ptr<CSession> session, short msgId, s
 	std::cout << "uid = " << uid << " load friendlist success. " << std::endl;
 	std::cout << "last_friend_id = " << last_friend_id << std::endl;
 
-	// 在表friend查找id > last_friend_id && self_id = uid 的好友，并且在 user表 中获取好友的详细信息
 	std::map<int,std::shared_ptr<UserInfo>> friendList;
 	int ret = MysqlManager::getInstance()->getUserFriendListByLastId(uid, last_friend_id, friendList);
 	if (ret != SUCCESS) {
 		rtvalue["code"] = ERROE_CODR::ERROR_LOAD_MORE_FRIEND;
 		rtvalue["message"] = "load more friend faliled.";
-		rtvalue["max_friend_id"] = last_friend_id; // 可有可无
+		rtvalue["max_friend_id"] = last_friend_id;
 		return;
 	}
 	
@@ -1090,14 +997,15 @@ void LogicSystem::loadConnList(std::shared_ptr<CSession> session, short msgId, s
 	rtvalue["max_friend_id"] = max_id;
 }
 
-void LogicSystem::dealImageChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+void LogicSystem::dealImageChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData,
+                                   std::string uuid)
 {
 	Json::Value root;
 	Json::Reader reader;
 	Json::Value rtvalue;
 
-	Defer defer([session, this, &rtvalue]() {
-		session->Send(rtvalue.toStyledString(), ID_IMAGE_CHAT_MSG_RSP);
+	Defer defer([session, this, &rtvalue, uuid]() {
+		session->Send(rtvalue.toStyledString(), ID_IMAGE_CHAT_MSG_RSP, uuid);
 		});
 
 	rtvalue["code"] = SUCCESS;
@@ -1129,14 +1037,12 @@ void LogicSystem::dealImageChatMsg(std::shared_ptr<CSession> session, short msgI
 	chat_msg->unique_id = unique_id;
 	chat_msg->chat_time = GetCurrentTimestamp();
 	chat_msg->content = file_name;
-	chat_msg->status = MsgStatus::UN_READ; // 正在发送
+	chat_msg->status = MsgStatus::UN_READ;
 	chat_msg->type = static_cast<CHAT_MSG_TYPE>(type);
 	image_msgs.push_back(chat_msg);
 
-	// 将消息插入到数据库当中
 	MysqlManager::getInstance()->AddChatMsg(image_msgs);
 
-	// 将uuid 和 消息内容 进行缓存,在ResourceServer上传完成之后使用
 	this->AddUserThreadImageMsg(file_name, chat_msg);
 
 	for(auto msg : image_msgs) {
@@ -1154,7 +1060,8 @@ void LogicSystem::dealImageChatMsg(std::shared_ptr<CSession> session, short msgI
 	rtvalue["type"] = type;
 }
 
-void LogicSystem::loadFriendApplyList(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+void LogicSystem::loadFriendApplyList(std::shared_ptr<CSession> session, short msgId, std::string msgData,
+                                      std::string uuid)
 {
 	std::cout << "handle id = " << msgId;
 
@@ -1165,8 +1072,8 @@ void LogicSystem::loadFriendApplyList(std::shared_ptr<CSession> session, short m
 	rtvalue["code"] = SUCCESS;
 	rtvalue["message"] = "load friendApply list Success.";
 
-	Defer defer([session,this,&rtvalue]() {
-			session->Send(rtvalue.toStyledString(), ID_LOAD_FRIEND_APPLY_RSP);
+	Defer defer([session,this,&rtvalue,uuid]() {
+			session->Send(rtvalue.toStyledString(), ID_LOAD_FRIEND_APPLY_RSP, uuid);
 		});	
 
 	if (!reader.parse(msgData, root)) {
@@ -1210,7 +1117,7 @@ void LogicSystem::loadFriendApplyList(std::shared_ptr<CSession> session, short m
 	}
 }
 
-void LogicSystem::loadChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+void LogicSystem::loadChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	Json::Value root;
 	Json::Reader reader;
@@ -1219,8 +1126,8 @@ void LogicSystem::loadChatMsg(std::shared_ptr<CSession> session, short msgId, st
 	rtvalue["code"] = SUCCESS;
 	rtvalue["message"] = "Load ChatMessage Success.";
 
-	Defer defer([session, this, &rtvalue]() {
-		session->Send(rtvalue.toStyledString(), ID_LOAD_CHAT_MSG_RSP);
+	Defer defer([session, this, &rtvalue, uuid]() {
+		session->Send(rtvalue.toStyledString(), ID_LOAD_CHAT_MSG_RSP, uuid);
 		});
 
 	if (!reader.parse(msgData, root)) {

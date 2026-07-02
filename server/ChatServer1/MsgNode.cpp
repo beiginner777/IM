@@ -1,6 +1,9 @@
 #include "MsgNode.h"
 
-RecvNode::RecvNode(short max_len, short msg_id) : MsgNode(max_len), msg_id_(msg_id)
+RecvNode::RecvNode(short max_len, short msg_id, std::string uuid) 
+	: MsgNode(max_len)
+	, msg_id_(msg_id) 
+	, uuid_(uuid) 
 {
 }
 
