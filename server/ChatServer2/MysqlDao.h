@@ -62,7 +62,7 @@ public:
 		while (!b_stop_ && connections_.empty())
 		{
 			if (std::cv_status::timeout == cond_.wait_for(locker_, std::chrono::milliseconds(100))){
-				std::cout << "Get mysqlConn failed，mysqlPool is empty." << std::endl;
+				std::cout << "Get mysqlConn failed锟斤拷mysqlPool is empty." << std::endl;
 				return nullptr;
 			}
 			else{
@@ -71,7 +71,7 @@ public:
 		}
 		if (b_stop_)
 		{
-			std::cout << "Get mysqlConn failed，mysqlPool has stopped. " << std::endl;
+			std::cout << "Get mysqlConn failed锟斤拷mysqlPool has stopped. " << std::endl;
 			return nullptr;
 		}
 		std::unique_ptr<SqlConnection> conn = std::move(connections_.front());
@@ -96,22 +96,18 @@ public:
 
 	void checkConnectionPro()
 	{
-		// 1. 目标处理数量（仅作为参考值）
 		std::size_t targetCount = 0;
 		{
 			std::lock_guard<std::mutex> locker(mtx_);
 			targetCount = connections_.size();
 		}
-		// 2. 当前已经处理的数量
 		std::size_t processdCount = 0;
 
-		// 获取当前的时间戳
 		auto now = std::chrono::system_clock::now().time_since_epoch();
 		long long timeStamp = std::chrono::duration_cast<std::chrono::seconds>(now).count();
 
 		while (!b_stop_ && processdCount < targetCount)
 		{
-			// 取出连接
 			std::unique_ptr<SqlConnection> conn;
 			{
 				std::lock_guard<std::mutex> locker(mtx_);
@@ -122,17 +118,14 @@ public:
 				connections_.pop();
 			}
 			bool healthy = true;
-			// 检测该连接是否失效了
 			if (timeStamp - conn->lastOperationTime_ >= MYSQL_CONN_OVERTIME)
 			{
 				try{
 					std::unique_ptr<sql::Statement> stmt(conn->con_->createStatement());
 					stmt->executeQuery("select 1");
-					// 没有抛出异常，那么就更新时间戳
 					conn->lastOperationTime_ = timeStamp;
 				}
 				catch (sql::SQLException& e) {
-					// 说明连接失效了
 					std::cout << "MysqlConnectin is not alive.\n";
 					healthy = false;
 					failedCount_++;
@@ -140,11 +133,9 @@ public:
 			}
 
 			if (healthy) {
-				// 连接是正常的，那么就归还
 				returnConnection(std::move(conn));
 			}
 			else {
-				// 重新建立一个连接，并且放入队列
 				std::cout << "processdCount = " << processdCount << " " << "failedCount = " << failedCount_ << std::endl;
 			}
 			++processdCount;
@@ -198,9 +189,7 @@ private:
 				conn->setSchema(schema);
 				std::cout << "Mysql Connect success.";
 
-				//获取当前时间戳
 				auto currentTime = std::chrono::system_clock::now().time_since_epoch();
-				// 将时间戳转化为秒
 				long long timeStamp = std::chrono::duration_cast<std::chrono::seconds>(currentTime).count();
 
 				connections_.push(std::make_unique<SqlConnection>(conn, timeStamp));

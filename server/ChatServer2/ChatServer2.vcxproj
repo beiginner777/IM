@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -105,13 +105,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\MySQL80\mysql-connector-c++-8.0.29-winx64-debug\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)..\common;D:\MySQL80\mysql-connector-c++-8.0.29-winx64-debug\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>mysqlcppconn.lib;mysqlcppconn8.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>D:\MySQL80\mysql-connector-c++-8.0.29-winx64-debug\lib64\vs14\debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>common.lib;mysqlcppconn.lib;mysqlcppconn8.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)$(Platform)\$(Configuration)\;D:\MySQL80\mysql-connector-c++-8.0.29-winx64-debug\lib64\vs14\debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -131,10 +131,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="AsioIOContextThread.cpp" />
     <ClCompile Include="ChatGrpcClient.cpp" />
     <ClCompile Include="ChatServiceImpl.cpp" />
-    <ClCompile Include="ConfigManager.cpp" />
     <ClCompile Include="CServer.cpp" />
     <ClCompile Include="CSession.cpp" />
     <ClCompile Include="LogicSystem.cpp" />
@@ -144,16 +142,12 @@
     <ClCompile Include="MsgNode.cpp" />
     <ClCompile Include="MysqlDao.cpp" />
     <ClCompile Include="MysqlManager.cpp" />
-    <ClCompile Include="RedisLocker.cpp" />
-    <ClCompile Include="RedisManager.cpp" />
     <ClCompile Include="UserManager.cpp" />
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AsioIOContextThreadPool.h" />
     <ClInclude Include="ChatGrpcClient.h" />
     <ClInclude Include="ChatServiceImpl.h" />
-    <ClInclude Include="ConfigManager.h" />
     <ClInclude Include="CServer.h" />
     <ClInclude Include="CSession.h" />
     <ClInclude Include="data.h" />
@@ -164,9 +158,6 @@
     <ClInclude Include="MsgNode.h" />
     <ClInclude Include="MysqlDao.h" />
     <ClInclude Include="MysqlManager.h" />
-    <ClInclude Include="RedisLocker.h" />
-    <ClInclude Include="RedisManager.h" />
-    <ClInclude Include="SingleTon.h" />
     <ClInclude Include="UserManager.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
@@ -177,6 +168,11 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="workFlow.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\common\common.vcxproj">
+      <Project>{8A3F1B2C-5D6E-4F7A-9B0C-1D2E3F4A5B6C}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

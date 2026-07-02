@@ -3,7 +3,6 @@
 
 #include "global.h"
 
-
 class CSession;
 
 class CServer : public std::enable_shared_from_this<CServer>

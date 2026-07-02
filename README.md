@@ -1,7 +1,7 @@
 # 一、总体架构图
 
 
-![](../drawio/1782684161650.drawio.svg)
+![](drawio/1782684161650.drawio.svg)
 
 ---
 
@@ -19,7 +19,7 @@
 
 ## 2.3 ChatServer
 
-![1782912780710.drawio](drawio/1782912780710.drawio.svg)
+![1782687278041.drawio](drawio/1782687278041.drawio.svg)
 
 --- 
 
@@ -31,31 +31,30 @@
 
 # 三、存储层
 
-![](../drawio/1782684256881.drawio.svg)
+![](drawio/1782684256881.drawio.svg)
 
 ---
 
 # 四、核心时序
 
 ## 4.1 消息发送 + ACK
-
-![1782913037358.drawio](drawio/1782913037358.drawio.svg)
+![](drawio/1782684360406.drawio.svg)
 
 ---
 
 ## 4.2 抢红包 (Redis Lua 原子操作)
-![](1782684406499.drawio.svg)
+![](drawio/1782684406499.drawio.svg)
 
 ---
 
 ## 4.3 通讯录匹配 + 布隆过滤器
-![](1782684446469.drawio.svg)
+![](drawio/1782684446469.drawio.svg)
 
 ---
 
 ## 4.4 分布式限流（令牌桶）
 
-![](../drawio/1782688803442.drawio.svg)
+![](drawio/1782688803442.drawio.svg)
 
 ---
 
@@ -85,16 +84,16 @@
 
 ## 4.9 Client→ChatServer（一致性哈希路由 + 节点扩缩容）
 
-![1782690636108.drawio](../drawio/1782690636108.drawio.svg)
+![1782690636108.drawio](drawio/1782690636108.drawio.svg)
 
 ---
 
 ## 4.10 ChatServer→ResourceServer（一致性哈希文件路由）
 
-![1782690658441.drawio](../drawio/1782690658441.drawio.svg)
+![1782690658441.drawio](drawio/1782690658441.drawio.svg)
 
 ---
 
 ## 4.11 MySQL 分表（一致性哈希分片 + 扩容）
 
-![1782690690788.drawio](../drawio/1782690690788.drawio.svg)
+![1782690690788.drawio](drawio/1782690690788.drawio.svg)

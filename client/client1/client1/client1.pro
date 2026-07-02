@@ -4,6 +4,8 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
 
+INCLUDEPATH += . core widgets dialogs network data
+
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
 # depend on your compiler). Please consult the documentation of the
@@ -16,146 +18,125 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
-    adduseritem.cpp \
-    applyfriend.cpp \
-    applyfrienditem.cpp \
-    applyfriendpage.cpp \
-    authfriendapply.cpp \
-    chatdatalist.cpp \
-    chatdialog.cpp \
-    chatinterface.cpp \
-    chatitembase.cpp \
-    chatthreaddata.cpp \
-    chatuserlist.cpp \
-    chatuserwidget.cpp \
-    clickbutton.cpp \
-    clicklabel.cpp \
-    clickoncelabel.cpp \
-    contactuserlist.cpp \
-    contactuserwidget.cpp \
-    customizeedit.cpp \
-    fileuploadmsg.cpp \
-    findfaildialog.cpp \
-    findsuccessdialog.cpp \
-    friendinfointerface.cpp \
-    friendlabel.cpp \
-    global.cpp \
-    grouptipitem.cpp \
-    httpmanager.cpp \
-    imageviewerdialog.cpp \
-    listitembase.cpp \
-    loadingdialog.cpp \
-    loadlocaldata.cpp \
-    logindialog.cpp \
-    logineduserlist.cpp \
-    logineduserwidget.cpp \
-    main.cpp \
-    mainwindow.cpp \
-    messagetextedit.cpp \
-    offlinedialog.cpp \
-    registerdialog.cpp \
-    searchlist.cpp \
-    settingpage.cpp \
-    sqlitemanager.cpp \
-    statewidget.cpp \
-    tcpmsg.cpp \
-    tcpthread.cpp \
-    timerbtn.cpp \
-    userdata.cpp \
-    usermanager.cpp
+    dialogs/adduseritem.cpp \
+    dialogs/applyfriend.cpp \
+    dialogs/applyfrienditem.cpp \
+    dialogs/applyfriendpage.cpp \
+    dialogs/authfriendapply.cpp \
+    data/chatdatalist.cpp \
+    dialogs/chatdialog.cpp \
+    dialogs/chatinterface.cpp \
+    data/chatthreaddata.cpp \
+    dialogs/chatuserlist.cpp \
+    dialogs/chatuserwidget.cpp \
+    widgets/chatitembase.cpp \
+    widgets/clickbutton.cpp \
+    widgets/clicklabel.cpp \
+    widgets/clickoncelabel.cpp \
+    dialogs/contactuserlist.cpp \
+    dialogs/contactuserwidget.cpp \
+    widgets/customizeedit.cpp \
+    data/fileuploadmsg.cpp \
+    dialogs/findfaildialog.cpp \
+    dialogs/findsuccessdialog.cpp \
+    dialogs/friendinfointerface.cpp \
+    dialogs/friendlabel.cpp \
+    core/global.cpp \
+    widgets/grouptipitem.cpp \
+    network/httpmanager.cpp \
+    dialogs/imageviewerdialog.cpp \
+    widgets/listitembase.cpp \
+    dialogs/loadingdialog.cpp \
+    data/loadlocaldata.cpp \
+    dialogs/logindialog.cpp \
+    dialogs/logineduserlist.cpp \
+    dialogs/logineduserwidget.cpp \
+    core/main.cpp \
+    core/mainwindow.cpp \
+    widgets/messagetextedit.cpp \
+    dialogs/offlinedialog.cpp \
+    dialogs/registerdialog.cpp \
+    dialogs/searchlist.cpp \
+    dialogs/settingpage.cpp \
+    data/sqlitemanager.cpp \
+    widgets/statewidget.cpp \
+    network/tcpmsg.cpp \
+    network/tcpthread.cpp \
+    widgets/timerbtn.cpp \
+    core/userdata.cpp \
+    data/usermanager.cpp
 
 HEADERS += \
-    adduseritem.h \
-    applyfriend.h \
-    applyfrienditem.h \
-    applyfriendpage.h \
-    authfriendapply.h \
-    chatdatalist.h \
-    chatdialog.h \
-    chatinterface.h \
-    chatitembase.h \
-    chatthreaddata.h \
-    chatuserlist.h \
-    chatuserwidget.h \
-    clickbutton.h \
-    clicklabel.h \
-    clickoncelabel.h \
-    contactuserlist.h \
-    contactuserwidget.h \
-    customizeedit.h \
-    fileuploadmsg.h \
-    findfaildialog.h \
-    findsuccessdialog.h \
-    friendinfointerface.h \
-    friendlabel.h \
-    global.h \
-    grouptipitem.h \
-    httpmanager.h \
-    imageviewerdialog.h \
-    listitembase.h \
-    loadingdialog.h \
-    loadlocaldata.h \
-    logindialog.h \
-    logineduserlist.h \
-    logineduserwidget.h \
-    mainwindow.h \
-    messagetextedit.h \
-    offlinedialog.h \
-    registerdialog.h \
-    searchlist.h \
-    settingpage.h \
-    singleton.h \
-    sqlitemanager.h \
-    statewidget.h \
-    tcpmsg.h \
-    tcpthread.h \
-    timerbtn.h \
-    ui_adduseritem.h \
-    ui_applyfriend.h \
-    ui_applyfrienditem.h \
-    ui_applyfriendpage.h \
-    ui_authfriendapply.h \
-    ui_chatdialog.h \
-    ui_chatinterface.h \
-    ui_chatuserwidget.h \
-    ui_contactuserwidget.h \
-    ui_findfaildialog.h \
-    ui_findsuccessdialog.h \
-    ui_friendinfointerface.h \
-    ui_friendlabel.h \
-    ui_grouptipitem.h \
-    ui_loadingdialog.h \
-    ui_logindialog.h \
-    ui_logineduserwidget.h \
-    ui_mainwindow.h \
-    ui_offlinedialog.h \
-    ui_registerdialog.h \
-    ui_settingpage.h \
-    userdata.h \
-    usermanager.h
+    dialogs/adduseritem.h \
+    dialogs/applyfriend.h \
+    dialogs/applyfrienditem.h \
+    dialogs/applyfriendpage.h \
+    dialogs/authfriendapply.h \
+    data/chatdatalist.h \
+    dialogs/chatdialog.h \
+    dialogs/chatinterface.h \
+    data/chatthreaddata.h \
+    dialogs/chatuserlist.h \
+    dialogs/chatuserwidget.h \
+    widgets/chatitembase.h \
+    widgets/clickbutton.h \
+    widgets/clicklabel.h \
+    widgets/clickoncelabel.h \
+    dialogs/contactuserlist.h \
+    dialogs/contactuserwidget.h \
+    widgets/customizeedit.h \
+    data/fileuploadmsg.h \
+    dialogs/findfaildialog.h \
+    dialogs/findsuccessdialog.h \
+    dialogs/friendinfointerface.h \
+    dialogs/friendlabel.h \
+    core/global.h \
+    widgets/grouptipitem.h \
+    network/httpmanager.h \
+    dialogs/imageviewerdialog.h \
+    widgets/listitembase.h \
+    dialogs/loadingdialog.h \
+    data/loadlocaldata.h \
+    dialogs/logindialog.h \
+    dialogs/logineduserlist.h \
+    dialogs/logineduserwidget.h \
+    core/mainwindow.h \
+    widgets/messagetextedit.h \
+    dialogs/offlinedialog.h \
+    dialogs/registerdialog.h \
+    dialogs/searchlist.h \
+    dialogs/settingpage.h \
+    core/singleton.h \
+    data/sqlitemanager.h \
+    widgets/statewidget.h \
+    network/tcpmsg.h \
+    network/tcpthread.h \
+    widgets/timerbtn.h \
+    core/userdata.h \
+    data/usermanager.h
 
 FORMS += \
-    adduseritem.ui \
-    applyfriend.ui \
-    applyfrienditem.ui \
-    applyfriendpage.ui \
-    authfriendapply.ui \
-    chatdialog.ui \
-    chatinterface.ui \
-    chatuserwidget.ui \
-    contactuserwidget.ui \
-    findfaildialog.ui \
-    findsuccessdialog.ui \
-    friendinfointerface.ui \
-    friendlabel.ui \
-    grouptipitem.ui \
-    loadingdialog.ui \
-    logindialog.ui \
-    logineduserwidget.ui \
-    mainwindow.ui \
-    offlinedialog.ui \
-    registerdialog.ui \
-    settingpage.ui
+    dialogs/adduseritem.ui \
+    dialogs/applyfriend.ui \
+    dialogs/applyfrienditem.ui \
+    dialogs/applyfriendpage.ui \
+    dialogs/authfriendapply.ui \
+    dialogs/chatdialog.ui \
+    dialogs/chatinterface.ui \
+    dialogs/chatuserwidget.ui \
+    dialogs/contactuserwidget.ui \
+    dialogs/findfaildialog.ui \
+    dialogs/findsuccessdialog.ui \
+    dialogs/friendinfointerface.ui \
+    dialogs/friendlabel.ui \
+    widgets/grouptipitem.ui \
+    dialogs/loadingdialog.ui \
+    dialogs/logindialog.ui \
+    dialogs/logineduserwidget.ui \
+    core/mainwindow.ui \
+    dialogs/offlinedialog.ui \
+    dialogs/registerdialog.ui \
+    dialogs/settingpage.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -166,4 +147,4 @@ RESOURCES += \
     rc.qrc
 
 DISTFILES += \
-    config.ini
+    core/config.ini

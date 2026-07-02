@@ -69,9 +69,7 @@
         <file>style/findfaildialog.qss</file>
         <file>style/FriendInfoInterface.qss</file>
         <file>res/msg_chat_hover1.png</file>
-        <file>E:/File/DownloadFromGitee/llfcchat/client/llfcchat/res/readed.png</file>
-        <file>E:/File/DownloadFromGitee/llfcchat/client/llfcchat/res/send_fail.png</file>
-        <file>E:/File/DownloadFromGitee/llfcchat/client/llfcchat/res/unread.png</file>
+
         <file>res/applysuccess.gif</file>
         <file>res/readed.png</file>
         <file>res/send_fail.png</file>
