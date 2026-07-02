@@ -22,11 +22,16 @@ CSession::~CSession()
 	std::cout << "CSession(uid = " << userId_ << ") is destructed. " << std::endl;
 }
 
+bool CSession::isStatusServerConnection()
+{
+	return uuid_ == server_->getConnectionToStatusServerUuid();
+}
+
 void CSession::start()
 {
 	std::cout << "session: " << uuid_ << " is started ." << std::endl;
 	heartCheckTime_ = time(NULL);
-	AsyncReadHead(HEAD_TOTOL_LEN_WITH_UUID);
+	AsyncReadHead(isStatusServerConnection() ? HEAD_TOTOL_LEN : HEAD_TOTOL_LEN_WITH_UUID);
 }
 
 void CSession::Close()
@@ -59,7 +64,7 @@ void CSession::Close()
 	return;
 }
 
-void CSession::Send(const char* msg, size_t max_length, short msgid)
+void CSession::Send(const char* msg, size_t max_length, short msgid, std::string uuid)
 {
 	std::lock_guard<std::mutex> locker_(mtx_);
 
@@ -69,7 +74,7 @@ void CSession::Send(const char* msg, size_t max_length, short msgid)
 		return;
 	}
 
-	que_.push(std::make_shared<SendNode>(msg, max_length, msgid));
+	que_.push(std::make_shared<SendNode>(msg, max_length, msgid, uuid));
 
 	if (que_.size() > 1){
 		return;
@@ -83,7 +88,7 @@ void CSession::Send(const char* msg, size_t max_length, short msgid)
 void CSession::Send(std::string msg, short msgid, std::string uuid)
 {
 	std::cout << "To session(" << this->getUuid() << ") return id = " << msgid << " return message = " << msg << std::endl;
-	Send(msg.c_str(), msg.length(), msgid);
+	Send(msg.c_str(), msg.length(), msgid, uuid);
 
 	if (!uuid.empty()) {
 		auto dedup = MessageDeduplicator::getInstance();
@@ -113,7 +118,7 @@ bool CSession::isHeartOverTime()
 void CSession::AsyncReadHead(std::size_t len)
 {
 	auto self = shared_from_this();
-	AsyncReadFull(HEAD_TOTOL_LEN_WITH_UUID, [self,this](boost::system::error_code ec,std::size_t bytesTransfered)
+	AsyncReadFull(len, [self, this, len](boost::system::error_code ec, std::size_t bytesTransfered)
 	{
 		if (ec) {
 			std::cout << "Read MessageHead failed." << std::endl;
@@ -124,31 +129,29 @@ void CSession::AsyncReadHead(std::size_t len)
 		recv_head_node_->clear();
 		memcpy(recv_head_node_->data_, data_, bytesTransfered);
 
-		std::string msg_uuid(recv_head_node_->data_, HEAD_UUID_LEN);
-		msg_uuid.erase(msg_uuid.find('\0'));
-		std::cout << "msg_uuid = " << msg_uuid << std::endl;
-		
-		short msg_id_net = 0;
-		memcpy(&msg_id_net, recv_head_node_->data_ + HEAD_UUID_LEN, HEAD_ID_LEN);
-		std::cout << "msg_id_net = " << msg_id_net << std::endl;
-		short msg_id_host = boost::asio::detail::socket_ops::network_to_host_short(msg_id_net);
-		std::cout << "msg_id_host = " << msg_id_host << std::endl;
+		bool hasUuid = (len == HEAD_TOTOL_LEN_WITH_UUID);
+		std::string msg_uuid;
+		int uuidOffset = 0;
 
-		if (msg_id_host > MAX_MSG_ID)
-		{
-			std::cout << "invalid msg_id ." << std::endl;
+		if (hasUuid) {
+			msg_uuid = std::string(recv_head_node_->data_, HEAD_UUID_LEN);
+			uuidOffset = HEAD_UUID_LEN;
+		}
+
+		short msg_id_net = 0;
+		memcpy(&msg_id_net, recv_head_node_->data_ + uuidOffset, HEAD_ID_LEN);
+		short msg_id_host = boost::asio::detail::socket_ops::host_to_network_short(msg_id_net);
+
+		if (msg_id_host > MAX_MSG_ID) {
 			Close();
 			return;
 		}
 
 		short msg_len_net = 0;
-		memcpy(&msg_len_net, recv_head_node_->data_ + HEAD_UUID_LEN + HEAD_ID_LEN, HEAD_DATA_LEN);
-		std::cout << "msg_len_net = " << msg_len_net << std::endl;
-		short msg_len_host = boost::asio::detail::socket_ops::network_to_host_short(msg_len_net);
-		std::cout << "msg_len_host = " << msg_len_host << std::endl;
+		memcpy(&msg_len_net, recv_head_node_->data_ + uuidOffset + HEAD_ID_LEN, HEAD_DATA_LEN);
+		short msg_len_host = boost::asio::detail::socket_ops::host_to_network_short(msg_len_net);
 
-		if (msg_len_host > MAX_MSG_LEN){
-			std::cout << "invalid msg_len ." << std::endl;
+		if (msg_len_host > MAX_MSG_LEN) {
 			Close();
 			return;
 		}
@@ -173,7 +176,6 @@ void CSession::AsyncReadLen(std::size_t readLen, std::size_t totolLen, std::func
 			handler(ec, readLen + bytesTransfered);
 			return;
 		}
-		
 		if (readLen + bytesTransfered >= totolLen)
 		{
 			handler(ec, readLen + bytesTransfered);
@@ -188,33 +190,35 @@ void CSession::AsyncReadBody(std::size_t len)
 {
 	auto self = shared_from_this();
 	AsyncReadFull(len, [&](boost::system::error_code ec,std::size_t bytesTransfered) {
-		if (ec)
-		{
-			Close();
-			return;
-		}
-
-		::memcpy(recv_msg_node_->data_, data_, bytesTransfered);
-		recv_msg_node_->cur_len_ += bytesTransfered;
-		recv_msg_node_->data_[recv_msg_node_->totol_len_] = '\0';
-
-		std::cout << "RecvNode is " << recv_msg_node_->data_ << std::endl;
-
-		auto dedup = MessageDeduplicator::getInstance();
-		if (!recv_msg_node_->uuid_.empty() && dedup->isDuplicate(recv_msg_node_->uuid_)) {
-			std::cout << "Duplicate uuid = " << recv_msg_node_->uuid_ << ", returning cached ACK." << std::endl;
-			std::string cachedAck = dedup->getCachedAck(recv_msg_node_->uuid_);
-			if (!cachedAck.empty()) {
-				Send(cachedAck, recv_msg_node_->msg_id_);
+			if (ec){
+				Close();
+				return;
 			}
-			AsyncReadHead(HEAD_TOTOL_LEN_WITH_UUID);
-			return;
-		}
+			::memcpy(recv_msg_node_->data_, data_, bytesTransfered);
+			recv_msg_node_->cur_len_ += bytesTransfered;
+			recv_msg_node_->data_[recv_msg_node_->totol_len_] = '\0';
+			std::cout << "RecvNode is " << recv_msg_node_->data_ << std::endl;
 
-	std::shared_ptr<LogicNode> logic_node_ = std::make_shared<LogicNode>(shared_from_this(), recv_msg_node_);
-		LogicSystem::getInstance()->postMsgToQue(logic_node_);
-
-		AsyncReadHead(HEAD_TOTOL_LEN_WITH_UUID);
+			if (!isStatusServerConnection()) {
+				auto dedup = MessageDeduplicator::getInstance();
+			    std::cout << "Duplicate uuid = " << recv_msg_node_->uuid_ << ", returning cached ACK." << std::endl;
+			    assert(!recv_msg_node_->uuid_.empty());
+			    if (dedup->isDuplicate(recv_msg_node_->uuid_)) {
+					std::string cachedAck = dedup->getCachedAck(recv_msg_node_->uuid_);
+					if (!cachedAck.empty()) {
+						Send(cachedAck, recv_msg_node_->msg_id_, recv_msg_node_->uuid_);
+					}
+				}
+				else {
+					std::shared_ptr<LogicNode> logic_node_ = std::make_shared<LogicNode>(shared_from_this(), recv_msg_node_);
+					LogicSystem::getInstance()->postMsgToQue(logic_node_);
+				}
+			}
+			else {
+				std::shared_ptr<LogicNode> logic_node_ = std::make_shared<LogicNode>(shared_from_this(), recv_msg_node_);
+				LogicSystem::getInstance()->postMsgToQue(logic_node_);
+			}
+			AsyncReadHead(isStatusServerConnection() ? HEAD_TOTOL_LEN : HEAD_TOTOL_LEN_WITH_UUID);
 		});
 }
 

@@ -125,20 +125,8 @@ void TcpMsg::RecvNewImgMsg(REQUEST_ID reqId, int len, QByteArray data)
         qDebug() << "url = " << unique_name << " 的文件正在下载.";
         return;
     }
-
-//    // 不在下载,那么就请求下载
-//    std::shared_ptr<DownloadFileInfo> file_info = std::make_shared<DownloadFileInfo>();
-//    file_info->download_file_ = unique_name;
-//    file_info->seq_ = 1;
-//    file_info->client_save_path_ = local_path;
-//    file_info->type_ = Download_File_Type::CHAT_IMAGE;
-//    file_info->state_ = TRANSFER_STATE::Downloading;
-//    qDebug() << "向UserManager添加下载文件的信息: " << unique_name;
-//    UserManager::GetInstance()->add_download_file(unique_name,file_info);
-
-
+    //
     UserManager::GetInstance()->add_trans_file(unique_name, msg);
-
     // 请求下载
     QJsonObject send_obj;
     send_obj["download_file"] = unique_name;
@@ -405,31 +393,38 @@ void TcpMsg::registerSignal()
             // 检查消息id 和 消息长度 字段是否发送完成
             if(!b_recv_pedding_)
             {
-                // 在每次读取 消息头部数据的时候 需要将 QDataStream 的readPos指针归0。（防止解析多个消息错误）
-                QDataStream stream(&buffer_,QIODevice::ReadOnly);
-                stream.setVersion(QDataStream::Qt_5_0);
-
-                if(buffer_.size() < static_cast<int>(sizeof(qint16) * 2)){
+                // Protocol: uuid(36B) + msg_id(2B) + msg_len(2B) = 40B header
+                const int HEADER_SIZE = sizeof(quint16) * 2 + 36;
+                // 没有读取到完整的消息头，那么就先返回，等下一次读取凑够40bits
+                if(buffer_.size() < HEADER_SIZE){
                     return;
-                }else{
-                    // 读取头部
-                    stream >> msg_id_ >> msg_len_;
-                    // 相当于移动buffer_的读指针
-                    buffer_ = buffer_.mid(sizeof(quint16) * 2);
-                    //qDebug() << "msg_id = " << msg_id_ << "," << "msg_len = " << msg_len_;
-                    b_recv_pedding_ = true;
                 }
+                // 读取uuid
+                char uuidBuf[37] = {0};
+                QDataStream stream(&buffer_, QIODevice::ReadOnly);
+                stream.setVersion(QDataStream::Qt_5_0);
+                stream.readRawData(uuidBuf, 36);
+                stream.setByteOrder(QDataStream::BigEndian);
+                QString recvUuid = QString::fromUtf8(uuidBuf, 36).replace(QChar('\0'), QString());
+                // 读取msg_id + msg_len
+                stream >> msg_id_ >> msg_len_;
+                // 移动缓冲区的读取位置
+                buffer_ = buffer_.mid(HEADER_SIZE);
+                // 移除服务端回复的消息
+                assert(!recvUuid.isEmpty());
+                if (!recvUuid.isEmpty()) {
+                    pending_ack_.remove(recvUuid);
+                }
+                b_recv_pedding_ = true;
             }
             // 剩余数据不足
             if(buffer_.size() < msg_len_){
-                // b_recv_pedding_ = true;
                 return;
             }
 
             // 一条消息读取完成，那么就调用回调函数来处理
             // 消息主体
             QByteArray messageBody = buffer_.mid(0, msg_len_);
-           // qDebug() << "receive from ChatServer: " << messageBody ;
             buffer_ = buffer_.mid(msg_len_);
             b_recv_pedding_ = false;
 
@@ -1012,13 +1007,24 @@ void TcpMsg::slotSendData(REQUEST_ID reqId,QByteArray data)
     // 创建一个QByteArray用于存储要发送的数据
     QByteArray block;
     QDataStream out(&block,QIODevice::WriteOnly);
+    // 写入 UUID (36B)
+    out.writeRawData(uuidPadded.constData(), 36);
     // 设置数据流使用网络字节序
     out.setByteOrder(QDataStream::BigEndian);
-    // 写入 UUID (36B) + 消息id (2B) + 消息长度 (2B)
-    out.writeRawData(uuidPadded.constData(), 36);
+    // 写入 消息id (2B) + 消息长度 (2B)
     out << id << len;
     // 添加字符数据
     block.append(data);
+
+    // 存入 pending_ack_，等待服务端 ACK
+    {
+        PendingAck pending;
+        pending.block = block;
+        pending.reqId = id;
+        pending.sendTime = QDateTime::currentMSecsSinceEpoch();
+        pending.retryCount = 0;
+        pending_ack_[uuidStr] = pending;
+    }
 
     // 检查是否在发送
     if(is_pedding_){
