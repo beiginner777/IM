@@ -3,6 +3,15 @@
 
 #include "core/global.h"
 #include "core/userdata.h"
+#include <QMap>
+#include <QDateTime>
+
+struct PendingAck {
+	QByteArray block;
+	quint16    reqId;
+	qint64     sendTime;
+	int        retryCount;
+};
 
 class TcpMsg : public QObject,
                public SingleTon<TcpMsg>,
@@ -65,6 +74,8 @@ private:
     int reconnectAttempts_;
     // 是否处于断线重连的状态
     bool reconnectEnabled_;
+    // pending ACK: key=UUID, value=待确认的消息包
+    QMap<QString, PendingAck> pending_ack_;
 
 public slots:
     void slotTcpConnect(ServerInfo si);

@@ -90,13 +90,14 @@ class SendNode : public MsgNode
 
 public:
 
-	SendNode(const char* msg, short max_len, short msg_id);
+	SendNode(const char* msg, short max_len, short msg_id, std::string uuid = "");
 
 	~SendNode() = default;
 
 
 
 	short GetMsgId() { return msg_id_; }
+	std::string uuid_;
 
 private:
 
