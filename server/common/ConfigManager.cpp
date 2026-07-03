@@ -1,20 +1,22 @@
 #include "ConfigManager.h"
+#include <boost/filesystem.hpp>
+#include <boost/property_tree/ini_parser.hpp>
 
 ConfigManager::ConfigManager()
 {
-	// »ñÈ¡µ±Ç°¹¤×÷Ä¿Â¼
+	// ï¿½ï¿½È¡ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½Ä¿Â¼
 	boost::filesystem::path currentPath = boost::filesystem::current_path();
 
-	// ¹¹½¨config.iniµÄ¾ø¶ÔÂ·¾¶
+	// ï¿½ï¿½ï¿½ï¿½config.iniï¿½Ä¾ï¿½ï¿½ï¿½Â·ï¿½ï¿½
 	boost::filesystem::path configPath = currentPath / "config.ini";
 
 	//std::cout << "Config.init Path = " << configPath.string() << std::endl;
 	
-	// ¶ÁÈ¡iniÎÄ¼þµ½boost::property_tree::ptree½á¹¹µ±ÖÐ
+	// ï¿½ï¿½È¡iniï¿½Ä¼ï¿½ï¿½ï¿½boost::property_tree::ptreeï¿½á¹¹ï¿½ï¿½ï¿½ï¿½
 	boost::property_tree::ptree pt;
 	boost::property_tree::read_ini(configPath.string(), pt);
 
-	// ±éÀúboost::property_tree::ptree
+	// ï¿½ï¿½ï¿½ï¿½boost::property_tree::ptree
 	for (const auto& sectionPair : pt)
 	{
 		auto name = sectionPair.first;
@@ -30,7 +32,7 @@ ConfigManager::ConfigManager()
 		sec.setData(sectionData);
 		configData_[name] = sec;
 	}
-	// Êä³öconfig.iniÎÄ¼þ
+	// ï¿½ï¿½ï¿½config.iniï¿½Ä¼ï¿½
 	/*for (const auto& elem1 : configData_)
 	{
 		const auto& name = elem1.first;

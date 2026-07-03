@@ -1,5 +1,6 @@
 #include "MysqlDao.h"
 #include "data.h"
+#include "crypto/BCryptHasher.h"
 
 MysqlDao::MysqlDao()
 {
@@ -28,7 +29,9 @@ int MysqlDao::registerUser(const std::string& name, const std::string& email, co
 
 		stmt->setString(1, name);
 		stmt->setString(2, email);
-		stmt->setString(3, password);
+		// bcrypt 哈希后再存储
+		std::string hashedPwd = BCryptHasher::generateHash(password, 10);
+		stmt->setString(3, hashedPwd);
 
 		stmt->execute();
 

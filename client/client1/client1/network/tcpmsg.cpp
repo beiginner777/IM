@@ -20,6 +20,7 @@ TcpMsg::TcpMsg()
     , is_pedding_(false)
     , reconnectAttempts_(0)
     , reconnectEnabled_(false)
+    , retryTimer_(nullptr)
 {
     // 注册回调函数
     registerFunctionCallbacks();
@@ -28,6 +29,7 @@ TcpMsg::TcpMsg()
 TcpMsg::~TcpMsg()
 {
     delete timer_;
+    delete retryTimer_;
 }
 
 void TcpMsg::registerFunctionCallbacks()
@@ -1026,6 +1028,11 @@ void TcpMsg::slotSendData(REQUEST_ID reqId,QByteArray data)
         pending_ack_[uuidStr] = pending;
     }
 
+    // 确保重试定时器在运行（首次发送启动，后续无操作）
+    if (!retryTimer_->isActive()) {
+        retryTimer_->start(BASE_RETRY_MS);
+    }
+
     // 检查是否在发送
     if(is_pedding_){
         // 那么就投递到队列
@@ -1047,6 +1054,10 @@ void TcpMsg::onThreadStarted()
     reconnectTimer_ = new QTimer(this);
     reconnectTimer_->setSingleShot(true); // 单次定时器，每次触发后需重新 start
 
+    // 重试定时器：固定 3s 间隔扫描 pending_ack_，触发超时重发
+    retryTimer_ = new QTimer(this);
+    connect(retryTimer_, &QTimer::timeout, this, &TcpMsg::scanRetry);
+
     connect(reconnectTimer_, &QTimer::timeout, this, [this]() {
         attemptReconnect();
     });
@@ -1055,5 +1066,46 @@ void TcpMsg::onThreadStarted()
 
     // 注册信号
     registerSignal();
+}
+
+void TcpMsg::scanRetry()
+{
+    qint64 now = QDateTime::currentMSecsSinceEpoch();
+    bool hasPending = false;
+
+    for (auto it = pending_ack_.begin(); it != pending_ack_.end(); ) {
+        const QString& uuid = it.key();
+        PendingAck& pending = it.value();
+
+        // 计算当前轮次的超时阈值: 3s * 2^retryCount = 3s, 6s, 12s
+        qint64 timeout = BASE_RETRY_MS * (1 << pending.retryCount);
+        if (now - pending.sendTime < timeout) {
+            hasPending = true;
+            ++it;
+            continue;
+        }
+
+        // 超过最大重试次数 → 放弃，移除
+        if (pending.retryCount >= MAX_RETRIES) {
+            qDebug() << "Message" << uuid << "retry exhausted ("
+                     << pending.retryCount << "attempts), giving up.";
+            it = pending_ack_.erase(it);
+            continue;
+        }
+
+        // 重发（同一 block，同一 UUID → 服务端去重自然生效）
+        qDebug() << "Retry" << (pending.retryCount + 1)
+                 << "for message" << uuid;
+        socket_->write(pending.block);
+        pending.sendTime = now;
+        pending.retryCount++;
+        hasPending = true;
+        ++it;
+    }
+
+    // 所有条目的 ACK 都回来了 → 停掉定时器，等下次发送时再启动
+    if (!hasPending) {
+        retryTimer_->stop();
+    }
 }
 

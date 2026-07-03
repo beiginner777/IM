@@ -1,4 +1,5 @@
 #include "AsioIOContextThreadPool.h"
+#include <iostream>
 
 AsioIOContextThreadPool::AsioIOContextThreadPool(size_t size)
 	: io_contexts_(size)

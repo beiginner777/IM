@@ -1,5 +1,6 @@
 #include "RedisManager.h"
 #include "RedisLocker.h"
+#include "Defer.h"
 
 std::string RedisManager::Get(const std::string& key)
 {
@@ -45,12 +46,12 @@ bool RedisManager::MGet(const std::vector<std::string>& keys, std::unordered_map
 		pool_->returnConnection(std::move(connect_));
 		});
 
-	// ÏÈ°ÑËùÓÐ key ·Å½ø map£¬Ä¬ÈÏ ""
+	// ï¿½È°ï¿½ï¿½ï¿½ï¿½ï¿½ key ï¿½Å½ï¿½ mapï¿½ï¿½Ä¬ï¿½ï¿½ ""
 	for (const auto& key : keys) {
 		values.emplace(key, "");
 	}
 
-	// ¹¹Ôì MGET ÃüÁî
+	// ï¿½ï¿½ï¿½ï¿½ MGET ï¿½ï¿½ï¿½ï¿½
 	std::string cmd = "MGET";
 	for (const auto& key : keys) {
 		cmd += (" " + key);
@@ -65,7 +66,7 @@ bool RedisManager::MGet(const std::vector<std::string>& keys, std::unordered_map
 		return false;
 	}
 
-	// Redis ±£Ö¤£ºreply->elements == keys.size()
+	// Redis ï¿½ï¿½Ö¤ï¿½ï¿½reply->elements == keys.size()
 	for (size_t i = 0; i < reply->elements && i < keys.size(); ++i) {
 		redisReply* elem = reply->element[i];
 
@@ -92,7 +93,7 @@ bool RedisManager::Set(const std::string& key, const std::string& value)
 	if (reply_ == nullptr)
 	{
 		std::cout << "Execut command [ SET " << key << "  " << value << " ] failure ! " << std::endl;
-		return false;  // ²»Òª freeReplyObject
+		return false;  // ï¿½ï¿½Òª freeReplyObject
 	}
 
 	if (reply_->type != REDIS_REPLY_STATUS || strcmp(reply_->str, "OK") != 0)
@@ -412,7 +413,7 @@ bool RedisManager::releaseLock(const std::string& lockName, const std::string& l
 
 bool RedisManager::pushOfflineMessage(int uid, const std::string& message)
 {
-	// Ïò RedisµÄÁÐ±í notify_message:uid ÖÐÍÆËÍÏûÏ¢ message
+	// ï¿½ï¿½ Redisï¿½ï¿½ï¿½Ð±ï¿½ notify_message:uid ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ message
 	auto connect_ = pool_->getConnection();
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
@@ -438,7 +439,7 @@ bool RedisManager::pushOfflineMessage(int uid, const std::string& message)
 
 std::vector<std::string> RedisManager::popOfflineMessages(int uid)
 {
-	// Ïò RedisµÄÁÐ±í notify_message:uid ÖÐ»ñÈ¡ËùÓÐµÄÏûÏ¢
+	// ï¿½ï¿½ Redisï¿½ï¿½ï¿½Ð±ï¿½ notify_message:uid ï¿½Ð»ï¿½È¡ï¿½ï¿½ï¿½Ðµï¿½ï¿½ï¿½Ï¢
 	auto connect_ = pool_->getConnection();
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
@@ -448,7 +449,7 @@ std::vector<std::string> RedisManager::popOfflineMessages(int uid)
 		pool_->returnConnection(connect_);
 		});
 
-	// ¶¨ÒåÒ»¸ö Lua ½Å±¾£¬Ò»´ÎÐÔ»ñÈ¡²¢Çå¿Õ¶ÓÁÐ
+	// ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ Lua ï¿½Å±ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ô»ï¿½È¡ï¿½ï¿½ï¿½ï¿½Õ¶ï¿½ï¿½ï¿½
 	const char* lua_script =
 		"local key = KEYS[1] "
 		"local messages = redis.call('LRANGE', key, 0, -1) "
@@ -475,7 +476,7 @@ RedisManager::RedisManager()
 	pool_ = std::make_unique<RedisConnPool>();
 }
 
-// ÐèÒª½«Á¬½Ó·µ»Ø¸ø redisÁ¬½Ó³Ø
+// ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½ï¿½Ó·ï¿½ï¿½Ø¸ï¿½ redisï¿½ï¿½ï¿½Ó³ï¿½
 RedisManager::~RedisManager()
 {
 }
