@@ -146,10 +146,12 @@
     <ClCompile Include="MsgNode.cpp" />
     <ClCompile Include="MysqlDao.cpp" />
     <ClCompile Include="MysqlManager.cpp" />
+    <ClCompile Include="BatchMessageWriter.cpp" />
     <ClCompile Include="UserManager.cpp" />
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BatchMessageWriter.h" />
     <ClInclude Include="ChatGrpcClient.h" />
     <ClInclude Include="ChatServiceImpl.h" />
     <ClInclude Include="CServer.h" />

@@ -149,7 +149,7 @@ bool RedisManager::Auth(const std::string& password)
 	auto connect_ = pool_->getConnection();
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
-		return "";
+		return false;
 	}
 	Defer defer([this, &connect_]() {
 		pool_->returnConnection(std::move(connect_));
@@ -171,7 +171,7 @@ bool RedisManager::LPush(const std::string& key, const std::string& value)
 	auto connect_ = pool_->getConnection();
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
-		return "";
+		return false;
 	}
 	Defer defer([this, &connect_]() {
 		pool_->returnConnection(std::move(connect_));
@@ -222,7 +222,7 @@ bool RedisManager::RPush(const std::string& key, const std::string& value)
 	auto connect_ = pool_->getConnection();
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
-		return "";
+		return false;
 	}
 	Defer defer([this, &connect_]() {
 		pool_->returnConnection(std::move(connect_));
@@ -273,7 +273,7 @@ bool RedisManager::HSet(const std::string& key, const std::string& hkey, const s
 	auto connect_ = pool_->getConnection();
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
-		return "";
+		return false;
 	}
 	Defer defer([this, &connect_]() {
 		pool_->returnConnection(std::move(connect_));
@@ -348,7 +348,7 @@ bool RedisManager::Del(const std::string& key)
 	auto connect_ = pool_->getConnection();
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
-		return "";
+		return false;
 	}
 	Defer defer([this, &connect_]() {
 		pool_->returnConnection(std::move(connect_));
@@ -369,7 +369,7 @@ bool RedisManager::ExistsKey(const std::string& key)
 	auto connect_ = pool_->getConnection();
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
-		return "";
+		return false;  // bugfix: bool函数不应返回字符串字面量
 	}
 	Defer defer([this, &connect_]() {
 		pool_->returnConnection(std::move(connect_));
@@ -403,7 +403,7 @@ bool RedisManager::releaseLock(const std::string& lockName, const std::string& l
 	auto connect_ = pool_->getConnection();
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
-		return "";
+		return false;
 	}
 	Defer defer([this, &connect_]() {
 		pool_->returnConnection(std::move(connect_));
@@ -417,7 +417,7 @@ bool RedisManager::pushOfflineMessage(int uid, const std::string& message)
 	auto connect_ = pool_->getConnection();
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
-		return "";
+		return false;
 	}
 	Defer defer([this, &connect_]() {
 		pool_->returnConnection(connect_);
@@ -471,12 +471,81 @@ std::vector<std::string> RedisManager::popOfflineMessages(int uid)
 }
 
 
+// ============================================================================
+// Distributed Message ID Generation
+// Primary: Redis INCR (atomic, strictly increasing)
+// Fallback: Snowflake (timestamp + server_id + sequence)
+// ============================================================================
+
+long long RedisManager::generateMsgId()
+{
+	// --- Path 1: Redis INCR (happy path) ---
+	auto connect_ = pool_->getConnection();
+	if (connect_ != nullptr) {
+		Defer defer([this, &connect_]() {
+			pool_->returnConnection(std::move(connect_));
+		});
+
+		redisReply* reply = (redisReply*)redisCommand(connect_, "INCR msg_id_counter");
+		if (reply != nullptr && reply->type == REDIS_REPLY_INTEGER) {
+			long long id = reply->integer;
+
+			// WAIT for replication to at least 1 slave (durability guarantee)
+			redisReply* waitReply = (redisReply*)redisCommand(connect_, "WAIT 1 100");
+			if (waitReply != nullptr) {
+				freeReplyObject(waitReply);
+			}
+
+			freeReplyObject(reply);
+			return id;
+		}
+		if (reply != nullptr) {
+			freeReplyObject(reply);
+		}
+	}
+
+	// --- Path 2: Snowflake fallback (Redis unavailable) ---
+	// 64-bit layout: [42 bits timestamp_ms][5 bits server_id][17 bits sequence]
+	static constexpr long long SNOWFLAKE_EPOCH = 1700000000000LL; // ~Nov 2023
+	static constexpr int SERVER_BITS = 5;
+	static constexpr int SEQ_BITS    = 17;
+	static constexpr long long MAX_SEQ = (1LL << SEQ_BITS) - 1;
+
+	std::lock_guard<std::mutex> lock(snowflakeMutex_);
+
+	long long now = std::chrono::duration_cast<std::chrono::milliseconds>(
+		std::chrono::system_clock::now().time_since_epoch()).count();
+
+	if (now == snowflakeLastMs_.load()) {
+		// Same millisecond: increment sequence
+		long long seq = snowflakeSequence_.fetch_add(1) + 1;
+		if (seq > MAX_SEQ) {
+			// Sequence exhausted this ms — spin-wait for next ms
+			while (now <= snowflakeLastMs_.load()) {
+				now = std::chrono::duration_cast<std::chrono::milliseconds>(
+					std::chrono::system_clock::now().time_since_epoch()).count();
+			}
+			snowflakeSequence_.store(0);
+		}
+	} else {
+		snowflakeSequence_.store(0);
+	}
+	snowflakeLastMs_.store(now);
+
+	long long seq = snowflakeSequence_.fetch_add(1);
+	long long timestamp = now - SNOWFLAKE_EPOCH;
+	long long id = (timestamp << (SERVER_BITS + SEQ_BITS))
+	            | ((long long)(serverId_ & 0x1F) << SEQ_BITS)
+	            | (seq & MAX_SEQ);
+
+	return id;
+}
+
 RedisManager::RedisManager()
 {
 	pool_ = std::make_unique<RedisConnPool>();
 }
 
-// ��Ҫ�����ӷ��ظ� redis���ӳ�
 RedisManager::~RedisManager()
 {
 }
