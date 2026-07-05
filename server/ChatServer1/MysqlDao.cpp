@@ -1,8 +1,6 @@
 #include "MysqlDao.h"
 #include "data.h"
 #include "crypto/BCryptHasher.h"
-#include "RedisManager.h"
-#include <json/json.h>
 
 MysqlDao::MysqlDao()
 {
@@ -630,27 +628,7 @@ int MysqlDao::AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_datas)
             msg->status = 1;
         }
         conn->con_->rollback();
-        try {
-            // 写入失败 -> 推入 Redis 备份队列，等恢复线程重试
-            auto redis = RedisManager::getInstance();
-            if (redis) {
-                Json::Value arr(Json::arrayValue);
-                for (const auto& msg : chat_datas) {
-                    Json::Value item;
-                    item["message_id"] = msg->message_id;
-                    item["thread_id"]  = msg->thread_id;
-                    item["content"]    = msg->content;
-                    item["unique_id"]  = msg->unique_id;
-                    arr.append(item);
-                }
-                Json::FastWriter writer;
-                redis->LPush("batch_msg_queue_failed", writer.write(arr));
-                std::cout << "[MysqlDao] Pushed " << n
-                          << " failed msgs to Redis backup queue." << std::endl;
-            }
-        } catch (...) {
-            std::cerr << "[MysqlDao] Failed to push to backup queue." << std::endl;
-        }
+        // 备份重试由 BatchMessageWriter 统一管理，MysqlDao 只负责返回错误
         return ERROR_SEND_MSG_FAILED;
     }
 }

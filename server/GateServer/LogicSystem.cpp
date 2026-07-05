@@ -246,20 +246,21 @@ void LogicSystem::registerPostHandler()
 			value["code"] = ERROR_RPC_CON_STATUSSERVER;
 			value["message"] = "Can not find suitable ChatServer.";
 			beast::ostream(response.body()) << value.toStyledString();
+			return;
 		}
-		else if (returnCode == ERROR_USER_NOT_EXIST) 
+		else if (returnCode == ERROR_USER_NOT_EXIST)
 		{
 			value["code"] = ERROR_USER_NOT_EXIST;
 			value["message"] = "User don't exist.";
 			beast::ostream(response.body()) << value.toStyledString();
+			return;
 		}
 		else if (returnCode == ERROR_PASSWORD) {
 			value["code"] = ERROR_PASSWORD;
 			value["message"] = "Error password.";
 			beast::ostream(response.body()) << value.toStyledString();
+			return;
 		}
-		value["code"] = SUCCESS;
-		value["message"] = "Login success.";
 		value["code"] = SUCCESS;
 		value["message"] = "Succeed to find suitable ChatServer";
 		value["uid"] = userInfo->uid_;

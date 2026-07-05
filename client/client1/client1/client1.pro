@@ -148,3 +148,6 @@ RESOURCES += \
 
 DISTFILES += \
     core/config.ini
+
+# Copy config.ini to build directory so the executable can find it
+QMAKE_POST_LINK += $$QMAKE_COPY $$shell_path($$PWD/core/config.ini) $$shell_path($$OUT_PWD/config.ini)

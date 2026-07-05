@@ -207,7 +207,7 @@ std::string RedisManager::LPop(const std::string& key)
 		});
 	redisReply* reply_ = (redisReply*)redisCommand(connect_, "LPOP %s ", key.c_str());
 	if (reply_ == nullptr || reply_->type == REDIS_REPLY_NIL) {
-		std::cout << "Execut command [ LPOP " << key << " ] failure ! " << std::endl;
+		// queue empty, normal
 		freeReplyObject(reply_);
 		return std::string();
 	}
@@ -258,7 +258,7 @@ std::string RedisManager::RPop(const std::string& key)
 		});
 	redisReply* reply_ = (redisReply*)redisCommand(connect_, "RPOP %s ", key.c_str());
 	if (reply_ == nullptr || reply_->type == REDIS_REPLY_NIL) {
-		std::cout << "Execut command [ RPOP " << key << " ] failure ! " << std::endl;
+		// queue empty, normal
 		freeReplyObject(reply_);
 		return std::string();
 	}
