@@ -1,7 +1,9 @@
 #ifndef ASIOIOCONTEXTTHREAD_H
 #define ASIOIOCONTEXTTHREAD_H
 
-#include "global.h"
+#include <boost/asio.hpp>
+#include <vector>
+#include <thread>
 #include "SingleTon.h"
 
 class AsioIOContextThreadPool : public SingleTon<AsioIOContextThreadPool>

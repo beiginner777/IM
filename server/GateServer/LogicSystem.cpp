@@ -3,6 +3,7 @@
 #include "RedisManager.h"
 #include "MysqlManager.h"
 #include "StatusGrpcClient.h"
+#include "crypto/BCryptHasher.h"
 
 LogicSystem::LogicSystem()
 {
@@ -161,7 +162,9 @@ void LogicSystem::registerPostHandler()
 			return;
 		}
 
-		int returnCode = MysqlManager::getInstance()->registerUser(name, email, password);
+		// bcrypt 哈希后再存储
+		std::string hashedPwd = BCryptHasher::generateHash(password, 10);
+		int returnCode = MysqlManager::getInstance()->registerUser(name, email, hashedPwd);
 		std::cout << "returnCode = " << returnCode << std::endl;
 		// 注册成功
 		if (returnCode >= 0)

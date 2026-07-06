@@ -76,6 +76,11 @@ private:
     bool reconnectEnabled_;
     // pending ACK: key=UUID, value=待确认的消息包
     QMap<QString, PendingAck> pending_ack_;
+    // 重试定时器：固定 3s 间隔扫描 pending_ack_
+    QTimer* retryTimer_;
+    void scanRetry();
+    static constexpr int MAX_RETRIES = 3;
+    static constexpr int BASE_RETRY_MS = 3000;
 
 public slots:
     void slotTcpConnect(ServerInfo si);

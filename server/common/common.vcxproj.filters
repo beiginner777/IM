@@ -9,6 +9,9 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
+    <Filter Include="crypto">
+      <UniqueIdentifier>{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AsioIOContextThread.cpp">
@@ -25,6 +28,9 @@
     </ClCompile>
     <ClCompile Include="MessageDeduplicator.cpp">
       <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="crypto\BCryptHasher.cpp">
+      <Filter>crypto</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -45,6 +51,9 @@
     </ClInclude>
     <ClInclude Include="MessageDeduplicator.h">
       <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="crypto\BCryptHasher.h">
+      <Filter>crypto</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
