@@ -42,7 +42,7 @@ int MysqlDao::registerUser(const std::string& name, const std::string& email, co
 
 		if (result > 0) {
 			int result = res->getInt("result");
-			std::cout << "ע���û���uid: " << result << std::endl;
+			std::cout << "注册用户 uid: " << result << std::endl;
 			return SUCCESS;
         }
         else if (result == ERROR_NAME_EXIST) {
@@ -402,7 +402,7 @@ int MysqlDao::setFriendApplyStatus(int fromuid, int touid, int status)
 {
     auto conn = pool_->getConnection();
     if (conn == nullptr) {
-        std::cout << "�޸ĺ��Ѽ�¼d fromuid = " << fromuid << " " << "touid = " << touid << " ��״̬ʧ�ܡ�" << std::endl;
+        std::cout << "setFriendApplyStatus failed: fromuid=" << fromuid << " touid=" << touid << std::endl;
         return ERROR_MODIFLY_APPLY_STATUS_FAILED;
     }
 
@@ -414,10 +414,10 @@ int MysqlDao::setFriendApplyStatus(int fromuid, int touid, int status)
         conn->con_->setAutoCommit(false);
 
         std::unique_ptr<sql::PreparedStatement> pstmt(conn->con_->prepareStatement("UPDATE friendapply SET status = ? WHERE fromuid = ? AND touid = ? ;"));
-        pstmt->setInt(1, status); 
+        pstmt->setInt(1, status);
         pstmt->setInt(2, fromuid);
         pstmt->setInt(3, touid);
-       
+
         int rowAffected = pstmt->executeUpdate();
         if (rowAffected < 0) {
             conn->con_->rollback();
@@ -529,8 +529,8 @@ int MysqlDao::createPrivateThread(int user1_id, int user2_id, int& thread_id)
 
     try {
 		conn->con_->setAutoCommit(false);
-        
-		// 2. ��ȡ�µ� thread_id
+
+		// 2. 获取新的 thread_id
 		std::unique_ptr<sql::PreparedStatement> pstmt1(conn->con_->prepareStatement
         ("INSERT INTO chatthread(type, created_at) VALUES ('private',NOW());"));
 		pstmt1->executeUpdate();
@@ -571,46 +571,52 @@ int MysqlDao::AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_datas)
 {
     auto conn = pool_->getConnection();
     if (!conn) {
-		std::cout << "Add ChatMsg failed, mysqlConn is nullptr.\n";
+        std::cout << "Add ChatMsg failed, mysqlConn is nullptr.\n";
         return ERROR_LOAD_CHAT_THREAD;
     }
     Defer defer([this, &conn]() {
         pool_->returnConnection(std::move(conn));
         });
 
+
+    size_t n = chat_datas.size();
+    if (n == 0) {
+        return SUCCESS;
+    }
+
     try {
         conn->con_->setAutoCommit(false);
-        auto pstmt = conn->con_->prepareStatement(
-            "INSERT INTO chatmessage (thread_id, sender_id, recv_id, content, created_at, updated_at, status, message_type, client_msg_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"
-		);
-        for (auto& msg : chat_datas) {
-			pstmt->setInt(1, msg->thread_id);
-			pstmt->setInt(2, msg->sender_id);
-			pstmt->setInt(3, msg->recv_id);
-			pstmt->setString(4, msg->content);
-			pstmt->setString(5, msg->chat_time);
-			pstmt->setString(6, msg->chat_time);
-            pstmt->setInt(7, msg->status);
-			pstmt->setInt(8, static_cast<int>(msg->type));
-			pstmt->setString(9, msg->unique_id);
-			pstmt->executeUpdate();
-            std::unique_ptr<sql::Statement> keyStmt(
-                conn->con_->createStatement()
-            );
-            std::unique_ptr<sql::ResultSet> res(
-                keyStmt->executeQuery("SELECT LAST_INSERT_ID()")
-            );
-            if (res->next()) {
-				msg->message_id = res->getInt(1);
-            }
-            else {
-                continue;
-            }
+
+        // 单条 SQL + 多行 VALUES：INSERT INTO ... VALUES (r1), (r2), ... (rN)
+        // N 条消息只发一次 MySQL 请求，减少 N-1 次网络往返
+        std::string insertSql = "INSERT INTO chatmessage "
+            "(message_id, thread_id, sender_id, recv_id, content, "
+            " created_at, updated_at, status, message_type, client_msg_id) VALUES ";
+        for (size_t i = 0; i < n; i++) {
+            if (i > 0) insertSql += ", ";
+            insertSql += "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         }
-		std::cout << "insert chat messages success, count = " << chat_datas.size() << std::endl;
+
+        auto pstmt = conn->con_->prepareStatement(insertSql);
+
+        int idx = 1;
+        for (auto& msg : chat_datas) {
+            pstmt->setInt(idx++, msg->message_id);
+            pstmt->setInt(idx++, msg->thread_id);
+            pstmt->setInt(idx++, msg->sender_id);
+            pstmt->setInt(idx++, msg->recv_id);
+            pstmt->setString(idx++, msg->content);
+            pstmt->setString(idx++, msg->chat_time);
+            pstmt->setString(idx++, msg->chat_time);
+            pstmt->setInt(idx++, msg->status);
+            pstmt->setInt(idx++, static_cast<int>(msg->type));
+            pstmt->setString(idx++, msg->unique_id);
+        }
+        pstmt->executeUpdate();
+
+        std::cout << "[MysqlDao] Batch INSERT " << n << " rows OK" << std::endl;
         conn->con_->commit();
-		return SUCCESS;
+        return SUCCESS;
 
     }
     catch (sql::SQLException& e)
@@ -619,9 +625,10 @@ int MysqlDao::AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_datas)
         std::cerr << " (MySQL error code: " << e.getErrorCode();
         std::cerr << ", SQLState: " << e.getSQLState() << " )" << std::endl;
         for (auto& msg : chat_datas) {
-			msg->status = 1;
+            msg->status = 1;
         }
         conn->con_->rollback();
+        // 备份重试由 BatchMessageWriter 统一管理，MysqlDao 只负责返回错误
         return ERROR_SEND_MSG_FAILED;
     }
 }
@@ -706,14 +713,14 @@ int MysqlDao::getUserFriendApplyByLastId(int uid, int last_friend_id, int page_s
         conn->con_->setAutoCommit(false);
 
         std::string query = R"(
-            SELECT id, fromuid, apply_time, status 
-            FROM friendapply 
-            WHERE touid = ? AND id > ? 
-            ORDER BY id ASC 
+            SELECT id, fromuid, apply_time, status
+            FROM friendapply
+            WHERE touid = ? AND id > ?
+            ORDER BY id ASC
             LIMIT ?)";
 
         std::unique_ptr<sql::PreparedStatement> pstmt(conn->con_->prepareStatement(query));
-        pstmt->setInt(1, uid);          
+        pstmt->setInt(1, uid);
         pstmt->setInt(2, last_friend_id);
         pstmt->setInt(3, page_size + 1);
 
@@ -734,8 +741,8 @@ int MysqlDao::getUserFriendApplyByLastId(int uid, int last_friend_id, int page_s
             int status = res->getInt("status");
 
             std::string user_query = R"(
-                SELECT name, email, `desc`, icon, sex, uid 
-                FROM user 
+                SELECT name, email, `desc`, icon, sex, uid
+                FROM user
                 WHERE uid = ?)";
 
             std::unique_ptr<sql::PreparedStatement> user_pstmt(conn->con_->prepareStatement(user_query));
@@ -796,13 +803,13 @@ int MysqlDao::updateChatMsgStatus(int message_id, MsgStatus status)
         conn->con_->setAutoCommit(false);
 
         std::string query = R"(
-            UPDATE chatmessage 
-            SET status = ? 
+            UPDATE chatmessage
+            SET status = ?
             WHERE message_id = ? )";
 
         std::unique_ptr<sql::PreparedStatement> pstmt(conn->con_->prepareStatement(query));
-        pstmt->setInt(1, (int)status);            
-        pstmt->setInt(2, message_id);  
+        pstmt->setInt(1, (int)status);
+        pstmt->setInt(2, message_id);
 
         int rowAffected = pstmt->executeUpdate();
         if (rowAffected <= 0) {
@@ -842,9 +849,9 @@ int MysqlDao::loadChatMessage(int thread_id, int& min_message_id, int& max_messa
             "ORDER BY message_id ASC LIMIT ?";
 
         std::unique_ptr<sql::PreparedStatement> stmt(conn->con_->prepareStatement(query));
-        stmt->setInt(1, thread_id);      
-        stmt->setInt(2, min_message_id); 
-        stmt->setInt(3, max_message_id); 
+        stmt->setInt(1, thread_id);
+        stmt->setInt(2, min_message_id);
+        stmt->setInt(3, max_message_id);
         stmt->setInt(4, page_size + 1);
 
         std::unique_ptr<sql::ResultSet> res(stmt->executeQuery());
@@ -879,7 +886,7 @@ int MysqlDao::loadChatMessage(int thread_id, int& min_message_id, int& max_messa
     catch (sql::SQLException& e) {
         std::cerr << "SQLException: " << e.what() << std::endl;
         std::cerr << " (MySQL error code: " << e.getErrorCode() << ", SQLState: " << e.getSQLState() << " )" << std::endl;
-        // �ع�����
+        // 回滚事务
         conn->con_->rollback();
         return ERROR_LOAD_CHAT_MESSAGE;
     }

@@ -4,6 +4,8 @@
 #include "RedisManager.h"
 #include "MysqlManager.h"
 #include "MessageDeduplicator.h"
+#include "BatchMessageWriter.h"
+#include "MessageDeduplicator.h"
 #include "UserManager.h"
 #include "ChatGrpcClient.h"
 #include "CServer.h"
@@ -275,11 +277,16 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 	rtvalue["thread_id"] = thread_id;
 
 	std::vector<std::shared_ptr<ChatMessage>> chat_datas;
+	auto redis = RedisManager::getInstance();
+	auto batchWriter = BatchMessageWriter::getInstance();
+
 	for (const auto& text_obj : arrays) {
 		std::string content = text_obj["content"].asString();
 		std::string unique_id = text_obj["unique_id"].asString();
 
 		std::shared_ptr<ChatMessage> chatMsg = std::make_shared<ChatMessage>();
+		// Generate distributed message ID (Redis INCR or Snowflake fallback)
+		chatMsg->message_id = redis->generateMsgId();
 		chatMsg->thread_id = thread_id;
 		chatMsg->unique_id = unique_id;
 		chatMsg->sender_id = uid;
@@ -288,9 +295,13 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 		chatMsg->status = 2;
 		chatMsg->chat_time = GetCurrentTimestamp();
 		chatMsg->type = CHAT_MSG_TYPE::TEXT_MSG;
+
+		// Queue for async batch write (returns immediately, no DB I/O wait)
+		batchWriter->enqueue(chatMsg);
 		chat_datas.push_back(chatMsg);
 	}
-	MysqlManager::getInstance()->AddChatMsg(chat_datas);
+
+	// Build ACK with pre-generated IDs (respond BEFORE DB write completes)
 	for (auto& chat_data : chat_datas) {
 		Json::Value  chat_msg;
 		chat_msg["message_id"] = chat_data->message_id;
@@ -1031,6 +1042,8 @@ void LogicSystem::dealImageChatMsg(std::shared_ptr<CSession> session, short msgI
 
 	std::vector<std::shared_ptr<ChatMessage>> image_msgs;
 	std::shared_ptr<ChatMessage> chat_msg = std::make_shared<ChatMessage>();
+	// Generate distributed message ID
+	chat_msg->message_id = RedisManager::getInstance()->generateMsgId();
 	chat_msg->sender_id = fromuid;
 	chat_msg->recv_id = touid;
 	chat_msg->thread_id = thread_id;
@@ -1041,7 +1054,8 @@ void LogicSystem::dealImageChatMsg(std::shared_ptr<CSession> session, short msgI
 	chat_msg->type = static_cast<CHAT_MSG_TYPE>(type);
 	image_msgs.push_back(chat_msg);
 
-	MysqlManager::getInstance()->AddChatMsg(image_msgs);
+	// Async batch write (returns immediately, no DB I/O wait)
+	BatchMessageWriter::getInstance()->enqueue(chat_msg);
 
 	this->AddUserThreadImageMsg(file_name, chat_msg);
 

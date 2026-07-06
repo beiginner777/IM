@@ -10,6 +10,7 @@
 #include <condition_variable>
 #include <atomic>
 #include <thread>
+#include <chrono>
 #include <hiredis/hiredis.h>
 #include "ConfigManager.h"
 #include "SingleTon.h"
@@ -260,7 +261,19 @@ public:
 	bool pushOfflineMessage(int uid, const std::string& message);
 	std::vector<std::string> popOfflineMessages(int uid);
 
+	// Distributed message ID generation
+	// Primary: Redis INCR (atomic, strictly increasing)
+	// Fallback: Snowflake (timestamp + server_id + sequence)
+	long long generateMsgId();
+	void setServerId(int serverId) { serverId_ = serverId; }
+
 private:
+	// Snowflake fallback state
+	int serverId_ = 0;
+	std::atomic<long long> snowflakeSequence_{0};
+	std::atomic<long long> snowflakeLastMs_{0};
+	std::mutex snowflakeMutex_;
+
 	std::unique_ptr<RedisConnPool> pool_;
 };
 
