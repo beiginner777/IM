@@ -1,0 +1,92 @@
+# Redis Sentinel 集群 — 1 Master + 2 Slave + 3 Sentinel
+# Docker 内部网络通信，宿主机通过端口映射访问
+
+services:
+  redis-master:
+    image: redis:5.0-alpine
+    container_name: redis-master
+    ports:
+      - "6380:6379"
+    volumes:
+      - ./data/master:/data
+      - ./redis-master.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - redis-net
+
+  redis-slave-1:
+    image: redis:5.0-alpine
+    container_name: redis-slave-1
+    ports:
+      - "6381:6379"
+    volumes:
+      - slave1-data:/data
+      - ./redis-slave.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf --slaveof redis-master 6379 --masterauth 123456
+    depends_on:
+      - redis-master
+    networks:
+      - redis-net
+
+  redis-slave-2:
+    image: redis:5.0-alpine
+    container_name: redis-slave-2
+    ports:
+      - "6382:6379"
+    volumes:
+      - slave2-data:/data
+      - ./redis-slave.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf --slaveof redis-master 6379 --masterauth 123456
+    depends_on:
+      - redis-master
+    networks:
+      - redis-net
+
+  sentinel-1:
+    image: redis:5.0-alpine
+    container_name: sentinel-1
+    ports:
+      - "26379:26379"
+    volumes:
+      - ./sentinel-1.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      - redis-master
+      - redis-slave-1
+      - redis-slave-2
+    networks:
+      - redis-net
+
+  sentinel-2:
+    image: redis:5.0-alpine
+    container_name: sentinel-2
+    ports:
+      - "26380:26379"
+    volumes:
+      - ./sentinel-2.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      - redis-master
+    networks:
+      - redis-net
+
+  sentinel-3:
+    image: redis:5.0-alpine
+    container_name: sentinel-3
+    ports:
+      - "26381:26379"
+    volumes:
+      - ./sentinel-3.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      - redis-master
+    networks:
+      - redis-net
+
+volumes:
+  slave1-data:
+  slave2-data:
+
+networks:
+  redis-net:
+    driver: bridge

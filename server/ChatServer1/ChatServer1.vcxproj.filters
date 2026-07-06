@@ -15,12 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="AsioIOContextThread.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="ConfigManager.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="CServer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -42,9 +36,6 @@
     <ClCompile Include="MsgNode.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="RedisManager.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="ChatGrpcClient.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -57,23 +48,17 @@
     <ClCompile Include="MysqlManager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="RedisLocker.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="MysqlDao.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="utils.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="BatchMessageWriter.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AsioIOContextThreadPool.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ConfigManager.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="CServer.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -95,12 +80,6 @@
     <ClInclude Include="MsgNode.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="RedisManager.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="SingleTon.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="ChatGrpcClient.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -116,13 +95,13 @@
     <ClInclude Include="MysqlManager.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="RedisLocker.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="MysqlDao.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="utils.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="BatchMessageWriter.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
