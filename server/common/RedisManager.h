@@ -41,6 +41,13 @@ public:
 		this->init(host_, port_, password_);
 	}
 
+	// Parameterized constructor for Slave pools (different port)
+	RedisConnPool(const std::string& host, const std::string& port, const std::string& pwd)
+		: failedCount_(0), host_(host), port_(port), password_(pwd)
+	{
+		this->init(host_, port_, password_);
+	}
+
 	~RedisConnPool()
 	{
 		b_stop_ = true;
@@ -274,7 +281,12 @@ private:
 	std::atomic<long long> snowflakeLastMs_{0};
 	std::mutex snowflakeMutex_;
 
-	std::unique_ptr<RedisConnPool> pool_;
+	// Read/write split: master for writes, random slave for reads
+	redisContext* getMasterConn();
+	redisContext* getSlaveConn();
+
+	std::unique_ptr<RedisConnPool> masterPool_;
+	std::vector<std::unique_ptr<RedisConnPool>> slavePools_;
 };
 
 #endif
