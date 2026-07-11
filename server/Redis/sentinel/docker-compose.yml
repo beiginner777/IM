@@ -9,6 +9,7 @@ networks:
 # 2. 数据卷声明（提前“注册”存储空间）
 # ==============================================
 volumes:
+  master-data:  # 给主库申请Docker卷（主库也可能被降级为从库，需要写入RDB
   slave1-data:  # 给第一个从库申请一个由Docker统一管理的“云硬盘”
   slave2-data:  # 给第二个从库申请一个由Docker统一管理的“云硬盘”
 
@@ -25,7 +26,7 @@ services:
       - "6380:6379"                  # 宿主机6380 -> 容器6379（外部程序通过6380端口连接主库）
     volumes:
       # 挂载1：把宿主机当前目录下的 data/master 文件夹映射到容器内的 /data（存持久化文件，如RDB/AOF）
-      - ./data/master:/data
+      - master-data:/data
       # 挂载2：把宿主机上的 redis-master.conf 配置文件映射进容器（:ro 表示 Read-Only，容器只能读不能改配置）
       - ./redis-master.conf:/usr/local/etc/redis/redis.conf:ro
     command: redis-server /usr/local/etc/redis/redis.conf  # 容器启动时，用这个配置文件启动Redis服务
