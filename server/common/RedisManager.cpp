@@ -556,12 +556,17 @@ static bool discoverMasterFromSentinel(std::string& outHost, std::string& outPor
 	{
 		std::istringstream hs(sentinelHosts), ps(sentinelPorts);
 		std::string h, p;
-		while (std::getline(hs, h, ',') && std::getline(ps, p, ',')) {
-			hosts.push_back(h);
-			ports.push_back(p);
-		}
+		while (std::getline(hs, h, ',')) hosts.push_back(h);
+		while (std::getline(ps, p, ',')) ports.push_back(p);
 	}
-	if (hosts.empty() || hosts.size() != ports.size()) return false;
+	if (hosts.empty() || ports.empty()) return false;
+
+	// 单个 Host 自动应用于全部 Port（常见于同一台机器部署多个 Sentinel）
+	if (hosts.size() == 1 && ports.size() > 1) {
+		std::string singleHost = hosts[0];
+		hosts.resize(ports.size(), singleHost);
+	}
+	if (hosts.size() != ports.size()) return false;
 
 	for (size_t i = 0; i < hosts.size(); i++) {
 		redisContext* ctx = redisConnect(hosts[i].c_str(), std::stoi(ports[i]));
