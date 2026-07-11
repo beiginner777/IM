@@ -8,9 +8,10 @@
 ## 文件结构
 与 ChatServer1 完全相同。详见 `../ChatServer1/README.md`。
 
-## 与 ChatServer1 的微小差异
-- `main.cpp` 启动时会将 Redis 登录计数重置为 0
-- `CSession.cpp` Close() 中日志消息略有不同
+## 与 ChatServer1 的差异
+- `main.cpp` 启动时将 Redis 登录计数重置为 0
+- `config.ini` 中 `SelfServer/Name = ChatServer2`，`SelfServer/Port = 8091`
+- `BatchMessageWriter` 通过共享 Redis 队列与 ChatServer1 协同消费
 
 ## 部署
 独立 exe，部署到不同机器或同一机器的不同端口。

@@ -54,6 +54,9 @@ Makefile
 Makefile.Debug
 Makefile.Release
 
+# Qt 自动保存文件
+.autosave
+
 # gRPC / Protobuf 生成文件（由 .proto 编译产生）
 *.pb.cc
 *.pb.h
@@ -66,6 +69,11 @@ Makefile.Release
 *.crt
 *.key
 *.pem
+
+# ============================================
+# Docker / Redis 运行时数据
+# ============================================
+server/Redis/sentinel/data/
 
 # ============================================
 # IDE / 编辑器

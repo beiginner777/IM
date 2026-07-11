@@ -32,8 +32,11 @@ int main(int argc, char *argv[])
 
     // dev 环境忽略自签证书错误（仅 HTTPS 时生效，生产环境必须移除）
     if (GateServerScheme == "https") {
+        // 获取当前的全局默认 SSL 配置
         QSslConfiguration sslConfig = QSslConfiguration::defaultConfiguration();
+        // 将对端证书验证模式设置为“不验证”
         sslConfig.setPeerVerifyMode(QSslSocket::VerifyNone);
+        // 将修改后的配置设回全局默认
         QSslConfiguration::setDefaultConfiguration(sslConfig);
     }
 

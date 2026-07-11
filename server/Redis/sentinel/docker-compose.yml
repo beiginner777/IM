@@ -1,0 +1,113 @@
+# ==============================================
+# 1. 网络配置（相当于给容器们拉的“内部局域网”）
+# ==============================================
+networks:
+  redis-net:
+    driver: bridge  # 默认的桥接模式，让容器间可以通过“服务名”互相访问
+
+# ==============================================
+# 2. 数据卷声明（提前“注册”存储空间）
+# ==============================================
+volumes:
+  slave1-data:  # 给第一个从库申请一个由Docker统一管理的“云硬盘”
+  slave2-data:  # 给第二个从库申请一个由Docker统一管理的“云硬盘”
+
+# ==============================================
+# 3. 所有服务（容器）的详细定义
+# ==============================================
+services:
+
+  # ---------- 主节点（Master，负责写数据） ----------
+  redis-master:
+    image: redis:5.0-alpine          # 使用轻量级的 Redis 5.0 镜像
+    container_name: redis-master     # 给容器起个固定的名字，方便在内部网络中被找到
+    ports:
+      - "6380:6379"                  # 宿主机6380 -> 容器6379（外部程序通过6380端口连接主库）
+    volumes:
+      # 挂载1：把宿主机当前目录下的 data/master 文件夹映射到容器内的 /data（存持久化文件，如RDB/AOF）
+      - ./data/master:/data
+      # 挂载2：把宿主机上的 redis-master.conf 配置文件映射进容器（:ro 表示 Read-Only，容器只能读不能改配置）
+      - ./redis-master.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf  # 容器启动时，用这个配置文件启动Redis服务
+    networks:
+      - redis-net                    # 加入我们上面定义的“内部局域网”
+
+  # ---------- 从节点 1（Slave-1，负责读数据，备份主库） ----------
+  redis-slave-1:
+    image: redis:5.0-alpine
+    container_name: redis-slave-1
+    ports:
+      - "6381:6379"                  # 宿主机6381 -> 容器6379
+    volumes:
+      # 这里用的不是宿主机路径，而是上面申请的“云硬盘”（slave1-data），由Docker自动管理位置
+      - slave1-data:/data
+      # 配置文件挂载，同样是只读
+      - ./redis-slave.conf:/usr/local/etc/redis/redis.conf:ro
+    # 启动命令：除了加载配置，还额外声明 --slaveof redis-master 6379 表示“我要认 redis-master 当大哥”
+    # --masterauth 123456 表示“大哥的密码是123456，我登录复制数据要用”
+    command: redis-server /usr/local/etc/redis/redis.conf --slaveof redis-master 6379 --masterauth 123456
+    depends_on:
+      - redis-master                 # 等主库启动了我再启动（避免连不上大哥）
+    networks:
+      - redis-net
+
+  # ---------- 从节点 2（Slave-2，配置和作用跟 Slave-1 完全一样） ----------
+  redis-slave-2:
+    image: redis:5.0-alpine
+    container_name: redis-slave-2
+    ports:
+      - "6382:6379"
+    volumes:
+      - slave2-data:/data
+      - ./redis-slave.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf --slaveof redis-master 6379 --masterauth 123456
+    depends_on:
+      - redis-master
+    networks:
+      - redis-net
+
+  # ---------- 哨兵 1（Sentinel-1，负责监控主库是否活着） ----------
+  sentinel-1:
+    image: redis:5.0-alpine
+    container_name: sentinel-1
+    ports:
+      - "26379:26379"                # 宿主机26379 -> 容器26379（哨兵的默认端口是26379）
+    volumes:
+      # 挂载哨兵的配置文件（注意：这里没有写 :ro，说明哨兵可能会自己修改这个配置文件，比如记录当选的新主库地址）
+      - ./sentinel-1.conf:/usr/local/etc/redis/sentinel.conf
+    # 启动命令：以哨兵模式运行，加载哨兵配置文件
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      - redis-master
+      - redis-slave-1
+      - redis-slave-2               # 确保三个Redis节点都起来了，哨兵再启动
+    networks:
+      - redis-net
+
+  # ---------- 哨兵 2（Sentinel-2） ----------
+  sentinel-2:
+    image: redis:5.0-alpine
+    container_name: sentinel-2
+    ports:
+      - "26380:26379"                # 宿主机映射不同端口，避免冲突
+    volumes:
+      - ./sentinel-2.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      - redis-master                 # 实际上哨兵只需要依赖主库和网络，它会自动发现从库
+    networks:
+      - redis-net
+
+  # ---------- 哨兵 3（Sentinel-3） ----------
+  sentinel-3:
+    image: redis:5.0-alpine
+    container_name: sentinel-3
+    ports:
+      - "26381:26379"
+    volumes:
+      - ./sentinel-3.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      - redis-master
+    networks:
+      - redis-net

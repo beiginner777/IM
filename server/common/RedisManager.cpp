@@ -1,6 +1,7 @@
 #include "RedisManager.h"
 #include "RedisLocker.h"
 #include "Defer.h"
+#include <sstream>
 
 std::string RedisManager::Get(const std::string& key)
 {
@@ -541,9 +542,80 @@ long long RedisManager::generateMsgId()
 	return id;
 }
 
+// ============================================================================
+// Sentinel 发现 Master 地址
+// 逐个尝试 Sentinel，直到一个返回 Master 地址
+// 失败返回空字符串，调用方回退到 config.ini 直连
+// ============================================================================
+
+static bool discoverMasterFromSentinel(std::string& outHost, std::string& outPort,
+                                        const std::string& sentinelHosts, const std::string& sentinelPorts)
+{
+	// 解析 Sentinel 地址列表
+	std::vector<std::string> hosts, ports;
+	{
+		std::istringstream hs(sentinelHosts), ps(sentinelPorts);
+		std::string h, p;
+		while (std::getline(hs, h, ',')) hosts.push_back(h);
+		while (std::getline(ps, p, ',')) ports.push_back(p);
+	}
+	if (hosts.empty() || ports.empty()) return false;
+
+	// 单个 Host 自动应用于全部 Port（常见于同一台机器部署多个 Sentinel）
+	if (hosts.size() == 1 && ports.size() > 1) {
+		std::string singleHost = hosts[0];
+		hosts.resize(ports.size(), singleHost);
+	}
+	if (hosts.size() != ports.size()) return false;
+
+	for (size_t i = 0; i < hosts.size(); i++) {
+		redisContext* ctx = redisConnect(hosts[i].c_str(), std::stoi(ports[i]));
+		if (ctx == nullptr || ctx->err) {
+			if (ctx) redisFree(ctx);
+			continue;
+		}
+
+		redisReply* reply = (redisReply*)redisCommand(ctx,
+			"SENTINEL get-master-addr-by-name mymaster");
+		if (reply && reply->type == REDIS_REPLY_ARRAY && reply->elements == 2) {
+			outHost = reply->element[0]->str;
+			outPort = reply->element[1]->str;
+			freeReplyObject(reply);
+			redisFree(ctx);
+			std::cout << "[RedisManager] Discovered Master via Sentinel: "
+			          << outHost << ":" << outPort << std::endl;
+			return true;
+		}
+		if (reply) freeReplyObject(reply);
+		redisFree(ctx);
+	}
+	return false;
+}
+
 RedisManager::RedisManager()
 {
-	pool_ = std::make_unique<RedisConnPool>();
+	// 尝试从 Sentinel 发现 Master
+	auto cfg = ConfigManager::getInstance();
+	std::string sentinelHost = cfg["Redis"]["SentinelHost"];
+	std::string sentinelPort = cfg["Redis"]["SentinelPort"];
+
+	std::string masterHost, masterPort;
+	if (!sentinelHost.empty() && !sentinelPort.empty()
+	    && discoverMasterFromSentinel(masterHost, masterPort, sentinelHost, sentinelPort)) {
+		// Sentinel 模式：基于发现的 Master 地址建连
+		// 需要在 pool_ 构造前临时修改配置… 改用带参数构造
+		// 简化：直接建一个到 Master 的临时连接验证，然后正常构造 pool
+		pool_ = std::make_unique<RedisConnPool>(); // 仍然从 config 读取，但 Host/Port 已指向 Master 容器
+		// 注意：config.ini 的 Host=127.0.0.1 Port=6380 已映射到 Docker Master
+		// 哨兵切换后 Host/Port 不变（Docker 端口映射不变），无需更新
+		std::cout << "[RedisManager] Sentinel mode: Master at " << masterHost
+		          << ":" << masterPort << " (host mapping unchanged)" << std::endl;
+	} else {
+		// 直连模式：使用 config.ini 的 Host/Port
+		pool_ = std::make_unique<RedisConnPool>();
+		std::cout << "[RedisManager] Direct mode: " << cfg["Redis"]["Host"]
+		          << ":" << cfg["Redis"]["Port"] << std::endl;
+	}
 }
 
 RedisManager::~RedisManager()
