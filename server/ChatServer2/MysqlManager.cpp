@@ -1,13 +1,19 @@
 #include "MysqlManager.h"
 
-// 启动时调用：从 MySQL user 表加载所有 uid，构建布隆过滤器
+// 启动时构建布隆过滤器：优先从 Redis 恢复，没有则从 MySQL 全量加载
 void MysqlManager::initBloomFilter()
 {
 	bloomFilter_ = std::make_unique<BloomFilter>(1000000, 0.01);
 
-	// 从数据库加载现有用户 uid 列表
-	// 用小 SQL 直接查，不需要走 getUserByUid（避免触发布隆检查循环）
-	auto conn = dao_.getConn(true);  // 强行走 Master
+	// ① 先尝试从 Redis BITMAP 恢复（之前存过）
+	if (bloomFilter_->loadFromRedis("bloom:user_search")) {
+		std::cout << "[BloomFilter] Restored from Redis"
+		          << " (" << bloomFilter_->count() << " bits set)" << std::endl;
+		return;
+	}
+
+	// ② Redis 没有数据 → 从 MySQL 全量加载
+	auto conn = dao_.getConn(true);
 	if (!conn) {
 		std::cerr << "[BloomFilter] Failed to get DB connection" << std::endl;
 		return;
@@ -22,12 +28,15 @@ void MysqlManager::initBloomFilter()
 			bloomFilter_->add((uint64_t)res->getInt("uid"));
 			count++;
 		}
-		std::cout << "[BloomFilter] Loaded " << count << " users from MySQL"
+		std::cout << "[BloomFilter] Built from MySQL: " << count << " users"
 		          << " (" << bloomFilter_->bitSize() / 8 / 1024 << "KB, "
 		          << bloomFilter_->hashCount() << " hashes)" << std::endl;
+
+		// ③ 构建完成 → 持久化到 Redis，下次重启直接恢复
+		bloomFilter_->saveToRedis("bloom:user_search");
 	}
 	catch (sql::SQLException& e) {
-		std::cerr << "[BloomFilter] Load failed: " << e.what() << std::endl;
+		std::cerr << "[BloomFilter] MySQL load failed: " << e.what() << std::endl;
 	}
 }
 
