@@ -5,13 +5,13 @@
 
 std::string RedisManager::Get(const std::string& key)
 {
-	auto connect_ = getSlaveConn();
+	auto connect_ = getConn();
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return "";
 	}
 	Defer defer([this, &connect_]() {
-		masterPool_->returnConnection(std::move(connect_));
+		returnConn(connect_);
 		});
 	redisReply* reply_ = (redisReply*)redisCommand(connect_, "GET %s", key.c_str());
 	if (reply_ == nullptr)
@@ -38,13 +38,13 @@ bool RedisManager::MGet(const std::vector<std::string>& keys, std::unordered_map
 	if (keys.empty()) {
 		return false;
 	}
-	auto connect_ = getSlaveConn();
+	auto connect_ = getConn();
 	if (!connect_) {
 		std::cout << "MGet RedisConn failed.\n";
 		return false;
 	}
 	Defer defer([this, &connect_]() {
-		masterPool_->returnConnection(std::move(connect_));
+		returnConn(connect_);
 		});
 
 	// �Ȱ����� key �Ž� map��Ĭ�� ""
@@ -82,13 +82,13 @@ bool RedisManager::MGet(const std::vector<std::string>& keys, std::unordered_map
 
 bool RedisManager::Set(const std::string& key, const std::string& value)
 {
-	auto connect_ = getSlaveConn();
+	auto connect_ = getConn(true);
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return false;
 	}
 	Defer defer([this, &connect_]() {
-		masterPool_->returnConnection(std::move(connect_));
+		returnConn(connect_);
 		});
 	redisReply* reply_ = (redisReply*)redisCommand(connect_, "set %s %s", key.c_str(), value.c_str());
 	if (reply_ == nullptr)
@@ -112,13 +112,13 @@ bool RedisManager::Set(const std::string& key, const std::string& value)
 
 bool RedisManager::SetExp(const std::string& key, const std::string& value, int expire_seconds) 
 {
-	auto connect_ = getSlaveConn();
+	auto connect_ = getConn(true);
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return false;
 	}
 	Defer defer([this, &connect_]() {
-		masterPool_->returnConnection(std::move(connect_));
+		returnConn(connect_);
 		});
 
 	auto reply = (redisReply*)redisCommand(connect_, "SETEX %s %d %s", key.c_str(),
@@ -147,13 +147,13 @@ bool RedisManager::SetExp(const std::string& key, const std::string& value, int 
 
 bool RedisManager::Auth(const std::string& password)
 {
-	auto connect_ = getSlaveConn();
+	auto connect_ = getConn(true);
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return false;
 	}
 	Defer defer([this, &connect_]() {
-		masterPool_->returnConnection(std::move(connect_));
+		returnConn(connect_);
 		});
 	redisReply* reply_ = (redisReply*)redisCommand(connect_, "AUTH %s", password.c_str());
 	if (reply_->type == REDIS_REPLY_ERROR)
@@ -169,13 +169,13 @@ bool RedisManager::Auth(const std::string& password)
 
 bool RedisManager::LPush(const std::string& key, const std::string& value)
 {
-	auto connect_ = getSlaveConn();
+	auto connect_ = getConn(true);
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return false;
 	}
 	Defer defer([this, &connect_]() {
-		masterPool_->returnConnection(std::move(connect_));
+		returnConn(connect_);
 		});
 	redisReply* reply_ = (redisReply*)redisCommand(connect_, "LPUSH %s %s", key.c_str(), value.c_str());
 	if (NULL == reply_)
@@ -198,13 +198,13 @@ bool RedisManager::LPush(const std::string& key, const std::string& value)
 
 std::string RedisManager::LPop(const std::string& key) 
 {
-	auto connect_ = getMasterConn();
+	auto connect_ = getConn(true);
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return "";
 	}
 	Defer defer([this, &connect_]() {
-		masterPool_->returnConnection(std::move(connect_));
+		returnConn(connect_);
 		});
 	redisReply* reply_ = (redisReply*)redisCommand(connect_, "LPOP %s ", key.c_str());
 	if (reply_ == nullptr || reply_->type == REDIS_REPLY_NIL) {
@@ -220,13 +220,13 @@ std::string RedisManager::LPop(const std::string& key)
 
 bool RedisManager::RPush(const std::string& key, const std::string& value) 
 {
-	auto connect_ = getMasterConn();
+	auto connect_ = getConn(true);
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return false;
 	}
 	Defer defer([this, &connect_]() {
-		masterPool_->returnConnection(std::move(connect_));
+		returnConn(connect_);
 		});
 	redisReply* reply_ = (redisReply*)redisCommand(connect_, "RPUSH %s %s", key.c_str(), value.c_str());
 	if (NULL == reply_)
@@ -249,13 +249,13 @@ bool RedisManager::RPush(const std::string& key, const std::string& value)
 
 std::string RedisManager::RPop(const std::string& key) 
 {
-	auto connect_ = getMasterConn();
+	auto connect_ = getConn(true);
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return "";
 	}
 	Defer defer([this, &connect_]() {
-		masterPool_->returnConnection(std::move(connect_));
+		returnConn(connect_);
 		});
 	redisReply* reply_ = (redisReply*)redisCommand(connect_, "RPOP %s ", key.c_str());
 	if (reply_ == nullptr || reply_->type == REDIS_REPLY_NIL) {
@@ -271,13 +271,13 @@ std::string RedisManager::RPop(const std::string& key)
 
 bool RedisManager::HSet(const std::string& key, const std::string& hkey, const std::string& value) 
 {
-	auto connect_ = getMasterConn();
+	auto connect_ = getConn(true);
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return false;
 	}
 	Defer defer([this, &connect_]() {
-		masterPool_->returnConnection(std::move(connect_));
+		returnConn(connect_);
 		});
 	redisReply* reply_ = (redisReply*)redisCommand(connect_, "HSET %s %s %s", key.c_str(), hkey.c_str(), value.c_str());
 	if (reply_ == nullptr || reply_->type != REDIS_REPLY_INTEGER) {
@@ -315,13 +315,13 @@ bool RedisManager::HSet(const std::string& key, const std::string& hkey, const s
 
 std::string RedisManager::HGet(const std::string& key, const std::string& hkey)
 {
-	auto connect_ = getSlaveConn();
+	auto connect_ = getConn();
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return "";
 	}
 	Defer defer([this, &connect_]() {
-		masterPool_->returnConnection(std::move(connect_));
+		returnConn(connect_);
 		});
 	const char* argv[3];
 	size_t argvlen[3];
@@ -346,13 +346,13 @@ std::string RedisManager::HGet(const std::string& key, const std::string& hkey)
 
 bool RedisManager::Del(const std::string& key)
 {
-	auto connect_ = getMasterConn();
+	auto connect_ = getConn(true);
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return false;
 	}
 	Defer defer([this, &connect_]() {
-		masterPool_->returnConnection(std::move(connect_));
+		returnConn(connect_);
 		});
 	redisReply* reply_ = (redisReply*)redisCommand(connect_, "DEL %s", key.c_str());
 	if (reply_ == nullptr || reply_->type != REDIS_REPLY_INTEGER) {
@@ -367,13 +367,13 @@ bool RedisManager::Del(const std::string& key)
 
 bool RedisManager::ExistsKey(const std::string& key)
 {
-	auto connect_ = getMasterConn();
+	auto connect_ = getConn(true);
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return false;  // bugfix: bool函数不应返回字符串字面量
 	}
 	Defer defer([this, &connect_]() {
-		masterPool_->returnConnection(std::move(connect_));
+		returnConn(connect_);
 		});
 	redisReply* reply_ = (redisReply*)redisCommand(connect_, "exists %s", key.c_str());
 	if (reply_ == nullptr || reply_->type != REDIS_REPLY_INTEGER || reply_->integer == 0) {
@@ -388,26 +388,26 @@ bool RedisManager::ExistsKey(const std::string& key)
 
 std::string RedisManager::acqueireLock(const std::string& lockName, int lockTimeOut, int expireTime)
 {
-	auto connect_ = getMasterConn();
+	auto connect_ = getConn(true);
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return "";
 	}
 	Defer defer([this, &connect_]() {
-		masterPool_->returnConnection(std::move(connect_));
+		returnConn(connect_);
 		});
 	return RedisLocker::GetInstance()->acquireLock(connect_, lockName, lockTimeOut, expireTime);
 }
 
 bool RedisManager::releaseLock(const std::string& lockName, const std::string& lockValue)
 {
-	auto connect_ = getMasterConn();
+	auto connect_ = getConn(true);
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return false;
 	}
 	Defer defer([this, &connect_]() {
-		masterPool_->returnConnection(std::move(connect_));
+		returnConn(connect_);
 		});
 	return RedisLocker::GetInstance()->releaseLock(connect_, lockName, lockValue);
 }
@@ -415,7 +415,7 @@ bool RedisManager::releaseLock(const std::string& lockName, const std::string& l
 bool RedisManager::pushOfflineMessage(int uid, const std::string& message)
 {
 	// �� Redis���б� notify_message:uid ��������Ϣ message
-	auto connect_ = getMasterConn();
+	auto connect_ = getConn(true);
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return false;
@@ -441,7 +441,7 @@ bool RedisManager::pushOfflineMessage(int uid, const std::string& message)
 std::vector<std::string> RedisManager::popOfflineMessages(int uid)
 {
 	// �� Redis���б� notify_message:uid �л�ȡ���е���Ϣ
-	auto connect_ = getMasterConn();
+	auto connect_ = getConn(true);
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return std::vector<std::string>();
@@ -481,10 +481,10 @@ std::vector<std::string> RedisManager::popOfflineMessages(int uid)
 long long RedisManager::generateMsgId()
 {
 	// --- Path 1: Redis INCR (happy path) ---
-	auto connect_ = getMasterConn();
+	auto connect_ = getConn(true);
 	if (connect_ != nullptr) {
 		Defer defer([this, &connect_]() {
-			masterPool_->returnConnection(std::move(connect_));
+			returnConn(connect_);
 		});
 
 		redisReply* reply = (redisReply*)redisCommand(connect_, "INCR msg_id_counter");
@@ -632,26 +632,39 @@ RedisManager::RedisManager()
 // Read/Write routing helpers
 // ============================================================================
 
-redisContext* RedisManager::getMasterConn()
-{
-	return masterPool_->getConnection();
-}
+static thread_local int tlsPoolIdx = -1;  // -1=master, >=0=slavePools_[N]
 
-redisContext* RedisManager::getSlaveConn()
+redisContext* RedisManager::getConn(bool forceMaster)
 {
-	if (slavePools_.empty()) {
-		return masterPool_->getConnection();  // fallback to master
+	if (forceMaster) {
+		tlsPoolIdx = -1;
+		return masterPool_->getConnection();
 	}
-	// Random round-robin: pick a random slave
+	// 读走 Slave：随机轮询，Slave 不可用时回退 Master
+	if (slavePools_.empty()) {
+		tlsPoolIdx = -1;
+		return masterPool_->getConnection();
+	}
 	static std::atomic<size_t> idx{0};
 	size_t i = idx.fetch_add(1) % slavePools_.size();
 	redisContext* conn = slavePools_[i]->getConnection();
 	if (conn == nullptr) {
-		return masterPool_->getConnection();  // slave down → fallback to master
+		tlsPoolIdx = -1;
+		return masterPool_->getConnection();
 	}
+	tlsPoolIdx = (int)i;
 	return conn;
 }
 
+void RedisManager::returnConn(redisContext* conn)
+{
+	if (conn == nullptr) return;
+	if (tlsPoolIdx < 0 || (size_t)tlsPoolIdx >= slavePools_.size()) {
+		masterPool_->returnConnection(conn);
+	} else {
+		slavePools_[tlsPoolIdx]->returnConnection(conn);
+	}
+}
 RedisManager::~RedisManager()
 {
 }

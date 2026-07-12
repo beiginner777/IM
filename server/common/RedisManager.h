@@ -282,8 +282,8 @@ private:
 	std::mutex snowflakeMutex_;
 
 	// Read/write split: master for writes, random slave for reads
-	redisContext* getMasterConn();
-	redisContext* getSlaveConn();
+	redisContext* getConn(bool forceMaster = false);
+	void returnConn(redisContext* conn);
 
 	std::unique_ptr<RedisConnPool> masterPool_;
 	std::vector<std::unique_ptr<RedisConnPool>> slavePools_;
