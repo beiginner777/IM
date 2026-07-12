@@ -5,21 +5,19 @@
 MysqlDao::MysqlDao()
 {
     auto cfg = ConfigManager::getInstance();
-    std::string host  = cfg["Mysql"]["Host"];
-    std::string port  = cfg["Mysql"]["Port"];
-    std::string user  = cfg["Mysql"]["User"];
-    std::string pwd   = cfg["Mysql"]["Password"];
-    std::string schema = cfg["Mysql"]["Schema"];
 
-    // Master pool (config.ini Host/Port)
+    // Master pool: default constructor reads config.ini [Mysql] section
     masterPool_ = std::make_unique<MysqlConnPool>();
-    std::cout << "[MysqlDao] Master pool: " << host << ":" << port << std::endl;
+    std::cout << "[MysqlDao] Master pool: " << cfg["Mysql"]["Host"]
+              << ":" << cfg["Mysql"]["Port"] << std::endl;
 
-    // Slave pool (optional)
+    // Slave pool (optional): parameterized constructor uses same user/pwd/schema
     std::string slaveHost = cfg["Mysql"]["SlaveHost"];
     std::string slavePort = cfg["Mysql"]["SlavePort"];
     if (!slaveHost.empty() && !slavePort.empty()) {
-        slavePool_ = std::make_unique<MysqlConnPool>(slaveHost, user, slavePort, pwd, schema);
+        slavePool_ = std::make_unique<MysqlConnPool>(
+            slaveHost, cfg["Mysql"]["User"], slavePort,
+            cfg["Mysql"]["Password"], cfg["Mysql"]["Schema"]);
         std::cout << "[MysqlDao] Slave pool: " << slaveHost << ":" << slavePort << std::endl;
     }
 }
