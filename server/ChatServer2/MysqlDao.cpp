@@ -4,7 +4,41 @@
 
 MysqlDao::MysqlDao()
 {
-    pool_ = std::make_unique<MysqlConnPool>();
+    auto cfg = ConfigManager::getInstance();
+    std::string host  = cfg["Mysql"]["Host"];
+    std::string port  = cfg["Mysql"]["Port"];
+    std::string user  = cfg["Mysql"]["User"];
+    std::string pwd   = cfg["Mysql"]["Password"];
+    std::string schema = cfg["Mysql"]["Schema"];
+
+    // Master pool (config.ini Host/Port)
+    masterPool_ = std::make_unique<MysqlConnPool>();
+    std::cout << "[MysqlDao] Master pool: " << host << ":" << port << std::endl;
+
+    // Slave pool (optional)
+    std::string slaveHost = cfg["Mysql"]["SlaveHost"];
+    std::string slavePort = cfg["Mysql"]["SlavePort"];
+    if (!slaveHost.empty() && !slavePort.empty()) {
+        slavePool_ = std::make_unique<MysqlConnPool>(slaveHost, user, slavePort, pwd, schema);
+        std::cout << "[MysqlDao] Slave pool: " << slaveHost << ":" << slavePort << std::endl;
+    }
+}
+
+std::unique_ptr<SqlConnection> MysqlDao::getMasterConn()
+{
+	return masterPool_->getConnection();
+}
+
+std::unique_ptr<SqlConnection> MysqlDao::getSlaveConn()
+{
+	if (!slavePool_) {
+		return masterPool_->getConnection();
+	}
+	auto conn = slavePool_->getConnection();
+	if (!conn) {
+		return masterPool_->getConnection();
+	}
+	return conn;
 }
 
 MysqlDao::~MysqlDao()
@@ -13,7 +47,7 @@ MysqlDao::~MysqlDao()
 
 int MysqlDao::registerUser(const std::string& name, const std::string& email, const std::string& password)
 {
-	std::unique_ptr<SqlConnection> conn = pool_->getConnection();
+	std::unique_ptr<SqlConnection> conn = getMasterConn();
 
     if (conn == nullptr) {
         std::cout << "mysqlConn is nullptr, register failed.\n";
@@ -21,7 +55,7 @@ int MysqlDao::registerUser(const std::string& name, const std::string& email, co
     }
 
     Defer defer([this, &conn]() {
-        pool_->returnConnection(std::move(conn));
+        masterPool_->returnConnection(std::move(conn));
         });
 
 	try {
@@ -66,13 +100,13 @@ int MysqlDao::registerUser(const std::string& name, const std::string& email, co
 
 int MysqlDao::addFriendApply(int fromuid, int touid, int& current_id, std::string& apply_time)
 {
-    auto con = pool_->getConnection();
+    auto con = getMasterConn();
     if (con == nullptr) {
         return ERROR_FRIEND_APPLY;
     }
 
     Defer defer([this, &con]() {
-        pool_->returnConnection(std::move(con));
+        masterPool_->returnConnection(std::move(con));
         });
 
     try {
@@ -153,13 +187,13 @@ int MysqlDao::addFriendApply(int fromuid, int touid, int& current_id, std::strin
 
 int MysqlDao::getUserFriendApply(int uid, std::vector<std::shared_ptr<ApplyInfo>>& applyList)
 {
-    auto con = pool_->getConnection();
+    auto con = getSlaveConn();
     if (con == nullptr) {
         return ERROR_GET_FRIEND_APPLY_LIST;
     }
 
     Defer defer([this, &con]() {
-        pool_->returnConnection(std::move(con));
+        masterPool_->returnConnection(std::move(con));
         });
 
 
@@ -189,13 +223,13 @@ int MysqlDao::getUserFriendApply(int uid, std::vector<std::shared_ptr<ApplyInfo>
 
 int MysqlDao::getUserFriendList(int uid, std::vector<std::shared_ptr<UserInfo>>& friendList)
 {
-    auto con = pool_->getConnection();
+    auto con = getSlaveConn();
     if (con == nullptr) {
         return false;
     }
 
     Defer defer([this, &con]() {
-        pool_->returnConnection(std::move(con));
+        masterPool_->returnConnection(std::move(con));
         });
 
 
@@ -229,13 +263,13 @@ int MysqlDao::getUserFriendList(int uid, std::vector<std::shared_ptr<UserInfo>>&
 
 int MysqlDao::addFriendRelation(int fromuid, int touid, int& thread_id1, int& thread_id2, int& friend_id1, int& friend_id2)
 {
-    auto conn = pool_->getConnection();
+    auto conn = getMasterConn();
     if (conn == nullptr) {
         return ERROR_ADD_FRIEND_RELATION;
     }
 
     Defer defer([this, &conn]() {
-        pool_->returnConnection(std::move(conn));
+        masterPool_->returnConnection(std::move(conn));
         });
 
     try {
@@ -321,13 +355,13 @@ int MysqlDao::addFriendRelation(int fromuid, int touid, int& thread_id1, int& th
 
 std::shared_ptr<UserInfo> MysqlDao::getUserByUid(int uid)
 {
-    auto con = pool_->getConnection();
+    auto con = getSlaveConn();
     if (con == nullptr) {
         return nullptr;
     }
 
     Defer defer([this, &con]() {
-        pool_->returnConnection(std::move(con));
+        masterPool_->returnConnection(std::move(con));
         });
 
     try {
@@ -361,13 +395,13 @@ std::shared_ptr<UserInfo> MysqlDao::getUserByUid(int uid)
 
 std::shared_ptr<UserInfo> MysqlDao::getUserByName(std::string name)
 {
-    auto con = pool_->getConnection();
+    auto con = getSlaveConn();
     if (con == nullptr) {
         return nullptr;
     }
 
     Defer defer([this, &con]() {
-        pool_->returnConnection(std::move(con));
+        masterPool_->returnConnection(std::move(con));
         });
 
     try {
@@ -400,14 +434,14 @@ std::shared_ptr<UserInfo> MysqlDao::getUserByName(std::string name)
 
 int MysqlDao::setFriendApplyStatus(int fromuid, int touid, int status)
 {
-    auto conn = pool_->getConnection();
+    auto conn = getMasterConn();
     if (conn == nullptr) {
         std::cout << "setFriendApplyStatus failed: fromuid=" << fromuid << " touid=" << touid << std::endl;
         return ERROR_MODIFLY_APPLY_STATUS_FAILED;
     }
 
     Defer defer([this, &conn]() {
-        pool_->returnConnection(std::move(conn));
+        masterPool_->returnConnection(std::move(conn));
         });
 
     try {
@@ -439,7 +473,7 @@ int MysqlDao::setFriendApplyStatus(int fromuid, int touid, int status)
 
 int MysqlDao::GetUserThreadInfos(int uid, int last_thread_id, int page_size, std::vector<std::shared_ptr<ChatThreadInfo>>& infos, bool& load_more, int& max_thread_id)
 {
-    auto conn = pool_->getConnection();
+    auto conn = getSlaveConn();
 
 	max_thread_id = last_thread_id;
 
@@ -448,7 +482,7 @@ int MysqlDao::GetUserThreadInfos(int uid, int last_thread_id, int page_size, std
         return ERROR_LOAD_CHAT_THREAD;
     }
     Defer defer([this, &conn]() {
-        pool_->returnConnection(std::move(conn));
+        masterPool_->returnConnection(std::move(conn));
         });
 
     try
@@ -518,13 +552,13 @@ int MysqlDao::GetUserThreadInfos(int uid, int last_thread_id, int page_size, std
 
 int MysqlDao::createPrivateThread(int user1_id, int user2_id, int& thread_id)
 {
-    auto conn = pool_->getConnection();
+    auto conn = getMasterConn();
     if (!conn) {
         std::cout << "uid = " << user1_id << "GetUserThreadInfos failed, mysqlConn is nullptr.\n";
         return ERROR_LOAD_CHAT_THREAD;
     }
     Defer defer([this, &conn]() {
-        pool_->returnConnection(std::move(conn));
+        masterPool_->returnConnection(std::move(conn));
         });
 
     try {
@@ -569,13 +603,13 @@ int MysqlDao::createPrivateThread(int user1_id, int user2_id, int& thread_id)
 
 int MysqlDao::AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_datas)
 {
-    auto conn = pool_->getConnection();
+    auto conn = getMasterConn();
     if (!conn) {
         std::cout << "Add ChatMsg failed, mysqlConn is nullptr.\n";
         return ERROR_LOAD_CHAT_THREAD;
     }
     Defer defer([this, &conn]() {
-        pool_->returnConnection(std::move(conn));
+        masterPool_->returnConnection(std::move(conn));
         });
 
 
@@ -635,13 +669,13 @@ int MysqlDao::AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_datas)
 
 int MysqlDao::getUserFriendListByLastId(int uid, int last_friend_id, std::map<int, std::shared_ptr<UserInfo>>& friend_list)
 {
-    auto conn = pool_->getConnection();
+    auto conn = getSlaveConn();
     if (!conn) {
         std::cout << "get friend list failed, mysqlConn is nullptr.\n";
         return ERROR_LOAD_CHAT_THREAD;
     }
     Defer defer([this, &conn]() {
-        pool_->returnConnection(std::move(conn));
+        masterPool_->returnConnection(std::move(conn));
         });
 
     try {
@@ -700,13 +734,13 @@ int MysqlDao::getUserFriendListByLastId(int uid, int last_friend_id, std::map<in
 
 int MysqlDao::getUserFriendApplyByLastId(int uid, int last_friend_id, int page_size, std::vector<std::shared_ptr<ApplyInfo>>& applyList, bool& load_more, int& max_friend_apply_id)
 {
-    auto conn = pool_->getConnection();
+    auto conn = getSlaveConn();
     if (!conn) {
         std::cout << "get friend apply list failed, mysqlConn is nullptr.\n";
         return ERROR_LOAD_CHAT_THREAD;
     }
     Defer defer([this, &conn]() {
-        pool_->returnConnection(std::move(conn));
+        masterPool_->returnConnection(std::move(conn));
         });
 
     try {
@@ -790,13 +824,13 @@ int MysqlDao::getUserFriendApplyByLastId(int uid, int last_friend_id, int page_s
 
 int MysqlDao::updateChatMsgStatus(int message_id, MsgStatus status)
 {
-    auto conn = pool_->getConnection();
+    auto conn = getMasterConn();
     if (!conn) {
         std::cout << "get friend apply list failed, mysqlConn is nullptr.\n";
         return ERROR_LOAD_CHAT_THREAD;
     }
     Defer defer([this, &conn]() {
-        pool_->returnConnection(std::move(conn));
+        masterPool_->returnConnection(std::move(conn));
         });
 
     try {
@@ -831,13 +865,13 @@ int MysqlDao::updateChatMsgStatus(int message_id, MsgStatus status)
 
 int MysqlDao::loadChatMessage(int thread_id, int& min_message_id, int& max_message_id, int page_size, bool& is_more, std::vector<ChatMessage>& msgs)
 {
-    auto conn = pool_->getConnection();
+    auto conn = getSlaveConn();
     if (!conn) {
         std::cout << "get friend apply list failed, mysqlConn is nullptr.\n";
         return ERROR_LOAD_CHAT_THREAD;
     }
     Defer defer([this, &conn]() {
-        pool_->returnConnection(std::move(conn));
+        masterPool_->returnConnection(std::move(conn));
         });
 
     try {

@@ -44,6 +44,15 @@ public:
 		checkThread_.detach();
 	}
 
+
+	// Parameterized constructor for Slave pool
+	MysqlConnPool(const std::string& host, const std::string& user,
+	              const std::string& port, const std::string& pwd, const std::string& schema)
+		: failedCount_(0), host_(host), user_(user), port_(port), password_(pwd), schema_(schema)
+	{
+		this->init(host_, user_, port_, password_, schema_);
+	}
+
 	~MysqlConnPool()
 	{
 		b_stop_ = true;
@@ -241,7 +250,12 @@ public:
 	int loadChatMessage(int thread_id, int& min_message_id, int& max_message_id, int page_size, bool& is_more, std::vector<ChatMessage>& msgs);
 
 private:
-	std::unique_ptr<MysqlConnPool> pool_;
+	// Read/write split helpers
+	std::unique_ptr<SqlConnection> getMasterConn();
+	std::unique_ptr<SqlConnection> getSlaveConn();
+
+	std::unique_ptr<MysqlConnPool> masterPool_;
+	std::unique_ptr<MysqlConnPool> slavePool_;
 };
 
 #endif
