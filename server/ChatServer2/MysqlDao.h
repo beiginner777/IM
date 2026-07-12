@@ -252,7 +252,7 @@ public:
 private:
 	// Read/write split helpers
 	std::unique_ptr<SqlConnection> getMasterConn();
-	std::unique_ptr<SqlConnection> getSlaveConn();
+	std::unique_ptr<SqlConnection> getSlaveConn(bool forceMaster = false);
 
 	std::unique_ptr<MysqlConnPool> masterPool_;
 	std::unique_ptr<MysqlConnPool> slavePool_;

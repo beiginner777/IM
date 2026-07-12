@@ -27,9 +27,9 @@ std::unique_ptr<SqlConnection> MysqlDao::getMasterConn()
 	return masterPool_->getConnection();
 }
 
-std::unique_ptr<SqlConnection> MysqlDao::getSlaveConn()
+std::unique_ptr<SqlConnection> MysqlDao::getSlaveConn(bool forceMaster)
 {
-	if (!slavePool_) {
+	if (forceMaster || !slavePool_) {
 		return masterPool_->getConnection();
 	}
 	auto conn = slavePool_->getConnection();
