@@ -178,9 +178,9 @@ int MysqlDao::addFriendApply(int fromuid, int touid, int& current_id, std::strin
     }
 }
 
-int MysqlDao::getUserFriendApply(int uid, std::vector<std::shared_ptr<ApplyInfo>>& applyList)
+int MysqlDao::getUserFriendApply(int uid, std::vector<std::shared_ptr<ApplyInfo>>& applyList, bool forceMaster)
 {
-    auto con = getConn();
+    auto con = getConn(forceMaster);
     if (con == nullptr) {
         return ERROR_GET_FRIEND_APPLY_LIST;
     }
@@ -214,9 +214,9 @@ int MysqlDao::getUserFriendApply(int uid, std::vector<std::shared_ptr<ApplyInfo>
     }
 }
 
-int MysqlDao::getUserFriendList(int uid, std::vector<std::shared_ptr<UserInfo>>& friendList)
+int MysqlDao::getUserFriendList(int uid, std::vector<std::shared_ptr<UserInfo>>& friendList, bool forceMaster)
 {
-    auto con = getConn();
+    auto con = getConn(forceMaster);
     if (con == nullptr) {
         return false;
     }
@@ -346,9 +346,9 @@ int MysqlDao::addFriendRelation(int fromuid, int touid, int& thread_id1, int& th
     }
 }
 
-std::shared_ptr<UserInfo> MysqlDao::getUserByUid(int uid)
+std::shared_ptr<UserInfo> MysqlDao::getUserByUid(int uid, bool forceMaster)
 {
-    auto con = getConn();
+    auto con = forceMaster ? getConn(true) : getConn();
     if (con == nullptr) {
         return nullptr;
     }
@@ -386,9 +386,9 @@ std::shared_ptr<UserInfo> MysqlDao::getUserByUid(int uid)
     }
 }
 
-std::shared_ptr<UserInfo> MysqlDao::getUserByName(std::string name)
+std::shared_ptr<UserInfo> MysqlDao::getUserByName(std::string name, bool forceMaster)
 {
-    auto con = getConn();
+    auto con = forceMaster ? getConn(true) : forceMaster ? getConn(true) : getConn();
     if (con == nullptr) {
         return nullptr;
     }
@@ -464,9 +464,9 @@ int MysqlDao::setFriendApplyStatus(int fromuid, int touid, int status)
     }
 }
 
-int MysqlDao::GetUserThreadInfos(int uid, int last_thread_id, int page_size, std::vector<std::shared_ptr<ChatThreadInfo>>& infos, bool& load_more, int& max_thread_id)
+int MysqlDao::GetUserThreadInfos(int uid, int last_thread_id, int page_size, std::vector<std::shared_ptr<ChatThreadInfo>>& infos, bool& load_more, int& max_thread_id, bool forceMaster)
 {
-    auto conn = getConn();
+    auto conn = forceMaster ? getConn(true) : getConn();
 
 	max_thread_id = last_thread_id;
 
@@ -660,9 +660,9 @@ int MysqlDao::AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_datas)
     }
 }
 
-int MysqlDao::getUserFriendListByLastId(int uid, int last_friend_id, std::map<int, std::shared_ptr<UserInfo>>& friend_list)
+int MysqlDao::getUserFriendListByLastId(int uid, int last_friend_id, std::map<int, std::shared_ptr<UserInfo>>& friend_list, bool forceMaster)
 {
-    auto conn = getConn();
+    auto conn = getConn(forceMaster);
     if (!conn) {
         std::cout << "get friend list failed, mysqlConn is nullptr.\n";
         return ERROR_LOAD_CHAT_THREAD;
@@ -725,9 +725,9 @@ int MysqlDao::getUserFriendListByLastId(int uid, int last_friend_id, std::map<in
     }
 }
 
-int MysqlDao::getUserFriendApplyByLastId(int uid, int last_friend_id, int page_size, std::vector<std::shared_ptr<ApplyInfo>>& applyList, bool& load_more, int& max_friend_apply_id)
+int MysqlDao::getUserFriendApplyByLastId(int uid, int last_friend_id, int page_size, std::vector<std::shared_ptr<ApplyInfo>>& applyList, bool& load_more, int& max_friend_apply_id, bool forceMaster)
 {
-    auto conn = getConn();
+    auto conn = getConn(forceMaster);
     if (!conn) {
         std::cout << "get friend apply list failed, mysqlConn is nullptr.\n";
         return ERROR_LOAD_CHAT_THREAD;
@@ -856,9 +856,9 @@ int MysqlDao::updateChatMsgStatus(int message_id, MsgStatus status)
     }
 }
 
-int MysqlDao::loadChatMessage(int thread_id, int& min_message_id, int& max_message_id, int page_size, bool& is_more, std::vector<ChatMessage>& msgs)
+int MysqlDao::loadChatMessage(int thread_id, int& min_message_id, int& max_message_id, int page_size, bool& is_more, std::vector<ChatMessage>& msgs, bool forceMaster)
 {
-    auto conn = getConn();
+    auto conn = getConn(forceMaster);
     if (!conn) {
         std::cout << "get friend apply list failed, mysqlConn is nullptr.\n";
         return ERROR_LOAD_CHAT_THREAD;

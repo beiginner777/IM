@@ -234,20 +234,20 @@ public:
 	MysqlDao();
 	~MysqlDao();
 	int registerUser(const std::string& name, const std::string& email, const std::string& password);
-	int getUserFriendApply(int uid, std::vector<std::shared_ptr<ApplyInfo>>& applyList);
-	int getUserFriendList(int uid, std::vector<std::shared_ptr<UserInfo>>& friendList);
+	int getUserFriendApply(int uid, std::vector<std::shared_ptr<ApplyInfo>>& applyList, bool forceMaster = false);
+	int getUserFriendList(int uid, std::vector<std::shared_ptr<UserInfo>>& friendList, bool forceMaster = false);
 	int addFriendApply(int fromuid, int touid, int& current_id, std::string& apply_time);
 	int addFriendRelation(int fromuid, int touid, int& thread_id1, int& thread_id2, int& friend_id1, int& friend_id2);
-	std::shared_ptr<UserInfo> getUserByUid(int uid);
-	std::shared_ptr<UserInfo> getUserByName(std::string name);
+	std::shared_ptr<UserInfo> getUserByUid(int uid, bool forceMaster = false);
+	std::shared_ptr<UserInfo> getUserByName(std::string name, bool forceMaster = false);
 	int setFriendApplyStatus(int fromuid, int touid, int status);
-	int GetUserThreadInfos(int uid, int last_thread_id, int page_size, std::vector<std::shared_ptr<ChatThreadInfo>>& infos, bool& load_more, int& max_thread_id);
+	int GetUserThreadInfos(int uid, int last_thread_id, int page_size, std::vector<std::shared_ptr<ChatThreadInfo>>& infos, bool& load_more, int& max_thread_id, bool forceMaster = false);
 	int createPrivateThread(int user1_id, int user2_id, int& thread_id);
 	int AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_datas);
-	int getUserFriendListByLastId(int uid, int last_friend_id, std::map<int, std::shared_ptr<UserInfo>>& friend_list);
-	int getUserFriendApplyByLastId(int uid, int last_friend_id, int page_size, std::vector<std::shared_ptr<ApplyInfo>>& applyList, bool& load_more, int& max_friend_apply_id);
+	int getUserFriendListByLastId(int uid, int last_friend_id, std::map<int, std::shared_ptr<UserInfo>>& friend_list, bool forceMaster = false);
+	int getUserFriendApplyByLastId(int uid, int last_friend_id, int page_size, std::vector<std::shared_ptr<ApplyInfo>>& applyList, bool& load_more, int& max_friend_apply_id, bool forceMaster = false);
 	int updateChatMsgStatus(int message_id, MsgStatus status);
-	int loadChatMessage(int thread_id, int& min_message_id, int& max_message_id, int page_size, bool& is_more, std::vector<ChatMessage>& msgs);
+	int loadChatMessage(int thread_id, int& min_message_id, int& max_message_id, int page_size, bool& is_more, std::vector<ChatMessage>& msgs, bool forceMaster = false);
 
 private:
 	// Read/write split helpers
