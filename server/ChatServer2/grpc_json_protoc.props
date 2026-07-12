@@ -59,6 +59,7 @@
         $(AddressSortingDir);
 		$(RedisDir);
 		$(MysqlDir);
+		E:/File/vcpkg/vcpkg/installed/x64-windows/include;
         %(AdditionalIncludeDirectories)
       </AdditionalIncludeDirectories>
       <!-- 强制使用 /MDd（动态调试运行时库）避免冲突 -->
@@ -96,6 +97,7 @@
         $(UmLibDir);
 		$(RedisLibDir);
 		$(MysqlLibDir);
+		E:/File/vcpkg/vcpkg/installed/x64-windows/lib;
         %(AdditionalLibraryDirectories)
       </AdditionalLibraryDirectories>
     </Link>

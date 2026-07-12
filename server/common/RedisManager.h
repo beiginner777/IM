@@ -285,8 +285,17 @@ private:
 	redisContext* getConn(bool forceMaster = false);
 	void returnConn(redisContext* conn);
 
+	// Sentinel polling: detect master switch and auto-rebuild master pool
+	void startSentinelPoll();
+	void stopSentinelPoll();
+	void sentinelPollWorker();
+
 	std::unique_ptr<RedisConnPool> masterPool_;
 	std::vector<std::unique_ptr<RedisConnPool>> slavePools_;
+	std::mutex masterPoolMutex_;
+	std::thread sentinelPollThread_;
+	std::atomic_bool sentinelPollStop_{false};
+	std::string cachedMasterAddr_;
 };
 
 #endif
