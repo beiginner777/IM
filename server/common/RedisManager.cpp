@@ -638,11 +638,13 @@ redisContext* RedisManager::getConn(bool forceMaster)
 {
 	if (forceMaster) {
 		tlsPoolIdx = -1;
+		std::lock_guard<std::mutex> lock(masterPoolMutex_);
 		return masterPool_->getConnection();
 	}
 	// 读走 Slave：随机轮询，Slave 不可用时回退 Master
 	if (slavePools_.empty()) {
 		tlsPoolIdx = -1;
+		std::lock_guard<std::mutex> lock(masterPoolMutex_);
 		return masterPool_->getConnection();
 	}
 	static std::atomic<size_t> idx{0};
@@ -665,6 +667,67 @@ void RedisManager::returnConn(redisContext* conn)
 		slavePools_[tlsPoolIdx]->returnConnection(conn);
 	}
 }
+
+// ============================================================================
+// Sentinel Polling: detect master switch every 5s, auto-rebuild master pool
+// ============================================================================
+
+void RedisManager::startSentinelPoll()
+{
+	auto cfg = ConfigManager::getInstance();
+	std::string sentinelHost = cfg["Redis"]["SentinelHost"];
+	std::string sentinelPort = cfg["Redis"]["SentinelPort"];
+	if (sentinelHost.empty() || sentinelPort.empty()) {
+		std::cout << "[SentinelPoll] No Sentinel configured, skipping" << std::endl;
+		return;
+	}
+	cachedMasterAddr_ = "127.0.0.1:" + cfg["Redis"]["Port"];
+	sentinelPollStop_ = false;
+	sentinelPollThread_ = std::thread(&RedisManager::sentinelPollWorker, this);
+	std::cout << "[SentinelPoll] Started (interval=5s)" << std::endl;
+}
+
+void RedisManager::stopSentinelPoll()
+{
+	sentinelPollStop_ = true;
+	if (sentinelPollThread_.joinable()) {
+		sentinelPollThread_.join();
+	}
+}
+
+void RedisManager::sentinelPollWorker()
+{
+	auto cfg = ConfigManager::getInstance();
+	std::string sentinelHost = cfg["Redis"]["SentinelHost"];
+	std::string sentinelPort = cfg["Redis"]["SentinelPort"];
+	std::string masterHost, masterPort;
+
+	while (!sentinelPollStop_) {
+		for (int i = 0; i < 5 && !sentinelPollStop_; i++) {
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+		if (sentinelPollStop_) break;
+
+		// Query Sentinel for current master
+		if (discoverMasterFromSentinel(masterHost, masterPort, sentinelHost, sentinelPort)) {
+			std::string newAddr = masterHost + ":" + masterPort;
+			if (newAddr != cachedMasterAddr_) {
+				std::cout << "[SentinelPoll] Master changed: "
+				          << cachedMasterAddr_ << " -> " << newAddr
+				          << " — rebuilding master pool" << std::endl;
+				// rebuild master pool (lock protected)
+				{
+					std::lock_guard<std::mutex> lock(masterPoolMutex_);
+					masterPool_ = std::make_unique<RedisConnPool>();
+					cachedMasterAddr_ = newAddr;
+				}
+				std::cout << "[SentinelPoll] Master pool rebuilt for " << newAddr << std::endl;
+			}
+		}
+	}
+}
+
 RedisManager::~RedisManager()
 {
+	stopSentinelPoll();
 }
