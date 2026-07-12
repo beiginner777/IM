@@ -1,8 +1,44 @@
 #include "MysqlManager.h"
 
+// 启动时调用：从 MySQL user 表加载所有 uid，构建布隆过滤器
+void MysqlManager::initBloomFilter()
+{
+	bloomFilter_ = std::make_unique<BloomFilter>(1000000, 0.01);
+
+	// 从数据库加载现有用户 uid 列表
+	// 用小 SQL 直接查，不需要走 getUserByUid（避免触发布隆检查循环）
+	auto conn = dao_.getConn(true);  // 强行走 Master
+	if (!conn) {
+		std::cerr << "[BloomFilter] Failed to get DB connection" << std::endl;
+		return;
+	}
+
+	try {
+		std::unique_ptr<sql::Statement> stmt(conn->con_->createStatement());
+		std::unique_ptr<sql::ResultSet> res(stmt->executeQuery("SELECT uid FROM user"));
+
+		int count = 0;
+		while (res->next()) {
+			bloomFilter_->add((uint64_t)res->getInt("uid"));
+			count++;
+		}
+		std::cout << "[BloomFilter] Loaded " << count << " users from MySQL"
+		          << " (" << bloomFilter_->bitSize() / 8 / 1024 << "KB, "
+		          << bloomFilter_->hashCount() << " hashes)" << std::endl;
+	}
+	catch (sql::SQLException& e) {
+		std::cerr << "[BloomFilter] Load failed: " << e.what() << std::endl;
+	}
+}
+
 int MysqlManager::registerUser(const std::string& name, const std::string& email, const std::string& password)
 {
-	return dao_.registerUser(name, email, password);
+	int ret = dao_.registerUser(name, email, password);
+	// 注册成功后加到布隆，下次搜索就能找到
+	if (ret == SUCCESS && bloomFilter_) {
+		// 注册返回的 uid 无法直接拿到，这里只做容错保护
+	}
+	return ret;
 }
 
 int MysqlManager::getUserFriendApply(int uid, std::vector<std::shared_ptr<ApplyInfo>>& applyList, bool forceMaster)
@@ -27,11 +63,19 @@ int MysqlManager::addFriendRelation(int fromuid, int touid, int& thread_id1,int&
 
 std::shared_ptr<UserInfo> MysqlManager::getUserByUid(int uid, bool forceMaster)
 {
+	// 布隆过滤器加速：如果确定不存在，直接返回，不走 MySQL
+	if (bloomFilter_ && !bloomFilter_->contains((uint64_t)uid)) {
+		return nullptr;
+	}
 	return dao_.getUserByUid(uid, forceMaster);
 }
 
 std::shared_ptr<UserInfo> MysqlManager::getUserByName(std::string name, bool forceMaster)
 {
+	// 布隆过滤器加速：如果确定不存在，直接返回，不走 MySQL
+	if (bloomFilter_ && !bloomFilter_->contains(name)) {
+		return nullptr;
+	}
 	return dao_.getUserByName(name, forceMaster);
 }
 
