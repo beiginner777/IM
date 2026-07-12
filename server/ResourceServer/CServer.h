@@ -1,36 +1,36 @@
-#ifndef CSERVER_H
-#define SERVER_H
-
-#include "global.h"
-
-class CSession;
-
-class CServer
-{
-public:
-	//
-	CServer(boost::asio::io_context& ioc,std::string port);
-	// Çå³ı keyÖµÎª uuid µÄÁ¬½Ó
-	void clearSession(std::string uuid);
-private:
-	// ½ÓÊÕÁ¬½Ó
-	void startAccept();
-	// ½ÓÊÕÁ¬½ÓµÄ»Øµ÷º¯Êı
-	void handleAccept(std::shared_ptr<CSession> session, const boost::system::error_code& ec);
-private:
-	// 
-	boost::asio::io_context& ioc_;
-
-	// ĞèÒª·ÅÔÚ acceptor Ç°³õÊ¼»¯
-	unsigned short port_;
-	// 
-	tcp::acceptor acceptor_;
-	// 
-
-	// ´æ·ÅÁ¬½Ó
-	std::map<std::string, std::shared_ptr<CSession>> sessions_; 
-	// 
-	std::mutex mtx_;
-};
-
-#endif
+ï»¿#ifndef CSERVER_H
+#define SERVER_H
+
+#include "global.h"
+
+class CSession;
+
+class CServer
+{
+public:
+	//
+	CServer(boost::asio::io_context& ioc,std::string port);
+	// æ¸…é™¤ keyå€¼ä¸º uuid çš„è¿æ¥
+	void clearSession(std::string uuid);
+private:
+	// æ¥æ”¶è¿æ¥
+	void startAccept();
+	// æ¥æ”¶è¿æ¥çš„å›è°ƒå‡½æ•°
+	void handleAccept(std::shared_ptr<CSession> session, const boost::system::error_code& ec);
+private:
+	// 
+	boost::asio::io_context& ioc_;
+
+	// éœ€è¦æ”¾åœ¨ acceptor å‰åˆå§‹åŒ–
+	unsigned short port_;
+	// 
+	tcp::acceptor acceptor_;
+	// 
+
+	// å­˜æ”¾è¿æ¥
+	std::map<std::string, std::shared_ptr<CSession>> sessions_; 
+	// 
+	std::mutex mtx_;
+};
+
+#endif

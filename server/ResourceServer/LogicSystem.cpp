@@ -1,131 +1,131 @@
-#include "LogicSystem.h"
-#include "MsgNode.h"
-#include "CSession.h"
-#include "json/json.h"
-#include "ConfigManager.h"
-#include <fstream>
-#include "LogicWorker.h"
-#include "RedisManager.h"
-
-LogicSystem::LogicSystem()
-{
-	for (int i = 0; i < LOGICWORKER_COUNT; ++i) {
-		std::shared_ptr<LogicWorker> worker = std::make_shared<LogicWorker>();
-		logicWorkers_.push_back(worker);
-	}
-}
-
-LogicSystem::~LogicSystem()
-{
-	std::cout << "LogicSystem is destructed." << std::endl;
-}
-
-void LogicSystem::postMsgToQue(std::shared_ptr<LogicNode> logicNode, int index)
-{
-	logicWorkers_[index]->postMsgToQue(logicNode);
-}
-
-bool LogicSystem::addMd5FileInfo(std::string name, std::shared_ptr<FileInfo> fileInfo)
-{
-	// ½«ÎÄ¼şÉÏ´«½ø¶ÈµÄÏûÏ¢±£´æÔÚ redisÖĞ
-	std::string key = FILEUPLOADFREFIX + name;
-	Json::Value root;
-	root["uid"] = fileInfo->uid_;
-	root["file_path_str"] = fileInfo->filePath_;
-	root["name"] = fileInfo->name_;
-	root["seq"] = fileInfo->seq_;
-	root["last_seq"] = fileInfo->last_seq_;
-	root["total_size"] = fileInfo->totolSize_;
-	root["trans_size"] = fileInfo->transfferredSize_;
-	auto file_info_str = root.toStyledString();
-	auto redis_key = FILEUPLOADFREFIX + name;
-	return RedisManager::getInstance()->SetExp(redis_key, file_info_str, FILEINFOEXISTTIME);
-}
-
-std::shared_ptr<FileInfo> LogicSystem::getFileInfo(std::string name)
-{
-	// ´Ó redis ÖĞ»ñÈ¡ÎÄ¼şÉÏ´«½ø¶ÈµÄĞÅÏ¢
-	std::shared_ptr<FileInfo> file_info = std::make_shared<FileInfo>();
-
-	std::string redis_key = FILEUPLOADFREFIX + name;
-	auto file_info_str = RedisManager::getInstance()->Get(redis_key);
-	if(file_info_str.empty()) {
-		return nullptr;
-	}
-	// ½âÎö json ×Ö·û´®
-	Json::Value root;
-	Json::Reader reader;
-	if (!reader.parse(file_info_str, root)) {
-		std::cout << "parse file_info_str from redis failed." << std::endl;
-		return nullptr;
-	}
-	file_info->uid_ = root["uid"].asInt();
-	file_info->filePath_ = root["file_path_str"].asString();
-	file_info->name_ = root["name"].asString();
-	file_info->seq_ = root["seq"].asInt();
-	file_info->last_seq_ = root["last_seq"].asInt();
-	file_info->totolSize_ = root["total_size"].asInt();
-	file_info->transfferredSize_ = root["trans_size"].asInt();
-
-	return file_info;
-}
-
-bool LogicSystem::DeleteMd5FileInfo(const std::string& name)
-{
-	// É¾³ı redis ÖĞ±£´æµÄÎÄ¼şÉÏ´«½ø¶ÈµÄĞÅÏ¢
-	return RedisManager::getInstance()->Del(FILEUPLOADFREFIX + name);
-}
-
-bool LogicSystem::addDownloadFileInfo(std::string name, std::shared_ptr<DownloadFileInfo> fileInfo)
-{
-	// ½«ÎÄ¼şÉÏ´«½ø¶ÈµÄÏûÏ¢±£´æÔÚ redisÖĞ
-	std::string key = FILEUPLOADFREFIX + name;
-	Json::Value root;
-	root["uid"] = fileInfo->uid_;
-	root["download_file"] = fileInfo->download_file_;
-	root["seq"] = fileInfo->seq_;
-	root["last_seq"] = fileInfo->last_seq_;
-	root["trans_size"] = fileInfo->trans_size_;
-	root["total_size"] = fileInfo->total_size_;
-	root["client_save_path"] = fileInfo->client_save_path_;
-	root["download_file_type"] = fileInfo->download_file_type_;
-
-	auto file_info_str = root.toStyledString();
-	auto redis_key = FILEDOWNLOADFREFIX + name;
-
-	return RedisManager::getInstance()->SetExp(redis_key, file_info_str, DOWNLOADFILEEXISTTIME);
-}
-
-std::shared_ptr<DownloadFileInfo> LogicSystem::GetDownloadFileInfo(std::string name)
-{
-	// ´Ó redis ÖĞ»ñÈ¡ÎÄ¼şÉÏ´«½ø¶ÈµÄĞÅÏ¢
-	std::shared_ptr<DownloadFileInfo> file_info = std::make_shared<DownloadFileInfo>();
-
-	std::string redis_key = FILEDOWNLOADFREFIX + name;
-	auto file_info_str = RedisManager::getInstance()->Get(redis_key);
-	if (file_info_str.empty()) {
-		return nullptr;
-	}
-	// ½âÎö json ×Ö·û´®
-	Json::Value root;
-	Json::Reader reader;
-	if (!reader.parse(file_info_str, root)) {
-		std::cout << "parse file_info_str from redis failed." << std::endl;
-		return nullptr;
-	}
-	file_info->uid_ = root["uid"].asInt();
-	file_info->download_file_ = root["download_file"].asString();
-	file_info->seq_ = root["seq"].asInt();
-	file_info->last_seq_ = root["last_seq"].asInt();
-	file_info->trans_size_ = root["trans_size"].asInt();
-	file_info->total_size_ = root["total_size"].asInt();
-	file_info->client_save_path_ = root["client_save_path"].asString();
-	file_info->download_file_type_ = root["download_file_type"].asInt();
-	return file_info;
-}
-
-bool LogicSystem::DeleteDownloadFileInfo(const std::string& name)
-{
-	// É¾³ı redis ÖĞ±£´æµÄÎÄ¼şÉÏ´«½ø¶ÈµÄĞÅÏ¢
-	return RedisManager::getInstance()->Del(FILEDOWNLOADFREFIX + name);
-}
+ï»¿#include "LogicSystem.h"
+#include "MsgNode.h"
+#include "CSession.h"
+#include "json/json.h"
+#include "ConfigManager.h"
+#include <fstream>
+#include "LogicWorker.h"
+#include "RedisManager.h"
+
+LogicSystem::LogicSystem()
+{
+	for (int i = 0; i < LOGICWORKER_COUNT; ++i) {
+		std::shared_ptr<LogicWorker> worker = std::make_shared<LogicWorker>();
+		logicWorkers_.push_back(worker);
+	}
+}
+
+LogicSystem::~LogicSystem()
+{
+	std::cout << "LogicSystem is destructed." << std::endl;
+}
+
+void LogicSystem::postMsgToQue(std::shared_ptr<LogicNode> logicNode, int index)
+{
+	logicWorkers_[index]->postMsgToQue(logicNode);
+}
+
+bool LogicSystem::addMd5FileInfo(std::string name, std::shared_ptr<FileInfo> fileInfo)
+{
+	// å°†æ–‡ä»¶ä¸Šä¼ è¿›åº¦çš„æ¶ˆæ¯ä¿å­˜åœ¨ redisä¸­
+	std::string key = FILEUPLOADFREFIX + name;
+	Json::Value root;
+	root["uid"] = fileInfo->uid_;
+	root["file_path_str"] = fileInfo->filePath_;
+	root["name"] = fileInfo->name_;
+	root["seq"] = fileInfo->seq_;
+	root["last_seq"] = fileInfo->last_seq_;
+	root["total_size"] = fileInfo->totolSize_;
+	root["trans_size"] = fileInfo->transfferredSize_;
+	auto file_info_str = root.toStyledString();
+	auto redis_key = FILEUPLOADFREFIX + name;
+	return RedisManager::getInstance()->SetExp(redis_key, file_info_str, FILEINFOEXISTTIME);
+}
+
+std::shared_ptr<FileInfo> LogicSystem::getFileInfo(std::string name)
+{
+	// ä» redis ä¸­è·å–æ–‡ä»¶ä¸Šä¼ è¿›åº¦çš„ä¿¡æ¯
+	std::shared_ptr<FileInfo> file_info = std::make_shared<FileInfo>();
+
+	std::string redis_key = FILEUPLOADFREFIX + name;
+	auto file_info_str = RedisManager::getInstance()->Get(redis_key);
+	if(file_info_str.empty()) {
+		return nullptr;
+	}
+	// è§£æ json å­—ç¬¦ä¸²
+	Json::Value root;
+	Json::Reader reader;
+	if (!reader.parse(file_info_str, root)) {
+		std::cout << "parse file_info_str from redis failed." << std::endl;
+		return nullptr;
+	}
+	file_info->uid_ = root["uid"].asInt();
+	file_info->filePath_ = root["file_path_str"].asString();
+	file_info->name_ = root["name"].asString();
+	file_info->seq_ = root["seq"].asInt();
+	file_info->last_seq_ = root["last_seq"].asInt();
+	file_info->totolSize_ = root["total_size"].asInt();
+	file_info->transfferredSize_ = root["trans_size"].asInt();
+
+	return file_info;
+}
+
+bool LogicSystem::DeleteMd5FileInfo(const std::string& name)
+{
+	// åˆ é™¤ redis ä¸­ä¿å­˜çš„æ–‡ä»¶ä¸Šä¼ è¿›åº¦çš„ä¿¡æ¯
+	return RedisManager::getInstance()->Del(FILEUPLOADFREFIX + name);
+}
+
+bool LogicSystem::addDownloadFileInfo(std::string name, std::shared_ptr<DownloadFileInfo> fileInfo)
+{
+	// å°†æ–‡ä»¶ä¸Šä¼ è¿›åº¦çš„æ¶ˆæ¯ä¿å­˜åœ¨ redisä¸­
+	std::string key = FILEUPLOADFREFIX + name;
+	Json::Value root;
+	root["uid"] = fileInfo->uid_;
+	root["download_file"] = fileInfo->download_file_;
+	root["seq"] = fileInfo->seq_;
+	root["last_seq"] = fileInfo->last_seq_;
+	root["trans_size"] = fileInfo->trans_size_;
+	root["total_size"] = fileInfo->total_size_;
+	root["client_save_path"] = fileInfo->client_save_path_;
+	root["download_file_type"] = fileInfo->download_file_type_;
+
+	auto file_info_str = root.toStyledString();
+	auto redis_key = FILEDOWNLOADFREFIX + name;
+
+	return RedisManager::getInstance()->SetExp(redis_key, file_info_str, DOWNLOADFILEEXISTTIME);
+}
+
+std::shared_ptr<DownloadFileInfo> LogicSystem::GetDownloadFileInfo(std::string name)
+{
+	// ä» redis ä¸­è·å–æ–‡ä»¶ä¸Šä¼ è¿›åº¦çš„ä¿¡æ¯
+	std::shared_ptr<DownloadFileInfo> file_info = std::make_shared<DownloadFileInfo>();
+
+	std::string redis_key = FILEDOWNLOADFREFIX + name;
+	auto file_info_str = RedisManager::getInstance()->Get(redis_key);
+	if (file_info_str.empty()) {
+		return nullptr;
+	}
+	// è§£æ json å­—ç¬¦ä¸²
+	Json::Value root;
+	Json::Reader reader;
+	if (!reader.parse(file_info_str, root)) {
+		std::cout << "parse file_info_str from redis failed." << std::endl;
+		return nullptr;
+	}
+	file_info->uid_ = root["uid"].asInt();
+	file_info->download_file_ = root["download_file"].asString();
+	file_info->seq_ = root["seq"].asInt();
+	file_info->last_seq_ = root["last_seq"].asInt();
+	file_info->trans_size_ = root["trans_size"].asInt();
+	file_info->total_size_ = root["total_size"].asInt();
+	file_info->client_save_path_ = root["client_save_path"].asString();
+	file_info->download_file_type_ = root["download_file_type"].asInt();
+	return file_info;
+}
+
+bool LogicSystem::DeleteDownloadFileInfo(const std::string& name)
+{
+	// åˆ é™¤ redis ä¸­ä¿å­˜çš„æ–‡ä»¶ä¸Šä¼ è¿›åº¦çš„ä¿¡æ¯
+	return RedisManager::getInstance()->Del(FILEDOWNLOADFREFIX + name);
+}

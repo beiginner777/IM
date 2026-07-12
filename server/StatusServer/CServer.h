@@ -1,42 +1,42 @@
-#ifndef CSERVER_H
-#define SERVER_H
-
-#include "global.h"
-
-class CSession;
-
-class CServer : public std::enable_shared_from_this<CServer>
-{
-public:
-	CServer(boost::asio::io_context& ioc,std::string port);
-	~CServer();
-	// Çå³ı keyÖµÎª uuid µÄÁ¬½Ó
-	void clearSession(std::string uuid);
-	// ¿ªÆô¶¨Ê±Æ÷
-	void startTimer();
-	// ¹Ø±Õ¶¨Ê±Æ÷
-	void cancelTimer();
-
-private:
-	// ½ÓÊÕÁ¬½Ó
-	void startAccept();
-	// ½ÓÊÕÁ¬½ÓµÄ»Øµ÷º¯Êı
-	void handleAccept(std::shared_ptr<CSession> session, const boost::system::error_code& ec);
-	// ¶¨Ê±¼ì²âËùÓĞµÄÁ¬½Ó
-	void checkConnectionIsOverTime(boost::system::error_code ec);
-
-private:
-	boost::asio::io_context& ioc_;
-	// ĞèÒª·ÅÔÚ acceptor Ç°³õÊ¼»¯
-	unsigned short port_;
-	// ¸ºÔğ¼àÌıºÍ½ÓÊÜÁ¬½Ó
-	tcp::acceptor acceptor_;
-	// ´æ·ÅÁ¬½Ó uuid : CSession
-	std::map<std::string, std::shared_ptr<CSession>> sessions_; 
-	// ÒÔÉÏmapÊÇ¹²Ïí×ÊÔ´
-	std::mutex mtx_;
-	// ¶¨Ê±Æ÷
-	boost::asio::steady_timer timer_;
-};
-
-#endif
+ï»¿#ifndef CSERVER_H
+#define SERVER_H
+
+#include "global.h"
+
+class CSession;
+
+class CServer : public std::enable_shared_from_this<CServer>
+{
+public:
+	CServer(boost::asio::io_context& ioc,std::string port);
+	~CServer();
+	// æ¸…é™¤ keyå€¼ä¸º uuid çš„è¿æ¥
+	void clearSession(std::string uuid);
+	// å¼€å¯å®šæ—¶å™¨
+	void startTimer();
+	// å…³é—­å®šæ—¶å™¨
+	void cancelTimer();
+
+private:
+	// æ¥æ”¶è¿æ¥
+	void startAccept();
+	// æ¥æ”¶è¿æ¥çš„å›è°ƒå‡½æ•°
+	void handleAccept(std::shared_ptr<CSession> session, const boost::system::error_code& ec);
+	// å®šæ—¶æ£€æµ‹æ‰€æœ‰çš„è¿æ¥
+	void checkConnectionIsOverTime(boost::system::error_code ec);
+
+private:
+	boost::asio::io_context& ioc_;
+	// éœ€è¦æ”¾åœ¨ acceptor å‰åˆå§‹åŒ–
+	unsigned short port_;
+	// è´Ÿè´£ç›‘å¬å’Œæ¥å—è¿æ¥
+	tcp::acceptor acceptor_;
+	// å­˜æ”¾è¿æ¥ uuid : CSession
+	std::map<std::string, std::shared_ptr<CSession>> sessions_; 
+	// ä»¥ä¸Šmapæ˜¯å…±äº«èµ„æº
+	std::mutex mtx_;
+	// å®šæ—¶å™¨
+	boost::asio::steady_timer timer_;
+};
+
+#endif

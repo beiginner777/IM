@@ -1,484 +1,484 @@
-#include "LogicWorker.h"
-#include "MsgNode.h"
-#include "LogicSystem.h"
-#include "ConfigManager.h"
-#include "CSession.h"
-#include "FileSystem.h"
-#include "FileWorker.h"
-#include "DownloadWorker.h"
-
-LogicWorker::LogicWorker()
-	: b_stop_(false)
-{
-	registerFunctionCallbacks();
-	work_thread_ = std::thread(&LogicWorker::dealTask, this);
-}	
-
-LogicWorker::~LogicWorker()
-{
-	// todo ...
-}
-
-void LogicWorker::registerFunctionCallbacks()
-{
-	handlers_[ID_UPLOAD_HEAD_ICON_REQ] = std::bind(&LogicWorker::uploadHeadIcon, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	handlers_[ID_IMAGE_CHAT_MSG_REQ] = std::bind(&LogicWorker::uploadFile, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	handlers_[ID_SYNC_FILE_REQ] = std::bind(&LogicWorker::syncFile, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	handlers_[ID_DOWN_LOAD_FILE_REQ] = std::bind(&LogicWorker::downloadFile, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	handlers_[ID_IMG_CHAT_CONTINUE_UPLOAD_REQ] = std::bind(&LogicWorker::imgChatContinueUpload, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-	handlers_[ID_FILE_CONTINUE_DOWNLOAD_REQ] = std::bind(&LogicWorker::fileContinueDownload, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-}
-
-void LogicWorker::dealTask()
-{
-	while (true)
-	{
-		std::unique_lock<std::mutex> locker(mtx_);
-
-		while (que_.empty() && !b_stop_)
-		{
-			std::cout << "LoginSystem is waiting for data . . ." << std::endl;
-			cond_.wait(locker);
-		}
-		// Âß¼­²ãÍ£Ö¹¹¤×÷
-		if (b_stop_)
-		{
-			while (!que_.empty())
-			{
-				std::shared_ptr<LogicNode> node = que_.front();
-				que_.pop();
-
-				// »ñÈ¡Âß¼­½áµã¶ÔÓ¦µÄ ÏûÏ¢id
-				short msgId = node->recvNode_->msg_id_;
-
-				if (handlers_.count(msgId)) {
-					std::cout << "handle task whose id = " << msgId << ":" << std::endl;
-					handlers_[msgId](node->session_, msgId, std::string(node->recvNode_->data_, node->recvNode_->totol_len_));
-				}
-				else {
-					std::cout << "system error: can't find FunctinCallback: " << msgId << std::endl;
-				}
-			}
-			// detail break
-			break;
-		}
-
-		// Âß¼­²ãÃ»ÓĞÍË³ö£¬ÄÇÃ´¾ÍÕı³£È¡Êı¾İ
-		if (!que_.empty())
-		{
-			std::shared_ptr<LogicNode> node = que_.front();
-			que_.pop();
-
-			// »ñÈ¡Âß¼­½áµã¶ÔÓ¦µÄ ÏûÏ¢id
-			short msgId = node->recvNode_->msg_id_;
-
-			if (handlers_.count(msgId)) {
-				std::cout << "handle task whose id = " << msgId << ":" << std::endl;
-				handlers_[msgId](node->session_, msgId, std::string(node->recvNode_->data_, node->recvNode_->totol_len_));
-			}
-			else {
-				std::cout << "system error: can't find FunctinCallback: " << msgId << std::endl;
-			}
-		}
-	}
-}
-
-void LogicWorker::uploadHeadIcon(std::shared_ptr<CSession> session, short msgId, std::string msgData)
-{
-	std::cout << "upload head icon msgId = " << msgId << std::endl;
-
-	Json::Value root;
-	Json::Reader reader;
-	Json::Value rtvalue;
-
-	if (!reader.parse(msgData, root))
-	{
-		std::cout << "parse uploadFile msgData failed." << std::endl;
-		rtvalue["code"] = 3;
-		rtvalue["msg"] = "parse msgData to json failed";
-		return;
-	}
-
-	std::string fileName = root["filename"].asString();
-	int seq = root["seq"].asInt();
-	int lastSeq = root["lastseq"].asInt();
-	int transferredSize = root["transferredsize"].asInt();
-	int totolSize = root["totolsize"].asInt();
-	std::string data = root["data"].asString();
-	std::string md5 = root["md5"].asString();
-
-	int uid = root["uid"].asInt();
-	std::string token = root["token"].asString();
-
-	session->setUserId(uid);
-
-	auto cfg = ConfigManager::getInstance();
-	std::string uploadPath = cfg["SelfServer"]["UploadPath"];
-	std::string fullPath = uploadPath + "/" + fileName;
-
-	if (seq == 1)
-	{
-		// µÚÒ»¸ö°üÑéÖ¤tokenÊÇ·ñÕıÈ· to do ...
-		//¹¹ÔìÊı¾İ´æ´¢
-		auto file_info = std::make_shared<FileInfo>();
-		file_info->uid_ = uid;
-		file_info->filePath_ = fullPath;
-		file_info->name_ = fileName;
-		file_info->seq_ = seq;
-		file_info->totolSize_ = totolSize;
-		file_info->transfferredSize_ = transferredSize;
-		file_info->last_seq_ = lastSeq;
-		bool ret = LogicSystem::getInstance()->addMd5FileInfo(fileName, file_info);
-		if (!ret) {
-			// ÎÄ¼şĞÅÏ¢±£´æµ½ redis Ê§°Ü
-			rtvalue["error"] = 5;
-			rtvalue["message"] = "save file info to redis failed";
-			return;
-		}
-		else {
-			std::cout << "file info has been saved to redis successfully." << std::endl;
-		}
-	}
-	else
-	{
-		auto file_info = LogicSystem::getInstance()->getFileInfo(fileName);
-		if (file_info == nullptr) {
-			// Ã»ÓĞ½«ÎÄ¼şAddµ½MD5FileMapÖĞ
-			rtvalue["error"] = 4;
-			return;
-		}
-	}
-
-	std::shared_ptr<FileTask> task = std::make_shared<FileTask>(session, msgId, md5, fileName, seq, totolSize, transferredSize, lastSeq, data);
-
-	// ¸ù¾İÎÄ¼şÃû×ÖÀ´¾ö¶¨ Í¶µİ µ½ ÄÄ¸ö FileWorker Ïß³Ì
-	std::hash<std::string> hash_fn;
-	size_t hash_value = hash_fn(fileName); // ¸ù¾İ ÎÄ¼şÃû Éú³É¹şÏ£Öµ
-	int index = hash_value % FILEWORKER_COUNT;
-	FileSystem::getInstance()->postTaskToQue(task, index);
-}
-
-void LogicWorker::uploadFile(std::shared_ptr<CSession> session, short msgId, std::string msgData)
-{
-	// ÔÚ·¢ËÍÇ°Ìí¼ÓµãĞ¡ÑÓ³Ù£¬±ÜÃâ¿ìËÙÁ¬Ğø·¢ËÍ
-	//std::this_thread::sleep_for(std::chrono::milliseconds(10)); // 10msÑÓ³Ù
-
-	std::cout << "uploadFile msgId = " << msgId << std::endl;
-
-	Json::Value root;
-	Json::Reader reader;
-	Json::Value rtvalue;
-
-	if(!reader.parse(msgData, root))
-	{
-		std::cout << "parse uploadFile msgData failed." << std::endl;
-		rtvalue["code"] = 3;
-		rtvalue["msg"] = "parse msgData to json failed";
-		return;
-	}
-
-	std::string fileName = root["filename"].asString(); // unqiue_name
-	int seq = root["seq"].asInt();
-	int lastSeq = root["lastseq"].asInt();
-	int transferredSize = root["transferredsize"].asInt();
-	int totolSize = root["totolsize"].asInt();
-	std::string data = root["data"].asString();
-	std::string md5 = root["md5"].asString();
-	int type = root["type"].asInt();
-
-	int uid = root["uid"].asInt();
-	std::string token = root["token"].asString();
-
-	auto cfg = ConfigManager::getInstance();
-	std::string uploadPath = cfg["SelfServer"]["UploadPath"];
-	std::string fullPath = uploadPath + "/" + fileName;
-
-	if (seq == 1) 
-	{
-		session->setUserId(uid);
-		// µÚÒ»¸ö°üÑéÖ¤tokenÊÇ·ñÕıÈ· to do ...
-		//¹¹ÔìÊı¾İ´æ´¢
-		auto file_info = std::make_shared<FileInfo>();
-		file_info->uid_ = uid;
-		file_info->filePath_ = fullPath;
-		file_info->name_ = fileName;
-		file_info->seq_ = seq;
-		file_info->totolSize_ = totolSize;
-		file_info->transfferredSize_ = transferredSize;
-		file_info->last_seq_ = lastSeq;
-		LogicSystem::getInstance()->addMd5FileInfo(fileName, file_info);
-	}
-	else
-	{
-		auto file_info = LogicSystem::getInstance()->getFileInfo(fileName);
-		if (file_info == nullptr) {
-			// Ã»ÓĞ½«ÎÄ¼şAddµ½MD5FileMapÖĞ
-			rtvalue["error"] = 4;
-			return;
-		}
-		file_info->seq_ = seq;
-		file_info->transfferredSize_ = transferredSize;
-		LogicSystem::getInstance()->addMd5FileInfo(fileName, file_info);
-	}
-
-	std::shared_ptr<FileTask> task = std::make_shared<FileTask>(session, msgId, md5, fileName, seq, totolSize, transferredSize, lastSeq, data, type);
-
-	// ¸ù¾İÎÄ¼şÃû×ÖÀ´¾ö¶¨ Í¶µİ µ½ ÄÄ¸ö FileWorker Ïß³Ì
-	std::hash<std::string> hash_fn;
-	size_t hash_value = hash_fn(fileName); // ¸ù¾İ ÎÄ¼şÃû Éú³É¹şÏ£Öµ
-	int index = hash_value % FILEWORKER_COUNT;
-	FileSystem::getInstance()->postTaskToQue(task, index);
-
-	/*rtvalue["code"] = SUCCESS;
-	rtvalue["mesage"] = "upload file task has been posted to FileSystem";
-	rtvalue["filenname"] = fileName;
-	rtvalue["totol_size"] = totolSize;
-	rtvalue["trans_size"] = transferredSize;
-	rtvalue["seq"] = seq;
-	rtvalue["lastseq"] = lastSeq;
-	rtvalue["md5"] = md5;
-	rtvalue["uid"] = uid;*/
-}
-
-void LogicWorker::syncFile(std::shared_ptr<CSession> session, short msgId, std::string msgData)
-{
-	Json::Value root;
-	Json::Reader reader;
-	Json::Value rtvalue;
-	
-	Defer defer([session, this, &rtvalue] {
-		session->Send(rtvalue.toStyledString(), ID_SYNC_FILE_RSP);
-		});
-
-	rtvalue["code"] = SUCCESS;
-	rtvalue["message"] = "sync file request processed successfully";
-
-	if (!reader.parse(msgData, root)) {
-		std::cout << "parse syncFile msgData failed." << std::endl;
-		rtvalue["code"] = 3;
-		rtvalue["msg"] = "parse msgData to json failed";
-		return;
-	}
-
-	std::string md5 = root["md5"].asString();
-	auto file_info = LogicSystem::getInstance()->getFileInfo(md5);
-	if (file_info == nullptr) {
-		rtvalue["code"] = 4;
-		rtvalue["message"] = "file info not found";
-		return;
-	}
-
-
-	rtvalue["lastseq"] = file_info->last_seq_;
-	rtvalue["seq"] = file_info->seq_;
-	rtvalue["transfer_size"] = file_info->transfferredSize_;
-	rtvalue["total_size"] = file_info->totolSize_;
-	rtvalue["md5"] = md5;
-	rtvalue["file_name"] = file_info->name_;
-}
-
-void LogicWorker::downloadFile(std::shared_ptr<CSession> session, short msgId, std::string msgData)
-{
-	std::cout << "Download File msgId = " << msgId << std::endl;
-	std::cout << "msgData = " << msgData << std::endl;
-
-	Json::Value root;
-	Json::Reader reader;
-	Json::Value rtvalue;
-
-	if (!reader.parse(msgData, root))
-	{
-		std::cout << "parse Download File msgData failed." << std::endl;
-		rtvalue["code"] = 3;
-		rtvalue["msg"] = "parse msgData to json failed";
-		return;
-	}
-
-	std::string download_file = root["download_file"].asString();
-	int seq = root["seq"].asInt();
-	int last_seq = root["last_seq"].asInt();
-	int trans_size = root["trans_size"].asInt();
-	int total_size = root["total_size"].asInt();
-	int uid = root["uid"].asInt();
-	std::string token = root["token"].asString();
-
-	int icon_uid = root["icon_uid"].asInt();
-
-	std::string client_save_path = root["client_save_path"].asString();	
-	int download_file_type = root["download_file_type"].asInt();
-
-	session->setUserId(uid);
-
-	auto cfg = ConfigManager::getInstance();
-
-	if (seq == 1)
-	{
-		// µÚÒ»¸ö°üÑéÖ¤tokenÊÇ·ñÕıÈ· to do ...
-		
-	}
-	else
-	{
-		auto file_info = LogicSystem::getInstance()->GetDownloadFileInfo(download_file);
-		if (file_info == nullptr) {
-			// Ã»ÓĞ½«ÎÄ¼şAddµ½DownloadFileMapÖĞ£¬ÄÇÃ´¾Í·µ»Ø´íÎó
-			rtvalue["error"] = 4;
-			return;
-		}
-	}
-
-	std::shared_ptr<DownloadTask> task = std::make_shared<DownloadTask>(session, download_file,seq,last_seq,trans_size,total_size, client_save_path, (Download_File_Type)download_file_type, icon_uid);
-
-	// ¸ù¾İÎÄ¼şÃû×ÖÀ´¾ö¶¨ Í¶µİ µ½ ÄÄ¸ö DownloadWorker Ïß³Ì
-	std::hash<std::string> hash_fn;
-	size_t hash_value = hash_fn(download_file); // ¸ù¾İ ÎÄ¼şÃû Éú³É¹şÏ£Öµ
-	int index = hash_value % FILEWORKER_COUNT;
-	FileSystem::getInstance()->PostDownloadTaskToQue(task, index);
-}
-
-void LogicWorker::imgChatContinueUpload(std::shared_ptr<CSession> session, short msgId, std::string msgData)
-{
-	Json::Value root;
-	Json::Reader reader;
-	Json::Value rtvalue;
-
-	Defer defer([session, this, &rtvalue] {
-		session->Send(rtvalue.toStyledString(), ID_IMG_CHAT_CONTINUE_UPLOAD_RSP);
-		});
-
-	rtvalue["code"] = SUCCESS;
-	rtvalue["message"] = "sync file request processed successfully";
-
-	if (!reader.parse(msgData, root)) {
-		std::cout << "parse syncFile msgData failed." << std::endl;
-		rtvalue["code"] = 3;
-		rtvalue["msg"] = "parse msgData to json failed";
-		return;
-	}
-
-	int uid = root["uid"].asInt();
-	std::string token = root["token"].asString();
-	std::string unique_name = root["unique_name"].asString();
-	std::string md5 = root["md5"].asString();
-
-	std::cout << "uid = " << uid << " request to continue upload chat image.";
-
-	session->setUserId(uid);
-
-	auto file_info = LogicSystem::getInstance()->getFileInfo(unique_name);
-	if(file_info == nullptr) {
-		rtvalue["code"] = 4;
-		rtvalue["message"] = "file info not found";
-		return;
-	}
-
-	rtvalue["uid"] = file_info->uid_;
-	rtvalue["last_seq"] = file_info->last_seq_;
-	rtvalue["seq"] = file_info->seq_;
-	rtvalue["trans_size"] = file_info->transfferredSize_;
-	rtvalue["total_size"] = file_info->totolSize_;
-	rtvalue["md5"] = md5;
-	rtvalue["unique_name"] = file_info->name_;
-}
-
-void LogicWorker::fileContinueDownload(std::shared_ptr<CSession> session, short msgId, std::string msgData)
-{
-	Json::Value root;
-	Json::Reader reader;
-	Json::Value rtvalue;
-
-	Defer defer([session, this, &rtvalue] {
-		session->Send(rtvalue.toStyledString(), ID_FILE_CONTINUE_DOWNLOAD_RSP);
-		});
-
-	rtvalue["code"] = SUCCESS;
-	rtvalue["message"] = "sync file request processed successfully";
-
-	if (!reader.parse(msgData, root)) {
-		std::cout << "parse syncFile msgData failed." << std::endl;
-		rtvalue["code"] = 3;
-		rtvalue["msg"] = "parse msgData to json failed";
-		return;
-	}
-
-	int uid = root["uid"].asInt();
-	std::string token = root["token"].asString();
-	std::string unique_name = root["unique_name"].asString();
-
-	std::cout << "uid = " << uid << " request to continue download chat image.";
-
-	session->setUserId(uid);
-
-	std::shared_ptr<DownloadFileInfo> file_info = LogicSystem::getInstance()->GetDownloadFileInfo(unique_name);
-	if (file_info == nullptr) {
-		rtvalue["code"] = 4;
-		rtvalue["message"] = "file info not found";
-		return;
-	}
-
-	rtvalue["uid"] = file_info->uid_;
-	rtvalue["download_file"] = file_info->download_file_;
-	rtvalue["seq"] = file_info->seq_;
-	rtvalue["last_seq"] = file_info->last_seq_;
-	rtvalue["trans_size"] = file_info->trans_size_;
-	rtvalue["total_size"] = file_info->total_size_;
-	rtvalue["client_save_path"] = file_info->client_save_path_;
-	rtvalue["download_file_type"] = file_info->download_file_type_;
-}
-
-std::string LogicWorker::base64_decode(const std::string& in)
-{
-	const std::string base64_chars =
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-		"abcdefghijklmnopqrstuvwxyz"
-		"0123456789+/";
-
-	// ´´½¨½âÂë±í
-	std::vector<int> decoding_table(256, -1);
-	for (int i = 0; i < 64; i++) {
-		decoding_table[base64_chars[i]] = i;
-	}
-
-	int input_length = in.size();
-	int i = 0;
-	std::string out;
-	out.reserve((input_length * 3) / 4);
-
-	while (i < input_length) {
-		// ½âÂë4¸ö×Ö·ûÎª3¸ö×Ö½Ú
-		int sextet_a = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
-		int sextet_b = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
-		int sextet_c = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
-		int sextet_d = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
-
-		if (sextet_a == -1 || sextet_b == -1 || sextet_c == -1 || sextet_d == -1) {
-			throw std::runtime_error("Invalid base64 character");
-		}
-
-		int triple = (sextet_a << 3 * 6) + (sextet_b << 2 * 6) + (sextet_c << 1 * 6) + (sextet_d << 0 * 6);
-
-		if (in.length() > i - 3 && in[i - 2] == '=') {
-			// 2¸öÌî³ä×Ö·û£¬Ö»Êä³ö1¸ö×Ö½Ú
-			out.push_back(static_cast<char>((triple >> 16) & 0xFF));
-		}
-		else if (in.length() > i - 2 && in[i - 1] == '=') {
-			// 1¸öÌî³ä×Ö·û£¬Êä³ö2¸ö×Ö½Ú
-			out.push_back(static_cast<char>((triple >> 16) & 0xFF));
-			out.push_back(static_cast<char>((triple >> 8) & 0xFF));
-		}
-		else {
-			// ÎŞÌî³ä×Ö·û£¬Êä³ö3¸ö×Ö½Ú
-			out.push_back(static_cast<char>((triple >> 16) & 0xFF));
-			out.push_back(static_cast<char>((triple >> 8) & 0xFF));
-			out.push_back(static_cast<char>(triple & 0xFF));
-		}
-	}
-
-	return out;
-}
-
-void LogicWorker::postMsgToQue(std::shared_ptr<LogicNode> logicNode)
-{
-	std::lock_guard<std::mutex> locker(mtx_);
-	que_.push(logicNode);
-	cond_.notify_one();
+ï»¿#include "LogicWorker.h"
+#include "MsgNode.h"
+#include "LogicSystem.h"
+#include "ConfigManager.h"
+#include "CSession.h"
+#include "FileSystem.h"
+#include "FileWorker.h"
+#include "DownloadWorker.h"
+
+LogicWorker::LogicWorker()
+	: b_stop_(false)
+{
+	registerFunctionCallbacks();
+	work_thread_ = std::thread(&LogicWorker::dealTask, this);
+}	
+
+LogicWorker::~LogicWorker()
+{
+	// todo ...
+}
+
+void LogicWorker::registerFunctionCallbacks()
+{
+	handlers_[ID_UPLOAD_HEAD_ICON_REQ] = std::bind(&LogicWorker::uploadHeadIcon, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+	handlers_[ID_IMAGE_CHAT_MSG_REQ] = std::bind(&LogicWorker::uploadFile, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+	handlers_[ID_SYNC_FILE_REQ] = std::bind(&LogicWorker::syncFile, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+	handlers_[ID_DOWN_LOAD_FILE_REQ] = std::bind(&LogicWorker::downloadFile, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+	handlers_[ID_IMG_CHAT_CONTINUE_UPLOAD_REQ] = std::bind(&LogicWorker::imgChatContinueUpload, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+	handlers_[ID_FILE_CONTINUE_DOWNLOAD_REQ] = std::bind(&LogicWorker::fileContinueDownload, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+}
+
+void LogicWorker::dealTask()
+{
+	while (true)
+	{
+		std::unique_lock<std::mutex> locker(mtx_);
+
+		while (que_.empty() && !b_stop_)
+		{
+			std::cout << "LoginSystem is waiting for data . . ." << std::endl;
+			cond_.wait(locker);
+		}
+		// é€»è¾‘å±‚åœæ­¢å·¥ä½œ
+		if (b_stop_)
+		{
+			while (!que_.empty())
+			{
+				std::shared_ptr<LogicNode> node = que_.front();
+				que_.pop();
+
+				// è·å–é€»è¾‘ç»“ç‚¹å¯¹åº”çš„ æ¶ˆæ¯id
+				short msgId = node->recvNode_->msg_id_;
+
+				if (handlers_.count(msgId)) {
+					std::cout << "handle task whose id = " << msgId << ":" << std::endl;
+					handlers_[msgId](node->session_, msgId, std::string(node->recvNode_->data_, node->recvNode_->totol_len_));
+				}
+				else {
+					std::cout << "system error: can't find FunctinCallback: " << msgId << std::endl;
+				}
+			}
+			// detail break
+			break;
+		}
+
+		// é€»è¾‘å±‚æ²¡æœ‰é€€å‡ºï¼Œé‚£ä¹ˆå°±æ­£å¸¸å–æ•°æ®
+		if (!que_.empty())
+		{
+			std::shared_ptr<LogicNode> node = que_.front();
+			que_.pop();
+
+			// è·å–é€»è¾‘ç»“ç‚¹å¯¹åº”çš„ æ¶ˆæ¯id
+			short msgId = node->recvNode_->msg_id_;
+
+			if (handlers_.count(msgId)) {
+				std::cout << "handle task whose id = " << msgId << ":" << std::endl;
+				handlers_[msgId](node->session_, msgId, std::string(node->recvNode_->data_, node->recvNode_->totol_len_));
+			}
+			else {
+				std::cout << "system error: can't find FunctinCallback: " << msgId << std::endl;
+			}
+		}
+	}
+}
+
+void LogicWorker::uploadHeadIcon(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+{
+	std::cout << "upload head icon msgId = " << msgId << std::endl;
+
+	Json::Value root;
+	Json::Reader reader;
+	Json::Value rtvalue;
+
+	if (!reader.parse(msgData, root))
+	{
+		std::cout << "parse uploadFile msgData failed." << std::endl;
+		rtvalue["code"] = 3;
+		rtvalue["msg"] = "parse msgData to json failed";
+		return;
+	}
+
+	std::string fileName = root["filename"].asString();
+	int seq = root["seq"].asInt();
+	int lastSeq = root["lastseq"].asInt();
+	int transferredSize = root["transferredsize"].asInt();
+	int totolSize = root["totolsize"].asInt();
+	std::string data = root["data"].asString();
+	std::string md5 = root["md5"].asString();
+
+	int uid = root["uid"].asInt();
+	std::string token = root["token"].asString();
+
+	session->setUserId(uid);
+
+	auto cfg = ConfigManager::getInstance();
+	std::string uploadPath = cfg["SelfServer"]["UploadPath"];
+	std::string fullPath = uploadPath + "/" + fileName;
+
+	if (seq == 1)
+	{
+		// ç¬¬ä¸€ä¸ªåŒ…éªŒè¯tokenæ˜¯å¦æ­£ç¡® to do ...
+		//æ„é€ æ•°æ®å­˜å‚¨
+		auto file_info = std::make_shared<FileInfo>();
+		file_info->uid_ = uid;
+		file_info->filePath_ = fullPath;
+		file_info->name_ = fileName;
+		file_info->seq_ = seq;
+		file_info->totolSize_ = totolSize;
+		file_info->transfferredSize_ = transferredSize;
+		file_info->last_seq_ = lastSeq;
+		bool ret = LogicSystem::getInstance()->addMd5FileInfo(fileName, file_info);
+		if (!ret) {
+			// æ–‡ä»¶ä¿¡æ¯ä¿å­˜åˆ° redis å¤±è´¥
+			rtvalue["error"] = 5;
+			rtvalue["message"] = "save file info to redis failed";
+			return;
+		}
+		else {
+			std::cout << "file info has been saved to redis successfully." << std::endl;
+		}
+	}
+	else
+	{
+		auto file_info = LogicSystem::getInstance()->getFileInfo(fileName);
+		if (file_info == nullptr) {
+			// æ²¡æœ‰å°†æ–‡ä»¶Addåˆ°MD5FileMapä¸­
+			rtvalue["error"] = 4;
+			return;
+		}
+	}
+
+	std::shared_ptr<FileTask> task = std::make_shared<FileTask>(session, msgId, md5, fileName, seq, totolSize, transferredSize, lastSeq, data);
+
+	// æ ¹æ®æ–‡ä»¶åå­—æ¥å†³å®š æŠ•é€’ åˆ° å“ªä¸ª FileWorker çº¿ç¨‹
+	std::hash<std::string> hash_fn;
+	size_t hash_value = hash_fn(fileName); // æ ¹æ® æ–‡ä»¶å ç”Ÿæˆå“ˆå¸Œå€¼
+	int index = hash_value % FILEWORKER_COUNT;
+	FileSystem::getInstance()->postTaskToQue(task, index);
+}
+
+void LogicWorker::uploadFile(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+{
+	// åœ¨å‘é€å‰æ·»åŠ ç‚¹å°å»¶è¿Ÿï¼Œé¿å…å¿«é€Ÿè¿ç»­å‘é€
+	//std::this_thread::sleep_for(std::chrono::milliseconds(10)); // 10mså»¶è¿Ÿ
+
+	std::cout << "uploadFile msgId = " << msgId << std::endl;
+
+	Json::Value root;
+	Json::Reader reader;
+	Json::Value rtvalue;
+
+	if(!reader.parse(msgData, root))
+	{
+		std::cout << "parse uploadFile msgData failed." << std::endl;
+		rtvalue["code"] = 3;
+		rtvalue["msg"] = "parse msgData to json failed";
+		return;
+	}
+
+	std::string fileName = root["filename"].asString(); // unqiue_name
+	int seq = root["seq"].asInt();
+	int lastSeq = root["lastseq"].asInt();
+	int transferredSize = root["transferredsize"].asInt();
+	int totolSize = root["totolsize"].asInt();
+	std::string data = root["data"].asString();
+	std::string md5 = root["md5"].asString();
+	int type = root["type"].asInt();
+
+	int uid = root["uid"].asInt();
+	std::string token = root["token"].asString();
+
+	auto cfg = ConfigManager::getInstance();
+	std::string uploadPath = cfg["SelfServer"]["UploadPath"];
+	std::string fullPath = uploadPath + "/" + fileName;
+
+	if (seq == 1) 
+	{
+		session->setUserId(uid);
+		// ç¬¬ä¸€ä¸ªåŒ…éªŒè¯tokenæ˜¯å¦æ­£ç¡® to do ...
+		//æ„é€ æ•°æ®å­˜å‚¨
+		auto file_info = std::make_shared<FileInfo>();
+		file_info->uid_ = uid;
+		file_info->filePath_ = fullPath;
+		file_info->name_ = fileName;
+		file_info->seq_ = seq;
+		file_info->totolSize_ = totolSize;
+		file_info->transfferredSize_ = transferredSize;
+		file_info->last_seq_ = lastSeq;
+		LogicSystem::getInstance()->addMd5FileInfo(fileName, file_info);
+	}
+	else
+	{
+		auto file_info = LogicSystem::getInstance()->getFileInfo(fileName);
+		if (file_info == nullptr) {
+			// æ²¡æœ‰å°†æ–‡ä»¶Addåˆ°MD5FileMapä¸­
+			rtvalue["error"] = 4;
+			return;
+		}
+		file_info->seq_ = seq;
+		file_info->transfferredSize_ = transferredSize;
+		LogicSystem::getInstance()->addMd5FileInfo(fileName, file_info);
+	}
+
+	std::shared_ptr<FileTask> task = std::make_shared<FileTask>(session, msgId, md5, fileName, seq, totolSize, transferredSize, lastSeq, data, type);
+
+	// æ ¹æ®æ–‡ä»¶åå­—æ¥å†³å®š æŠ•é€’ åˆ° å“ªä¸ª FileWorker çº¿ç¨‹
+	std::hash<std::string> hash_fn;
+	size_t hash_value = hash_fn(fileName); // æ ¹æ® æ–‡ä»¶å ç”Ÿæˆå“ˆå¸Œå€¼
+	int index = hash_value % FILEWORKER_COUNT;
+	FileSystem::getInstance()->postTaskToQue(task, index);
+
+	/*rtvalue["code"] = SUCCESS;
+	rtvalue["mesage"] = "upload file task has been posted to FileSystem";
+	rtvalue["filenname"] = fileName;
+	rtvalue["totol_size"] = totolSize;
+	rtvalue["trans_size"] = transferredSize;
+	rtvalue["seq"] = seq;
+	rtvalue["lastseq"] = lastSeq;
+	rtvalue["md5"] = md5;
+	rtvalue["uid"] = uid;*/
+}
+
+void LogicWorker::syncFile(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+{
+	Json::Value root;
+	Json::Reader reader;
+	Json::Value rtvalue;
+	
+	Defer defer([session, this, &rtvalue] {
+		session->Send(rtvalue.toStyledString(), ID_SYNC_FILE_RSP);
+		});
+
+	rtvalue["code"] = SUCCESS;
+	rtvalue["message"] = "sync file request processed successfully";
+
+	if (!reader.parse(msgData, root)) {
+		std::cout << "parse syncFile msgData failed." << std::endl;
+		rtvalue["code"] = 3;
+		rtvalue["msg"] = "parse msgData to json failed";
+		return;
+	}
+
+	std::string md5 = root["md5"].asString();
+	auto file_info = LogicSystem::getInstance()->getFileInfo(md5);
+	if (file_info == nullptr) {
+		rtvalue["code"] = 4;
+		rtvalue["message"] = "file info not found";
+		return;
+	}
+
+
+	rtvalue["lastseq"] = file_info->last_seq_;
+	rtvalue["seq"] = file_info->seq_;
+	rtvalue["transfer_size"] = file_info->transfferredSize_;
+	rtvalue["total_size"] = file_info->totolSize_;
+	rtvalue["md5"] = md5;
+	rtvalue["file_name"] = file_info->name_;
+}
+
+void LogicWorker::downloadFile(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+{
+	std::cout << "Download File msgId = " << msgId << std::endl;
+	std::cout << "msgData = " << msgData << std::endl;
+
+	Json::Value root;
+	Json::Reader reader;
+	Json::Value rtvalue;
+
+	if (!reader.parse(msgData, root))
+	{
+		std::cout << "parse Download File msgData failed." << std::endl;
+		rtvalue["code"] = 3;
+		rtvalue["msg"] = "parse msgData to json failed";
+		return;
+	}
+
+	std::string download_file = root["download_file"].asString();
+	int seq = root["seq"].asInt();
+	int last_seq = root["last_seq"].asInt();
+	int trans_size = root["trans_size"].asInt();
+	int total_size = root["total_size"].asInt();
+	int uid = root["uid"].asInt();
+	std::string token = root["token"].asString();
+
+	int icon_uid = root["icon_uid"].asInt();
+
+	std::string client_save_path = root["client_save_path"].asString();	
+	int download_file_type = root["download_file_type"].asInt();
+
+	session->setUserId(uid);
+
+	auto cfg = ConfigManager::getInstance();
+
+	if (seq == 1)
+	{
+		// ç¬¬ä¸€ä¸ªåŒ…éªŒè¯tokenæ˜¯å¦æ­£ç¡® to do ...
+		
+	}
+	else
+	{
+		auto file_info = LogicSystem::getInstance()->GetDownloadFileInfo(download_file);
+		if (file_info == nullptr) {
+			// æ²¡æœ‰å°†æ–‡ä»¶Addåˆ°DownloadFileMapä¸­ï¼Œé‚£ä¹ˆå°±è¿”å›é”™è¯¯
+			rtvalue["error"] = 4;
+			return;
+		}
+	}
+
+	std::shared_ptr<DownloadTask> task = std::make_shared<DownloadTask>(session, download_file,seq,last_seq,trans_size,total_size, client_save_path, (Download_File_Type)download_file_type, icon_uid);
+
+	// æ ¹æ®æ–‡ä»¶åå­—æ¥å†³å®š æŠ•é€’ åˆ° å“ªä¸ª DownloadWorker çº¿ç¨‹
+	std::hash<std::string> hash_fn;
+	size_t hash_value = hash_fn(download_file); // æ ¹æ® æ–‡ä»¶å ç”Ÿæˆå“ˆå¸Œå€¼
+	int index = hash_value % FILEWORKER_COUNT;
+	FileSystem::getInstance()->PostDownloadTaskToQue(task, index);
+}
+
+void LogicWorker::imgChatContinueUpload(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+{
+	Json::Value root;
+	Json::Reader reader;
+	Json::Value rtvalue;
+
+	Defer defer([session, this, &rtvalue] {
+		session->Send(rtvalue.toStyledString(), ID_IMG_CHAT_CONTINUE_UPLOAD_RSP);
+		});
+
+	rtvalue["code"] = SUCCESS;
+	rtvalue["message"] = "sync file request processed successfully";
+
+	if (!reader.parse(msgData, root)) {
+		std::cout << "parse syncFile msgData failed." << std::endl;
+		rtvalue["code"] = 3;
+		rtvalue["msg"] = "parse msgData to json failed";
+		return;
+	}
+
+	int uid = root["uid"].asInt();
+	std::string token = root["token"].asString();
+	std::string unique_name = root["unique_name"].asString();
+	std::string md5 = root["md5"].asString();
+
+	std::cout << "uid = " << uid << " request to continue upload chat image.";
+
+	session->setUserId(uid);
+
+	auto file_info = LogicSystem::getInstance()->getFileInfo(unique_name);
+	if(file_info == nullptr) {
+		rtvalue["code"] = 4;
+		rtvalue["message"] = "file info not found";
+		return;
+	}
+
+	rtvalue["uid"] = file_info->uid_;
+	rtvalue["last_seq"] = file_info->last_seq_;
+	rtvalue["seq"] = file_info->seq_;
+	rtvalue["trans_size"] = file_info->transfferredSize_;
+	rtvalue["total_size"] = file_info->totolSize_;
+	rtvalue["md5"] = md5;
+	rtvalue["unique_name"] = file_info->name_;
+}
+
+void LogicWorker::fileContinueDownload(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+{
+	Json::Value root;
+	Json::Reader reader;
+	Json::Value rtvalue;
+
+	Defer defer([session, this, &rtvalue] {
+		session->Send(rtvalue.toStyledString(), ID_FILE_CONTINUE_DOWNLOAD_RSP);
+		});
+
+	rtvalue["code"] = SUCCESS;
+	rtvalue["message"] = "sync file request processed successfully";
+
+	if (!reader.parse(msgData, root)) {
+		std::cout << "parse syncFile msgData failed." << std::endl;
+		rtvalue["code"] = 3;
+		rtvalue["msg"] = "parse msgData to json failed";
+		return;
+	}
+
+	int uid = root["uid"].asInt();
+	std::string token = root["token"].asString();
+	std::string unique_name = root["unique_name"].asString();
+
+	std::cout << "uid = " << uid << " request to continue download chat image.";
+
+	session->setUserId(uid);
+
+	std::shared_ptr<DownloadFileInfo> file_info = LogicSystem::getInstance()->GetDownloadFileInfo(unique_name);
+	if (file_info == nullptr) {
+		rtvalue["code"] = 4;
+		rtvalue["message"] = "file info not found";
+		return;
+	}
+
+	rtvalue["uid"] = file_info->uid_;
+	rtvalue["download_file"] = file_info->download_file_;
+	rtvalue["seq"] = file_info->seq_;
+	rtvalue["last_seq"] = file_info->last_seq_;
+	rtvalue["trans_size"] = file_info->trans_size_;
+	rtvalue["total_size"] = file_info->total_size_;
+	rtvalue["client_save_path"] = file_info->client_save_path_;
+	rtvalue["download_file_type"] = file_info->download_file_type_;
+}
+
+std::string LogicWorker::base64_decode(const std::string& in)
+{
+	const std::string base64_chars =
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		"abcdefghijklmnopqrstuvwxyz"
+		"0123456789+/";
+
+	// åˆ›å»ºè§£ç è¡¨
+	std::vector<int> decoding_table(256, -1);
+	for (int i = 0; i < 64; i++) {
+		decoding_table[base64_chars[i]] = i;
+	}
+
+	int input_length = in.size();
+	int i = 0;
+	std::string out;
+	out.reserve((input_length * 3) / 4);
+
+	while (i < input_length) {
+		// è§£ç 4ä¸ªå­—ç¬¦ä¸º3ä¸ªå­—èŠ‚
+		int sextet_a = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
+		int sextet_b = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
+		int sextet_c = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
+		int sextet_d = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
+
+		if (sextet_a == -1 || sextet_b == -1 || sextet_c == -1 || sextet_d == -1) {
+			throw std::runtime_error("Invalid base64 character");
+		}
+
+		int triple = (sextet_a << 3 * 6) + (sextet_b << 2 * 6) + (sextet_c << 1 * 6) + (sextet_d << 0 * 6);
+
+		if (in.length() > i - 3 && in[i - 2] == '=') {
+			// 2ä¸ªå¡«å……å­—ç¬¦ï¼Œåªè¾“å‡º1ä¸ªå­—èŠ‚
+			out.push_back(static_cast<char>((triple >> 16) & 0xFF));
+		}
+		else if (in.length() > i - 2 && in[i - 1] == '=') {
+			// 1ä¸ªå¡«å……å­—ç¬¦ï¼Œè¾“å‡º2ä¸ªå­—èŠ‚
+			out.push_back(static_cast<char>((triple >> 16) & 0xFF));
+			out.push_back(static_cast<char>((triple >> 8) & 0xFF));
+		}
+		else {
+			// æ— å¡«å……å­—ç¬¦ï¼Œè¾“å‡º3ä¸ªå­—èŠ‚
+			out.push_back(static_cast<char>((triple >> 16) & 0xFF));
+			out.push_back(static_cast<char>((triple >> 8) & 0xFF));
+			out.push_back(static_cast<char>(triple & 0xFF));
+		}
+	}
+
+	return out;
+}
+
+void LogicWorker::postMsgToQue(std::shared_ptr<LogicNode> logicNode)
+{
+	std::lock_guard<std::mutex> locker(mtx_);
+	que_.push(logicNode);
+	cond_.notify_one();
 }

@@ -1,126 +1,126 @@
-#include "StatusServiceImpl.h"
-#include "ConfigManager.h"
-#include "RedisManager.h"
-#include "RedisLocker.h"
-
-StatusServiceImpl::StatusServiceImpl()
-{
-	// Ìí¼Ó ChatServer
-	auto cfg = ConfigManager::getInstance();
-	auto server_list = cfg["ChatServers"]["List"];
-
-	std::vector<std::string> words;
-
-	std::stringstream ss(server_list);
-	std::string word;
-
-	while (std::getline(ss, word, ',')) {
-		words.push_back(word);
-	}
-
-	for (auto& word : words) {
-		if (cfg[word]["Name"].empty()) {
-			continue;
-		}
-
-		ChatServer server;
-		server.port = cfg[word]["Port"];
-		server.host = cfg[word]["Host"];
-		server.name = cfg[word]["Name"];
-		servers_[server.name] = server;
-
-		server.printInfo();
-	}
-}
-
-Status StatusServiceImpl::GetChatServer(ServerContext* context, const GetChatServerReq* request, GetChatServerRsp* reply)
-{
-	std::string prefix("Jerry StatusServer has received: ");
-
-	ChatServer chatServer = getChatServer();
-	reply->set_host(chatServer.host);
-	reply->set_port(chatServer.port);
-	reply->set_token(generate_unique_string());	
-
-	std::cout << "select ChatServer(" << chatServer.host << ":" << chatServer.port << ") for client whose uid = " << request->uid() << ".\n";
-
-	// ÔÚredis»º´æÖÐ²åÈëÓÃ»§µÄtokenÐÅÏ¢
-	RedisManager::getInstance()->Set( USERUIDPREFIX + std::to_string(request->uid()), USERTOKENPREFIX + reply->token());
-
-	reply->set_error(ERROE_CODR::SUCCESS);
-
-	return Status::OK;
-}
-
-ChatServer StatusServiceImpl::getChatServer()
-{
-	std::lock_guard<std::mutex> locker_(mtx_);
-	// host(""), port(""), name(""), con_count(0)
-	ChatServer indexServer;
-	indexServer.con_count = INT_MAX;
-	std::string countStr = RedisManager::getInstance()->HGet(LOGINCOUNT, indexServer.name);
-	for (auto& s : servers_)
-	{
-		//std::cout << s.second.con_count << std::endl;
-		//std::cout << indexServer.con_count << std::endl;
-		//std::cout << indexServer.name << std::endl;
-		// ÐèÒªÏÈÔÚredisÖÐ»ñÈ¡×îÐÂµÄÊý¾Ý
-		std::string countStr = RedisManager::getInstance()->HGet(LOGINCOUNT, s.second.name);
-		if (countStr == "") {
-			std::cout << s.second.name << " 's ConnCount is nullptr." << std::endl;
-		}
-		s.second.con_count = std::stoi(countStr);
-		std::cout << "*******" << s.second.name << " 's connection number is " << s.second.con_count << "*******" << std::endl;
-		if (s.second.con_count < indexServer.con_count)
-		{
-			// ËùÒÔÐèÒªÖØÔØ ChatServerµÄ bool operator = ()
-			std::cout << s.second.name << " < " << indexServer.name << std::endl;
-			indexServer = s.second;
-		}
-	}
-	std::cout << "[" << "StatusServer]: " << indexServer.name << " adds new Connection." << std::endl;
-	return indexServer;
-}
-
-//void StatusServiceImpl::insertToken(int uid, std::string token)
-//{
-//	// ÔÚredis»º´æÖÐ²åÈëÓÃ»§µÄtokenÐÅÏ¢
-//	auto conn = RedisConnPool::getInstance()->getConnection();
-//	if (conn == nullptr)
-//	{
-//		reply->set_error(ERROE_CODR::SUCCESS);
-//		return;
-//	}
-//	reply->set_error(ERROE_CODR::SUCCESS);
-//	RedisManager redisManager(conn);
-//	redisManager.Set(USERTOKENPREFIX + std::to_string(uid), token);
-//	RedisConnPool::getInstance()->returnConnection(conn);
-//}
-
-//Status StatusServiceImpl::login(ServerContext* context, const LoginReq* request, LoginRsp* reply)
-//{
-//	int uid = request->uid();
-//	std::string token = request->token();
-//
-//	std::string keyToken = USERTOKENPREFIX + std::to_string(uid);
-//	RedisManager redisManager(RedisConnPool::getInstance()->getConnection());
-//	std::string valueToken = redisManager.Get(USERTOKENPREFIX + std::to_string(uid));
-//	// ËµÃ÷ÔÚredis»º´æµ±ÖÐ£¬Ã»ÓÐµ±Ç°ÓÃ»§µÄ token
-//	if(valueToken == ""){
-//	
-//		reply->set_error(ERROE_CODR::ERROR_INVALIDUID);
-//		return Status::OK;
-//	}
-//	// token ²»Æ¥Åä
-//	if (token != valueToken)
-//	{
-//		reply->set_error(ERROE_CODR::ERROR_INVALIDTOKEN);
-//		return Status::OK;
-//	}
-//	
-//	// token Æ¥Åä³É¹¦µÄÇé¿ö
-//	reply->set_error(ERROE_CODR::SUCCESS);
-//	reply->set_uid(uid);
-//	reply->set_token(token);
-//}
-
+ï»¿#include "StatusServiceImpl.h"
+#include "ConfigManager.h"
+#include "RedisManager.h"
+#include "RedisLocker.h"
+
+StatusServiceImpl::StatusServiceImpl()
+{
+	// æ·»åŠ  ChatServer
+	auto cfg = ConfigManager::getInstance();
+	auto server_list = cfg["ChatServers"]["List"];
+
+	std::vector<std::string> words;
+
+	std::stringstream ss(server_list);
+	std::string word;
+
+	while (std::getline(ss, word, ',')) {
+		words.push_back(word);
+	}
+
+	for (auto& word : words) {
+		if (cfg[word]["Name"].empty()) {
+			continue;
+		}
+
+		ChatServer server;
+		server.port = cfg[word]["Port"];
+		server.host = cfg[word]["Host"];
+		server.name = cfg[word]["Name"];
+		servers_[server.name] = server;
+
+		server.printInfo();
+	}
+}
+
+Status StatusServiceImpl::GetChatServer(ServerContext* context, const GetChatServerReq* request, GetChatServerRsp* reply)
+{
+	std::string prefix("Jerry StatusServer has received: ");
+
+	ChatServer chatServer = getChatServer();
+	reply->set_host(chatServer.host);
+	reply->set_port(chatServer.port);
+	reply->set_token(generate_unique_string());	
+
+	std::cout << "select ChatServer(" << chatServer.host << ":" << chatServer.port << ") for client whose uid = " << request->uid() << ".\n";
+
+	// åœ¨redisç¼“å­˜ä¸­æ’å…¥ç”¨æˆ·çš„tokenä¿¡æ¯
+	RedisManager::getInstance()->Set( USERUIDPREFIX + std::to_string(request->uid()), USERTOKENPREFIX + reply->token());
+
+	reply->set_error(ERROE_CODR::SUCCESS);
+
+	return Status::OK;
+}
+
+ChatServer StatusServiceImpl::getChatServer()
+{
+	std::lock_guard<std::mutex> locker_(mtx_);
+	// host(""), port(""), name(""), con_count(0)
+	ChatServer indexServer;
+	indexServer.con_count = INT_MAX;
+	std::string countStr = RedisManager::getInstance()->HGet(LOGINCOUNT, indexServer.name);
+	for (auto& s : servers_)
+	{
+		//std::cout << s.second.con_count << std::endl;
+		//std::cout << indexServer.con_count << std::endl;
+		//std::cout << indexServer.name << std::endl;
+		// éœ€è¦å…ˆåœ¨redisä¸­èŽ·å–æœ€æ–°çš„æ•°æ®
+		std::string countStr = RedisManager::getInstance()->HGet(LOGINCOUNT, s.second.name);
+		if (countStr == "") {
+			std::cout << s.second.name << " 's ConnCount is nullptr." << std::endl;
+		}
+		s.second.con_count = std::stoi(countStr);
+		std::cout << "*******" << s.second.name << " 's connection number is " << s.second.con_count << "*******" << std::endl;
+		if (s.second.con_count < indexServer.con_count)
+		{
+			// æ‰€ä»¥éœ€è¦é‡è½½ ChatServerçš„ bool operator = ()
+			std::cout << s.second.name << " < " << indexServer.name << std::endl;
+			indexServer = s.second;
+		}
+	}
+	std::cout << "[" << "StatusServer]: " << indexServer.name << " adds new Connection." << std::endl;
+	return indexServer;
+}
+
+//void StatusServiceImpl::insertToken(int uid, std::string token)
+//{
+//	// åœ¨redisç¼“å­˜ä¸­æ’å…¥ç”¨æˆ·çš„tokenä¿¡æ¯
+//	auto conn = RedisConnPool::getInstance()->getConnection();
+//	if (conn == nullptr)
+//	{
+//		reply->set_error(ERROE_CODR::SUCCESS);
+//		return;
+//	}
+//	reply->set_error(ERROE_CODR::SUCCESS);
+//	RedisManager redisManager(conn);
+//	redisManager.Set(USERTOKENPREFIX + std::to_string(uid), token);
+//	RedisConnPool::getInstance()->returnConnection(conn);
+//}
+
+//Status StatusServiceImpl::login(ServerContext* context, const LoginReq* request, LoginRsp* reply)
+//{
+//	int uid = request->uid();
+//	std::string token = request->token();
+//
+//	std::string keyToken = USERTOKENPREFIX + std::to_string(uid);
+//	RedisManager redisManager(RedisConnPool::getInstance()->getConnection());
+//	std::string valueToken = redisManager.Get(USERTOKENPREFIX + std::to_string(uid));
+//	// è¯´æ˜Žåœ¨redisç¼“å­˜å½“ä¸­ï¼Œæ²¡æœ‰å½“å‰ç”¨æˆ·çš„ token
+//	if(valueToken == ""){
+//	
+//		reply->set_error(ERROE_CODR::ERROR_INVALIDUID);
+//		return Status::OK;
+//	}
+//	// token ä¸åŒ¹é…
+//	if (token != valueToken)
+//	{
+//		reply->set_error(ERROE_CODR::ERROR_INVALIDTOKEN);
+//		return Status::OK;
+//	}
+//	
+//	// token åŒ¹é…æˆåŠŸçš„æƒ…å†µ
+//	reply->set_error(ERROE_CODR::SUCCESS);
+//	reply->set_uid(uid);
+//	reply->set_token(token);
+//}
+

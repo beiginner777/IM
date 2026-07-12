@@ -1,35 +1,35 @@
-#ifndef STATUSSERVICEIMPL_H
-#define STATUSSERVICEIMPL_H
-
-#include <grpcpp/grpcpp.h>
-#include "global.h"
-#include "message.grpc.pb.h"
-
-using grpc::Server;
-using grpc::ServerBuilder;
-using grpc::ServerContext;
-using grpc::Status;
-using message::GetChatServerReq;
-using message::GetChatServerRsp;
-using message::StatusService;
-using namespace message;
-
-class StatusServiceImpl final : public StatusService::Service
-{
-public:
-    StatusServiceImpl();
-    Status GetChatServer(ServerContext* context, const GetChatServerReq* request,
-        GetChatServerRsp* reply) override;
-private:
-    ChatServer getChatServer();
-
-    //void insertToken(int uid, std::string token);
-	
-	// ÒòÎª½«uid ºÍ token Ğ´ÔÚredisÖĞÁË£¬Òò´Ë£¬ChatServer Ö±½ÓÈ¥·ÃÎÊ redis Ò²¿ÉÒÔ
-	// ChatServer ĞèÒªÔÚ StatusServer À´ÑéÖ¤ÓÃ»§µÄ Token
-	// Status login(ServerContext* context, const LoginReq* request, LoginRsp* reply);
-    std::mutex mtx_;
-    std::map<std::string, ChatServer> servers_;
-};
-
+ï»¿#ifndef STATUSSERVICEIMPL_H
+#define STATUSSERVICEIMPL_H
+
+#include <grpcpp/grpcpp.h>
+#include "global.h"
+#include "message.grpc.pb.h"
+
+using grpc::Server;
+using grpc::ServerBuilder;
+using grpc::ServerContext;
+using grpc::Status;
+using message::GetChatServerReq;
+using message::GetChatServerRsp;
+using message::StatusService;
+using namespace message;
+
+class StatusServiceImpl final : public StatusService::Service
+{
+public:
+    StatusServiceImpl();
+    Status GetChatServer(ServerContext* context, const GetChatServerReq* request,
+        GetChatServerRsp* reply) override;
+private:
+    ChatServer getChatServer();
+
+    //void insertToken(int uid, std::string token);
+	
+	// å› ä¸ºå°†uid å’Œ token å†™åœ¨redisä¸­äº†ï¼Œå› æ­¤ï¼ŒChatServer ç›´æ¥å»è®¿é—® redis ä¹Ÿå¯ä»¥
+	// ChatServer éœ€è¦åœ¨ StatusServer æ¥éªŒè¯ç”¨æˆ·çš„ Token
+	// Status login(ServerContext* context, const LoginReq* request, LoginRsp* reply);
+    std::mutex mtx_;
+    std::map<std::string, ChatServer> servers_;
+};
+
 #endif

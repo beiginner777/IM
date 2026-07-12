@@ -1,211 +1,211 @@
-#include "DownloadWorker.h"
-#include "CSession.h"
-#include "ConfigManager.h"
-#include "LogicSystem.h"
-
-DownloadWorker::DownloadWorker()
-{
-	work_thread_ = std::thread(&DownloadWorker::dealTask, this);
-}
-
-DownloadWorker::~DownloadWorker()
-{
-}
-
-void DownloadWorker::dealTask()
-{
-	while (true)
-	{
-		std::unique_lock<std::mutex> locker(mtx_);
-
-		while (que_.empty() && !b_stop_)
-		{
-			std::cout << "LoginSystem is waiting for data . . ." << std::endl;
-			cond_.wait(locker);
-		}
-		// ÎÄ¼ş´¦Àí²ãÍ£Ö¹¹¤×÷
-		if (b_stop_)
-		{
-			while (!que_.empty())
-			{
-				std::shared_ptr<DownloadTask> task = que_.front();
-				que_.pop();
-				taskHandler(task);
-			}
-			// detail break
-			break;
-		}
-
-		// ÎÄ¼ş´¦Àí²ãÃ»ÓĞÍË³ö£¬ÄÇÃ´¾ÍÕı³£È¡Êı¾İ
-		if (!que_.empty())
-		{
-			std::shared_ptr<DownloadTask> task = que_.front();
-			que_.pop();
-			taskHandler(task);
-		}
-	}
-}
-
-void DownloadWorker::taskHandler(std::shared_ptr<DownloadTask> task)
-{
-	//std::this_thread::sleep_for(std::chrono::milliseconds(5));
-
-	std::shared_ptr<CSession> session = task->session_;
-	std::string download_file = task->download_file_;
-	int seq = task->seq_;
-	int last_seq = task->last_seq_;
-	int trans_size = task->trans_size_;
-	int total_size = task->total_size_;
-	std::string client_save_path = task->client_save_path_;
-	Download_File_Type type = task->type_;
-	int icon_uid = task->icon_uid_;
-
-	Json::Value rtvalue;
-	rtvalue["code"] = SUCCESS;
-	rtvalue["message"] = "download file task processed successfully";
-
-	Defer defer([session, this, &rtvalue]() {
-		session->Send(rtvalue.toStyledString(), ID_DOWN_LOAD_FILE_RSP);
-		});
-
-	// ¼ì²éÎÄ¼şÊÇ·ñ´æÔÚ
-	auto cfg = ConfigManager::getInstance();
-	std::string uploadPath = cfg["SelfServer"]["DownloadPath"];
-	std::string fullPath = uploadPath + "/" + download_file;
-	if (!boost::filesystem::exists(fullPath)) {
-		std::cerr << "ÎÄ¼ş²»´æÔÚ: " << fullPath << std::endl;
-		rtvalue["code"] = ERROE_CODR::ERROR_FILE_NOT_EXIST;
-		rtvalue["message"] = "download file failed, file not exist.";
-		return;
-	}
-
-	// ´ò¿ªÎÄ¼ş
-	std::ifstream infile(fullPath, std::ios::binary);
-	if (!infile) {
-		std::cerr << "ÎŞ·¨´ò¿ªÎÄ¼ş½øĞĞ¶ÁÈ¡¡£" << std::endl;
-		rtvalue["code"] = ERROE_CODR::ERROR_OPEN_FILE;
-		rtvalue["message"] = "download file failed, open file error.";
-		return;
-	}
-
-	if (seq == 1) {
-		// »ñÈ¡ÎÄ¼ş´óĞ¡
-		infile.seekg(0, std::ios::end);
-		std::streamsize file_size = infile.tellg();
-		infile.seekg(0, std::ios::beg);
-		// ÔÚredisÖĞÉèÖÃÎÄ¼şÏÂÔØĞÅÏ¢
-		std::shared_ptr<DownloadFileInfo> file_info = std::make_shared<DownloadFileInfo>();
-		file_info->uid_ = session->getUserId();
-		file_info->download_file_ = download_file;
-		file_info->seq_ = 0; // ÒÑ¾­ÏÂÔØµÄ°üµÄĞòºÅ
-		file_info->total_size_ = file_size; // ÎÄ¼ş×Ü´óĞ¡
-		file_info->trans_size_ = 0; // ÒÑ¾­ÏÂÔØµÄ´óĞ¡
-		file_info->client_save_path_ = client_save_path;
-		file_info->download_file_type_ = type; // ÏÂÔØÎÄ¼şµÄÀàĞÍ
-
-		if (file_size % MAX_FILE_LEN == 0) {
-			file_info->last_seq_ = file_size / MAX_FILE_LEN;
-		}
-		else {
-			file_info->last_seq_ = file_size / MAX_FILE_LEN + 1;
-		}
-		std::cout << "[ĞÂÏÂÔØ] ÎÄ¼ş: " << download_file
-			<< ", ´óĞ¡: " << file_size << " ×Ö½Ú" << std::endl;
-
-		// Ìí¼Óµ½redis
-		LogicSystem::getInstance()->addDownloadFileInfo(download_file, file_info);
-
-		last_seq = file_info->last_seq_;
-		trans_size = file_info->trans_size_;
-		total_size = file_info->total_size_;
-	}
-
-	// ¼ÆËãµ±Ç°Æ«ÒÆÁ¿
-	std::streamsize offset = ((std::streamsize)seq - 1) * MAX_FILE_LEN;
-	if (offset >= total_size) {
-		std::cerr << "Æ«ÒÆÁ¿³¬³öÎÄ¼ş´óĞ¡¡£" << std::endl;
-		rtvalue["code"] = ERROE_CODR::ERROR_FILE_OFFSET_INVALID;
-		rtvalue["message"] = "download file failed, offset invalid.";
-		infile.close();
-		return;
-	}
-
-	// ¶¨Î»µ½Ö¸¶¨Æ«ÒÆÁ¿
-	infile.seekg(offset);
-
-	// ¶ÁÈ¡×î¶àMAX_FILE_LEN×Ö½Ú
-	char buffer[MAX_FILE_LEN];
-	infile.read(buffer, MAX_FILE_LEN);
-	//»ñÈ¡readÊµ¼Ê¶ÁÈ¡¶àÉÙ×Ö½Ú
-	std::streamsize bytes_read = infile.gcount();
-	if (bytes_read <= 0) {
-		std::cerr << "¶ÁÈ¡ÎÄ¼şÊ§°Ü¡£" << std::endl;
-		rtvalue["code"] = ERROE_CODR::ERROR_READ_FILE;
-		rtvalue["message"] = "download file failed, read file error.";
-		infile.close();
-		return;
-	}
-	// ÒÑ¾­ÏÂÔØµÄÎÄ¼ş´óĞ¡
-	trans_size += bytes_read;
-
-	// ½«¶ÁÈ¡µÄÊı¾İ½øĞĞbase64±àÂë
-	std::string data_to_encode(buffer, bytes_read);
-	//std::cout << "origin data: " << data_to_encode << std::endl;
-	std::string encoded_data = base64_encode(data_to_encode);
-
-	/*std::cout << "---------------------------------------" << std::endl;
-	std::cout << "seq = " << seq << ", last_seq = " << last_seq << std::endl;
-	std::cout << "origin data: " << data_to_encode << std::endl;
-	std::cout << "base64 encode data:  " << encoded_data << std::endl;*/
-
-	// ÉèÖÃ·µ»Ø½á¹û
-	rtvalue["download_file"] = download_file;
-	rtvalue["data"] = encoded_data;
-	rtvalue["seq"] = seq;
-	rtvalue["last_seq"] = last_seq;
-	rtvalue["total_size"] = total_size;
-	rtvalue["trans_size"] = trans_size;
-	rtvalue["client_save_path"] = client_save_path;
-	rtvalue["download_file_type"] = type;
-	rtvalue["icon_uid"] = icon_uid;
-
-	infile.close();
-
-	if (seq == last_seq) {
-		std::cout << "[ÏÂÔØÍê³É] ÎÄ¼ş: " << download_file << std::endl;
-		LogicSystem::getInstance()->DeleteDownloadFileInfo(download_file);
-	}
-	else {
-		//¸üĞÂĞÅÏ¢
-		std::shared_ptr<DownloadFileInfo> file_info = std::make_shared<DownloadFileInfo>(session->getUserId(),download_file,
-			seq,last_seq,trans_size,total_size,client_save_path, type);
-		//¸üĞÂredis
-		LogicSystem::getInstance()->addDownloadFileInfo(download_file, file_info);
-	}
-}
-
-std::string DownloadWorker::base64_encode(const std::string& data)
-{
-	// ¼ÆËã±àÂëºóËùĞè¿Õ¼ä
-	std::string out;
-	out.resize(boost::beast::detail::base64::encoded_size(data.size()));
-
-	// Ö´ĞĞ±àÂë
-	size_t len = boost::beast::detail::base64::encode(
-		(void*)out.data(),
-		data.data(),
-		data.size()
-	);
-
-	out.resize(len);
-	return out;
-}
-
-
-void DownloadWorker::postTaskToQue(std::shared_ptr<DownloadTask> task)
-{
-	// ½«ÎÄ¼ş½áµã ¸ù¾İ ÎÄ¼şÃû ·ÅÈëFileSystemµÄÄ³¸öFileWorkerÖĞ
-	std::lock_guard<std::mutex> locket(mtx_);
-	que_.push(task);
-	cond_.notify_one();
+ï»¿#include "DownloadWorker.h"
+#include "CSession.h"
+#include "ConfigManager.h"
+#include "LogicSystem.h"
+
+DownloadWorker::DownloadWorker()
+{
+	work_thread_ = std::thread(&DownloadWorker::dealTask, this);
+}
+
+DownloadWorker::~DownloadWorker()
+{
+}
+
+void DownloadWorker::dealTask()
+{
+	while (true)
+	{
+		std::unique_lock<std::mutex> locker(mtx_);
+
+		while (que_.empty() && !b_stop_)
+		{
+			std::cout << "LoginSystem is waiting for data . . ." << std::endl;
+			cond_.wait(locker);
+		}
+		// æ–‡ä»¶å¤„ç†å±‚åœæ­¢å·¥ä½œ
+		if (b_stop_)
+		{
+			while (!que_.empty())
+			{
+				std::shared_ptr<DownloadTask> task = que_.front();
+				que_.pop();
+				taskHandler(task);
+			}
+			// detail break
+			break;
+		}
+
+		// æ–‡ä»¶å¤„ç†å±‚æ²¡æœ‰é€€å‡ºï¼Œé‚£ä¹ˆå°±æ­£å¸¸å–æ•°æ®
+		if (!que_.empty())
+		{
+			std::shared_ptr<DownloadTask> task = que_.front();
+			que_.pop();
+			taskHandler(task);
+		}
+	}
+}
+
+void DownloadWorker::taskHandler(std::shared_ptr<DownloadTask> task)
+{
+	//std::this_thread::sleep_for(std::chrono::milliseconds(5));
+
+	std::shared_ptr<CSession> session = task->session_;
+	std::string download_file = task->download_file_;
+	int seq = task->seq_;
+	int last_seq = task->last_seq_;
+	int trans_size = task->trans_size_;
+	int total_size = task->total_size_;
+	std::string client_save_path = task->client_save_path_;
+	Download_File_Type type = task->type_;
+	int icon_uid = task->icon_uid_;
+
+	Json::Value rtvalue;
+	rtvalue["code"] = SUCCESS;
+	rtvalue["message"] = "download file task processed successfully";
+
+	Defer defer([session, this, &rtvalue]() {
+		session->Send(rtvalue.toStyledString(), ID_DOWN_LOAD_FILE_RSP);
+		});
+
+	// æ£€æŸ¥æ–‡ä»¶æ˜¯å¦å­˜åœ¨
+	auto cfg = ConfigManager::getInstance();
+	std::string uploadPath = cfg["SelfServer"]["DownloadPath"];
+	std::string fullPath = uploadPath + "/" + download_file;
+	if (!boost::filesystem::exists(fullPath)) {
+		std::cerr << "æ–‡ä»¶ä¸å­˜åœ¨: " << fullPath << std::endl;
+		rtvalue["code"] = ERROE_CODR::ERROR_FILE_NOT_EXIST;
+		rtvalue["message"] = "download file failed, file not exist.";
+		return;
+	}
+
+	// æ‰“å¼€æ–‡ä»¶
+	std::ifstream infile(fullPath, std::ios::binary);
+	if (!infile) {
+		std::cerr << "æ— æ³•æ‰“å¼€æ–‡ä»¶è¿›è¡Œè¯»å–ã€‚" << std::endl;
+		rtvalue["code"] = ERROE_CODR::ERROR_OPEN_FILE;
+		rtvalue["message"] = "download file failed, open file error.";
+		return;
+	}
+
+	if (seq == 1) {
+		// è·å–æ–‡ä»¶å¤§å°
+		infile.seekg(0, std::ios::end);
+		std::streamsize file_size = infile.tellg();
+		infile.seekg(0, std::ios::beg);
+		// åœ¨redisä¸­è®¾ç½®æ–‡ä»¶ä¸‹è½½ä¿¡æ¯
+		std::shared_ptr<DownloadFileInfo> file_info = std::make_shared<DownloadFileInfo>();
+		file_info->uid_ = session->getUserId();
+		file_info->download_file_ = download_file;
+		file_info->seq_ = 0; // å·²ç»ä¸‹è½½çš„åŒ…çš„åºå·
+		file_info->total_size_ = file_size; // æ–‡ä»¶æ€»å¤§å°
+		file_info->trans_size_ = 0; // å·²ç»ä¸‹è½½çš„å¤§å°
+		file_info->client_save_path_ = client_save_path;
+		file_info->download_file_type_ = type; // ä¸‹è½½æ–‡ä»¶çš„ç±»å‹
+
+		if (file_size % MAX_FILE_LEN == 0) {
+			file_info->last_seq_ = file_size / MAX_FILE_LEN;
+		}
+		else {
+			file_info->last_seq_ = file_size / MAX_FILE_LEN + 1;
+		}
+		std::cout << "[æ–°ä¸‹è½½] æ–‡ä»¶: " << download_file
+			<< ", å¤§å°: " << file_size << " å­—èŠ‚" << std::endl;
+
+		// æ·»åŠ åˆ°redis
+		LogicSystem::getInstance()->addDownloadFileInfo(download_file, file_info);
+
+		last_seq = file_info->last_seq_;
+		trans_size = file_info->trans_size_;
+		total_size = file_info->total_size_;
+	}
+
+	// è®¡ç®—å½“å‰åç§»é‡
+	std::streamsize offset = ((std::streamsize)seq - 1) * MAX_FILE_LEN;
+	if (offset >= total_size) {
+		std::cerr << "åç§»é‡è¶…å‡ºæ–‡ä»¶å¤§å°ã€‚" << std::endl;
+		rtvalue["code"] = ERROE_CODR::ERROR_FILE_OFFSET_INVALID;
+		rtvalue["message"] = "download file failed, offset invalid.";
+		infile.close();
+		return;
+	}
+
+	// å®šä½åˆ°æŒ‡å®šåç§»é‡
+	infile.seekg(offset);
+
+	// è¯»å–æœ€å¤šMAX_FILE_LENå­—èŠ‚
+	char buffer[MAX_FILE_LEN];
+	infile.read(buffer, MAX_FILE_LEN);
+	//è·å–readå®é™…è¯»å–å¤šå°‘å­—èŠ‚
+	std::streamsize bytes_read = infile.gcount();
+	if (bytes_read <= 0) {
+		std::cerr << "è¯»å–æ–‡ä»¶å¤±è´¥ã€‚" << std::endl;
+		rtvalue["code"] = ERROE_CODR::ERROR_READ_FILE;
+		rtvalue["message"] = "download file failed, read file error.";
+		infile.close();
+		return;
+	}
+	// å·²ç»ä¸‹è½½çš„æ–‡ä»¶å¤§å°
+	trans_size += bytes_read;
+
+	// å°†è¯»å–çš„æ•°æ®è¿›è¡Œbase64ç¼–ç 
+	std::string data_to_encode(buffer, bytes_read);
+	//std::cout << "origin data: " << data_to_encode << std::endl;
+	std::string encoded_data = base64_encode(data_to_encode);
+
+	/*std::cout << "---------------------------------------" << std::endl;
+	std::cout << "seq = " << seq << ", last_seq = " << last_seq << std::endl;
+	std::cout << "origin data: " << data_to_encode << std::endl;
+	std::cout << "base64 encode data:  " << encoded_data << std::endl;*/
+
+	// è®¾ç½®è¿”å›ç»“æœ
+	rtvalue["download_file"] = download_file;
+	rtvalue["data"] = encoded_data;
+	rtvalue["seq"] = seq;
+	rtvalue["last_seq"] = last_seq;
+	rtvalue["total_size"] = total_size;
+	rtvalue["trans_size"] = trans_size;
+	rtvalue["client_save_path"] = client_save_path;
+	rtvalue["download_file_type"] = type;
+	rtvalue["icon_uid"] = icon_uid;
+
+	infile.close();
+
+	if (seq == last_seq) {
+		std::cout << "[ä¸‹è½½å®Œæˆ] æ–‡ä»¶: " << download_file << std::endl;
+		LogicSystem::getInstance()->DeleteDownloadFileInfo(download_file);
+	}
+	else {
+		//æ›´æ–°ä¿¡æ¯
+		std::shared_ptr<DownloadFileInfo> file_info = std::make_shared<DownloadFileInfo>(session->getUserId(),download_file,
+			seq,last_seq,trans_size,total_size,client_save_path, type);
+		//æ›´æ–°redis
+		LogicSystem::getInstance()->addDownloadFileInfo(download_file, file_info);
+	}
+}
+
+std::string DownloadWorker::base64_encode(const std::string& data)
+{
+	// è®¡ç®—ç¼–ç åæ‰€éœ€ç©ºé—´
+	std::string out;
+	out.resize(boost::beast::detail::base64::encoded_size(data.size()));
+
+	// æ‰§è¡Œç¼–ç 
+	size_t len = boost::beast::detail::base64::encode(
+		(void*)out.data(),
+		data.data(),
+		data.size()
+	);
+
+	out.resize(len);
+	return out;
+}
+
+
+void DownloadWorker::postTaskToQue(std::shared_ptr<DownloadTask> task)
+{
+	// å°†æ–‡ä»¶ç»“ç‚¹ æ ¹æ® æ–‡ä»¶å æ”¾å…¥FileSystemçš„æŸä¸ªFileWorkerä¸­
+	std::lock_guard<std::mutex> locket(mtx_);
+	que_.push(task);
+	cond_.notify_one();
 }
