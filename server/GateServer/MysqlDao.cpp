@@ -98,10 +98,11 @@ int MysqlDao::registerUser(const std::string& name, const std::string& email, co
 
 			int uid = res->getInt("result");
 			std::cout << "注册用户 uid: " << uid << std::endl;
-			BloomFilter bf(1000000, 0.01);
-			bf.loadFromRedis("bloom:user_search");
-			bf.add((uint64_t)uid);
-			bf.saveToRedis("bloom:user_search");
+			static BloomFilter bloomReg(1000000, 0.01);
+			static bool bloomRegLoaded = false;
+			if (!bloomRegLoaded) { bloomReg.loadFromRedis("bloom:user_search"); bloomRegLoaded = true; }
+			bloomReg.add((uint64_t)uid);
+			bloomReg.saveToRedis("bloom:user_search");
 			return SUCCESS;;
 
         }

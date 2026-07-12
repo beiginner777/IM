@@ -471,9 +471,13 @@ void LogicSystem::registerPostHandler()
 
 
 		std::shared_ptr<UserInfo> userInfo = std::make_shared<UserInfo>();
-		BloomFilter bf(1000000, 0.01);
-		bf.loadFromRedis("bloom:user_search");
-		if (!bf.contains(name)) {
+		static BloomFilter bloomLogin(1000000, 0.01);
+		static bool bloomLoginLoaded = false;
+		if (!bloomLoginLoaded) {
+			bloomLogin.loadFromRedis("bloom:user_search");
+			bloomLoginLoaded = true;
+		}
+		if (!bloomLogin.contains(name)) {
 			value["code"] = ERROR_USER_NOT_EXIST;
 			value["message"] = "User don't exist.";
 			beast::ostream(response.body()) << value.toStyledString();
