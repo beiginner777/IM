@@ -111,9 +111,11 @@
     <ClCompile Include="MessageDeduplicator.cpp" />
     <ClCompile Include="RedisLocker.cpp" />
     <ClCompile Include="AlertManager.cpp" />
+    <ClCompile Include="BloomFilter.cpp" />
     <ClCompile Include="RedisManager.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BloomFilter.h" />
     <ClInclude Include="AlertManager.h" />
     <ClInclude Include="Defer.h" />
     <ClInclude Include="AsioIOContextThreadPool.h" />
