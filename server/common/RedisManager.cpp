@@ -3,7 +3,7 @@
 #include "Defer.h"
 #include <sstream>
 
-std::string RedisManager::Get(const std::string& key)
+std::string RedisManager::Get(const std::string& key, bool forceMaster)
 {
 	auto connect_ = getConn();
 	if (connect_ == nullptr) {
@@ -33,12 +33,12 @@ std::string RedisManager::Get(const std::string& key)
 	return value;
 }
 
-bool RedisManager::MGet(const std::vector<std::string>& keys, std::unordered_map<std::string, std::string>& values)
+bool RedisManager::MGet(const std::vector<std::string>& keys, std::unordered_map<std::string, std::string>& values, bool forceMaster)
 {
 	if (keys.empty()) {
 		return false;
 	}
-	auto connect_ = getConn();
+	auto connect_ = getConn(forceMaster);
 	if (!connect_) {
 		std::cout << "MGet RedisConn failed.\n";
 		return false;
@@ -313,9 +313,9 @@ bool RedisManager::HSet(const std::string& key, const std::string& hkey, const s
 //	return true;
 //}
 
-std::string RedisManager::HGet(const std::string& key, const std::string& hkey)
+std::string RedisManager::HGet(const std::string& key, const std::string& hkey, bool forceMaster)
 {
-	auto connect_ = getConn();
+	auto connect_ = getConn(forceMaster);
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return "";
@@ -365,9 +365,9 @@ bool RedisManager::Del(const std::string& key)
 	return true;
 }
 
-bool RedisManager::ExistsKey(const std::string& key)
+bool RedisManager::ExistsKey(const std::string& key, bool forceMaster)
 {
-	auto connect_ = getConn(true);
+	auto connect_ = getConn(forceMaster);
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return false;  // bugfix: bool函数不应返回字符串字面量

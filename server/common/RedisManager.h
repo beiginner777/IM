@@ -247,8 +247,8 @@ class RedisManager : public SingleTon<RedisManager>
 public:
 	RedisManager();
 	~RedisManager();
-	std::string Get(const std::string& key);
-	bool MGet(const std::vector<std::string>& keys, std::unordered_map<std::string, std::string>& values);
+	std::string Get(const std::string& key, bool forceMaster = false);
+	bool MGet(const std::vector<std::string>& keys, std::unordered_map<std::string, std::string>& values, bool forceMaster = false);
 	bool Set(const std::string& key,const std::string& value);
 	bool SetExp(const std::string& key, const std::string& value, int expire_seconds);
 	bool Auth(const std::string& password);
@@ -258,9 +258,9 @@ public:
 	std::string RPop(const std::string& key);
 	bool HSet(const std::string& key, const std::string& hkey, const std::string& value);
 	// bool HSet(const char* key, const char* hkey, const char* hvalue, size_t hvaluelen);
-	std::string HGet(const std::string& key, const std::string& hkey);
+	std::string HGet(const std::string& key, const std::string& hkey, bool forceMaster = false);
 	bool Del(const std::string& key);
-	bool ExistsKey(const std::string& key);
+	bool ExistsKey(const std::string& key, bool forceMaster = true);  // 默认走 Master（去重一致性）
 
 	std::string acqueireLock(const std::string& lockName, int lockTimeOut, int expireTime);
 	bool releaseLock(const std::string& lockName, const std::string& lockValue);
