@@ -22,16 +22,31 @@ MysqlDao::MysqlDao()
     }
 }
 
+static thread_local int tlsMysqlPoolIdx = 0;  // 0=master, 1=slave
+
 std::unique_ptr<SqlConnection> MysqlDao::getConn(bool forceMaster)
 {
 	if (forceMaster || !slavePool_) {
+		tlsMysqlPoolIdx = 0;
 		return masterPool_->getConnection();
 	}
 	auto conn = slavePool_->getConnection();
 	if (!conn) {
+		tlsMysqlPoolIdx = 0;
 		return masterPool_->getConnection();
 	}
+	tlsMysqlPoolIdx = 1;
 	return conn;
+}
+
+void MysqlDao::returnConn(std::unique_ptr<SqlConnection> conn)
+{
+	if (!conn) return;
+	if (tlsMysqlPoolIdx != 0 && slavePool_) {
+		slavePool_->returnConnection(std::move(conn));
+	} else {
+		masterPool_->returnConnection(std::move(conn));
+	}
 }
 
 MysqlDao::~MysqlDao()
@@ -48,7 +63,7 @@ int MysqlDao::registerUser(const std::string& name, const std::string& email, co
     }
 
     Defer defer([this, &conn]() {
-        masterPool_->returnConnection(std::move(conn));
+        returnConn(std::move(conn));
         });
 
 	try {
@@ -99,7 +114,7 @@ int MysqlDao::addFriendApply(int fromuid, int touid, int& current_id, std::strin
     }
 
     Defer defer([this, &con]() {
-        masterPool_->returnConnection(std::move(con));
+        returnConn(std::move(con));
         });
 
     try {
@@ -186,7 +201,7 @@ int MysqlDao::getUserFriendApply(int uid, std::vector<std::shared_ptr<ApplyInfo>
     }
 
     Defer defer([this, &con]() {
-        masterPool_->returnConnection(std::move(con));
+        returnConn(std::move(con));
         });
 
 
@@ -222,7 +237,7 @@ int MysqlDao::getUserFriendList(int uid, std::vector<std::shared_ptr<UserInfo>>&
     }
 
     Defer defer([this, &con]() {
-        masterPool_->returnConnection(std::move(con));
+        returnConn(std::move(con));
         });
 
 
@@ -262,7 +277,7 @@ int MysqlDao::addFriendRelation(int fromuid, int touid, int& thread_id1, int& th
     }
 
     Defer defer([this, &conn]() {
-        masterPool_->returnConnection(std::move(conn));
+        returnConn(std::move(conn));
         });
 
     try {
@@ -354,7 +369,7 @@ std::shared_ptr<UserInfo> MysqlDao::getUserByUid(int uid, bool forceMaster)
     }
 
     Defer defer([this, &con]() {
-        masterPool_->returnConnection(std::move(con));
+        returnConn(std::move(con));
         });
 
     try {
@@ -394,7 +409,7 @@ std::shared_ptr<UserInfo> MysqlDao::getUserByName(std::string name, bool forceMa
     }
 
     Defer defer([this, &con]() {
-        masterPool_->returnConnection(std::move(con));
+        returnConn(std::move(con));
         });
 
     try {
@@ -434,7 +449,7 @@ int MysqlDao::setFriendApplyStatus(int fromuid, int touid, int status)
     }
 
     Defer defer([this, &conn]() {
-        masterPool_->returnConnection(std::move(conn));
+        returnConn(std::move(conn));
         });
 
     try {
@@ -475,7 +490,7 @@ int MysqlDao::GetUserThreadInfos(int uid, int last_thread_id, int page_size, std
         return ERROR_LOAD_CHAT_THREAD;
     }
     Defer defer([this, &conn]() {
-        masterPool_->returnConnection(std::move(conn));
+        returnConn(std::move(conn));
         });
 
     try
@@ -551,7 +566,7 @@ int MysqlDao::createPrivateThread(int user1_id, int user2_id, int& thread_id)
         return ERROR_LOAD_CHAT_THREAD;
     }
     Defer defer([this, &conn]() {
-        masterPool_->returnConnection(std::move(conn));
+        returnConn(std::move(conn));
         });
 
     try {
@@ -602,7 +617,7 @@ int MysqlDao::AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_datas)
         return ERROR_LOAD_CHAT_THREAD;
     }
     Defer defer([this, &conn]() {
-        masterPool_->returnConnection(std::move(conn));
+        returnConn(std::move(conn));
         });
 
 
@@ -668,7 +683,7 @@ int MysqlDao::getUserFriendListByLastId(int uid, int last_friend_id, std::map<in
         return ERROR_LOAD_CHAT_THREAD;
     }
     Defer defer([this, &conn]() {
-        masterPool_->returnConnection(std::move(conn));
+        returnConn(std::move(conn));
         });
 
     try {
@@ -733,7 +748,7 @@ int MysqlDao::getUserFriendApplyByLastId(int uid, int last_friend_id, int page_s
         return ERROR_LOAD_CHAT_THREAD;
     }
     Defer defer([this, &conn]() {
-        masterPool_->returnConnection(std::move(conn));
+        returnConn(std::move(conn));
         });
 
     try {
@@ -823,7 +838,7 @@ int MysqlDao::updateChatMsgStatus(int message_id, MsgStatus status)
         return ERROR_LOAD_CHAT_THREAD;
     }
     Defer defer([this, &conn]() {
-        masterPool_->returnConnection(std::move(conn));
+        returnConn(std::move(conn));
         });
 
     try {
@@ -864,7 +879,7 @@ int MysqlDao::loadChatMessage(int thread_id, int& min_message_id, int& max_messa
         return ERROR_LOAD_CHAT_THREAD;
     }
     Defer defer([this, &conn]() {
-        masterPool_->returnConnection(std::move(conn));
+        returnConn(std::move(conn));
         });
 
     try {
