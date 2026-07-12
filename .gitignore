@@ -85,3 +85,7 @@ server/Redis/sentinel/data/
 *~
 .DS_Store
 Thumbs.db
+server/MySQL/master-data/
+server/MySQL/slave-data/
+server/MySQL/master-data/
+server/MySQL/slave-data/
