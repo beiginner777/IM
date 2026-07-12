@@ -601,7 +601,8 @@ RedisManager::RedisManager()
 
 	// Master pool (default config.ini Host/Port)
 	masterPool_ = std::make_unique<RedisConnPool>();
-	std::cout << "[RedisManager] Master pool: " << host << ":" << port << std::endl;
+	cachedMasterAddr_ = host + ":" + port;
+	std::cout << "[RedisManager] Master pool: " << cachedMasterAddr_ << std::endl;
 
 	// Slave pools (for read scaling — optional, configurable via SlavePorts)
 	std::string slavePorts = cfg["Redis"]["SlavePorts"];
@@ -681,7 +682,6 @@ void RedisManager::startSentinelPoll()
 		std::cout << "[SentinelPoll] No Sentinel configured, skipping" << std::endl;
 		return;
 	}
-	cachedMasterAddr_ = "127.0.0.1:" + cfg["Redis"]["Port"];
 	sentinelPollStop_ = false;
 	sentinelPollThread_ = std::thread(&RedisManager::sentinelPollWorker, this);
 	std::cout << "[SentinelPoll] Started (interval=5s)" << std::endl;
