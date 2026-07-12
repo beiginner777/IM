@@ -627,6 +627,8 @@ RedisManager::RedisManager()
 		std::cout << "[RedisManager] Sentinel verified Master: " << masterHost
 		          << ":" << masterPort << std::endl;
 	}
+
+	startSentinelPoll();
 }
 
 // ============================================================================
