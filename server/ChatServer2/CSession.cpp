@@ -46,9 +46,16 @@ void CSession::Close()
 	server_->clearSession(uuid_);
 	auto cfg = ConfigManager::getInstance();
 	std::string selfServer = cfg["SelfServer"]["Name"];
-	std::string sessionCount = RedisManager::getInstance()->HGet(LOGINCOUNT, selfServer);
-	int sessionCount_int = atoi(sessionCount.c_str());
-	RedisManager::getInstance()->HSet(LOGINCOUNT, selfServer, std::to_string(sessionCount_int - 1));
+	std::string jsonStr = RedisManager::getInstance()->HGet(CHATSERVERS, selfServer);
+	Json::Reader reader;
+	Json::Value json;
+	int con_count = 0;
+	if (reader.parse(jsonStr, json)) {
+		con_count = json["con_count"].asInt();
+		con_count = std::max(0, con_count - 1);
+		json["con_count"] = con_count;
+		RedisManager::getInstance()->HSet(CHATSERVERS, selfServer, json.toStyledString());
+	}
 
 	if (this->getUserId() == 0) {
 		std::cout << "Error occurred when clear session information, because userId is 0." << std::endl;

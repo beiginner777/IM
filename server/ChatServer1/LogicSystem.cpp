@@ -986,13 +986,18 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 
 	std::string name = cfg["SelfServer"]["Name"];
 
-	std::string res = RedisManager::getInstance()->HGet(LOGINCOUNT, name);
+	std::string jsonStr = RedisManager::getInstance()->HGet(CHATSERVERS, name);
 
-	int count = std::stoi(res);
+	Json::Value json;
+	int count = 0;
+	if (reader.parse(jsonStr, json)) {
+		count = json["con_count"].asInt();
+	}
 
 	count++;
 
-	RedisManager::getInstance()->HSet(LOGINCOUNT, name, std::to_string(count));
+	json["con_count"] = count;
+	RedisManager::getInstance()->HSet(CHATSERVERS, name, json.toStyledString());
 
 
 

@@ -1,126 +1,114 @@
-﻿#include "StatusServiceImpl.h"
-#include "ConfigManager.h"
-#include "RedisManager.h"
-#include "RedisLocker.h"
-
-StatusServiceImpl::StatusServiceImpl()
-{
-	// 添加 ChatServer
-	auto cfg = ConfigManager::getInstance();
-	auto server_list = cfg["ChatServers"]["List"];
-
-	std::vector<std::string> words;
-
-	std::stringstream ss(server_list);
-	std::string word;
-
-	while (std::getline(ss, word, ',')) {
-		words.push_back(word);
-	}
-
-	for (auto& word : words) {
-		if (cfg[word]["Name"].empty()) {
-			continue;
-		}
-
-		ChatServer server;
-		server.port = cfg[word]["Port"];
-		server.host = cfg[word]["Host"];
-		server.name = cfg[word]["Name"];
-		servers_[server.name] = server;
-
-		server.printInfo();
-	}
-}
-
-Status StatusServiceImpl::GetChatServer(ServerContext* context, const GetChatServerReq* request, GetChatServerRsp* reply)
-{
-	std::string prefix("Jerry StatusServer has received: ");
-
-	ChatServer chatServer = getChatServer();
-	reply->set_host(chatServer.host);
-	reply->set_port(chatServer.port);
-	reply->set_token(generate_unique_string());	
-
-	std::cout << "select ChatServer(" << chatServer.host << ":" << chatServer.port << ") for client whose uid = " << request->uid() << ".\n";
-
-	// 在redis缓存中插入用户的token信息
-	RedisManager::getInstance()->Set( USERUIDPREFIX + std::to_string(request->uid()), USERTOKENPREFIX + reply->token());
-
-	reply->set_error(ERROE_CODR::SUCCESS);
-
-	return Status::OK;
-}
-
-ChatServer StatusServiceImpl::getChatServer()
-{
-	std::lock_guard<std::mutex> locker_(mtx_);
-	// host(""), port(""), name(""), con_count(0)
-	ChatServer indexServer;
-	indexServer.con_count = INT_MAX;
-	std::string countStr = RedisManager::getInstance()->HGet(LOGINCOUNT, indexServer.name);
-	for (auto& s : servers_)
-	{
-		//std::cout << s.second.con_count << std::endl;
-		//std::cout << indexServer.con_count << std::endl;
-		//std::cout << indexServer.name << std::endl;
-		// 需要先在redis中获取最新的数据
-		std::string countStr = RedisManager::getInstance()->HGet(LOGINCOUNT, s.second.name);
-		if (countStr == "") {
-			std::cout << s.second.name << " 's ConnCount is nullptr." << std::endl;
-		}
-		s.second.con_count = std::stoi(countStr);
-		std::cout << "*******" << s.second.name << " 's connection number is " << s.second.con_count << "*******" << std::endl;
-		if (s.second.con_count < indexServer.con_count)
-		{
-			// 所以需要重载 ChatServer的 bool operator = ()
-			std::cout << s.second.name << " < " << indexServer.name << std::endl;
-			indexServer = s.second;
-		}
-	}
-	std::cout << "[" << "StatusServer]: " << indexServer.name << " adds new Connection." << std::endl;
-	return indexServer;
-}
-
-//void StatusServiceImpl::insertToken(int uid, std::string token)
-//{
-//	// 在redis缓存中插入用户的token信息
-//	auto conn = RedisConnPool::getInstance()->getConnection();
-//	if (conn == nullptr)
-//	{
-//		reply->set_error(ERROE_CODR::SUCCESS);
-//		return;
-//	}
-//	reply->set_error(ERROE_CODR::SUCCESS);
-//	RedisManager redisManager(conn);
-//	redisManager.Set(USERTOKENPREFIX + std::to_string(uid), token);
-//	RedisConnPool::getInstance()->returnConnection(conn);
-//}
-
-//Status StatusServiceImpl::login(ServerContext* context, const LoginReq* request, LoginRsp* reply)
-//{
-//	int uid = request->uid();
-//	std::string token = request->token();
-//
-//	std::string keyToken = USERTOKENPREFIX + std::to_string(uid);
-//	RedisManager redisManager(RedisConnPool::getInstance()->getConnection());
-//	std::string valueToken = redisManager.Get(USERTOKENPREFIX + std::to_string(uid));
-//	// 说明在redis缓存当中，没有当前用户的 token
-//	if(valueToken == ""){
-//	
-//		reply->set_error(ERROE_CODR::ERROR_INVALIDUID);
-//		return Status::OK;
-//	}
-//	// token 不匹配
-//	if (token != valueToken)
-//	{
-//		reply->set_error(ERROE_CODR::ERROR_INVALIDTOKEN);
-//		return Status::OK;
-//	}
-//	
-//	// token 匹配成功的情况
-//	reply->set_error(ERROE_CODR::SUCCESS);
-//	reply->set_uid(uid);
-//	reply->set_token(token);
-//}
-
+#include "StatusServiceImpl.h"
+#include "ConfigManager.h"
+#include "RedisManager.h"
+#include "RedisLocker.h"
+#include "CServer.h"
+#include "CSession.h"
+
+// 从指定 sessions 中选出连接数最少的 Server（静态工具函数）
+static Server_Info getLeastLoadedServer(
+	const std::map<std::string, std::shared_ptr<CSession>>& sessions,
+	ServerType expectedType,
+	const std::string& redisKey);
+
+StatusServiceImpl::StatusServiceImpl()
+{
+	// 不再从 config.ini 加载 ChatServer 列表
+	// ChatServer/ResourceServer 地址从 CServer 动态获取
+}
+
+Status StatusServiceImpl::GetChatServer(ServerContext* context, const GetChatServerReq* request, GetChatServerRsp* reply)
+{
+	if (!server_)
+	{
+		std::cerr << "[GetChatServer] CServer not set" << std::endl;
+		reply->set_error(ERROR_RPC);
+		return Status::OK;
+	}
+
+	Server_Info selected =
+	        getLeastLoadedServer(server_->getSessions(), ServerType::CHAT_SERVER, CHATSERVERS);
+
+	if (selected.name.empty())
+	{
+		std::cerr << "[GetChatServer] No available ChatServer" << std::endl;
+		reply->set_error(ERROR_RPC);
+		return Status::OK;
+	}
+
+	reply->set_host(selected.host);
+	reply->set_port(selected.port);
+	reply->set_error(SUCCESS);
+
+	std::cout << "[GetChatServer] Return " << selected.name << " (" << selected.host << ":" << selected.port << ")"
+	          << " con_count=" << selected.con_count << " for " << "GateServer" << std::endl;
+	return Status::OK;
+}
+
+Status StatusServiceImpl::GetResourceServer(ServerContext* context, const GetResourceServerReq* request, GetResourceServerRsp* reply)
+{
+	if (!server_) {
+		std::cerr << "[GetResourceServer] CServer not set" << std::endl;
+		reply->set_error(ERROR_RPC);
+		return Status::OK;
+	}
+
+	Server_Info selected = getLeastLoadedServer(
+		server_->getResourceSessions(),
+		ServerType::RESOURCE_SERVER,
+		RESOURCESERVERS);
+
+	if (selected.name.empty()) {
+		std::cerr << "[GetResourceServer] No available ResourceServer" << std::endl;
+		reply->set_error(ERROR_RPC);
+		return Status::OK;
+	}
+
+	reply->set_host(selected.host);
+	reply->set_port(selected.port);
+	reply->set_error(SUCCESS);
+
+	std::cout << "[GetResourceServer] Return " << selected.name
+	          << " (" << selected.host << ":" << selected.port << ")"
+	          << " con_count=" << selected.con_count
+	          << " for " << request->chatserver_name() << std::endl;
+	return Status::OK;
+}
+
+static Server_Info getLeastLoadedServer(
+	const std::map<std::string, std::shared_ptr<CSession>>& sessions,
+	ServerType expectedType,
+	const std::string& redisKey)
+{
+	Server_Info best;
+	best.con_count = INT_MAX;
+
+	for (auto& kv : sessions) {
+		auto session = kv.second;
+		Server_Info info = session->GetServerInfo();
+		if (info.server_type != expectedType) continue;
+
+		// 从 Redis 读取该 Server 的最新连接数（JSON 格式）
+		std::string jsonStr = RedisManager::getInstance()->HGet(redisKey, info.name);
+		int con_count = 0;
+		if (!jsonStr.empty()) {
+			Json::Reader reader;
+			Json::Value json;
+			if (reader.parse(jsonStr, json)) {
+				con_count = json["con_count"].asInt();
+			}
+		}
+
+		std::cout << "[LeastLoaded] " << info.name << " (" << info.host << ":" << info.port
+		          << ") con_count=" << con_count << std::endl;
+
+		if (con_count < best.con_count) {
+			best.host = info.host;
+			best.port = info.port;
+			best.name = info.name;
+			best.con_count = con_count;
+		}
+	}
+
+	return best;
+}
