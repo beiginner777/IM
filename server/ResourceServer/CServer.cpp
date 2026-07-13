@@ -12,6 +12,7 @@ CServer::CServer(boost::asio::io_context& ioc, std::string port)
 {
 	auto& start_server_ioc = AsioIOContextThreadPool::getInstance()->getIOContext();
 	connectionToStatusServer_ = std::make_shared<CSession>(start_server_ioc, this);
+	connectionToStatusServer_->setHeaderLen(4); // StatusServer 用 4 字节头（ResourceServer 默认 6 字节）
 	if (!connectToStatusServer()) {
 		std::cout << "[ResourceServer] Connect to StatusServer failed." << std::endl;
 		exit(-1);
@@ -62,13 +63,32 @@ bool CServer::connectToStatusServer()
 	std::cout << "[ResourceServer] Connected to StatusServer." << std::endl;
 	connectionToStatusServer_->start();
 
-	// 发送注册消息
-	Json::Value root;
-	root["server_type"] = ServerType::RESOURCE_SERVER;
-	root["my_ip"] = cfg["SelfServer"]["Host"];
-	root["my_port"] = cfg["SelfServer"]["Port"];
-	root["my_name"] = cfg["SelfServer"]["Name"];
-	connectionToStatusServer_->Send(root.toStyledString(), ID_REGISTER_REQ);
+	// 发送注册消息（StatusServer 使用 4 字节头: 2B msgId + 2B len）
+	// ResourceServer 自身使用 6 字节头（2B + 4B），不能直接用 CSession::Send()
+	// 手动拼 4 字节头 + 数据，绕过 Send() 直接写 socket
+	{
+		Json::Value root;
+		root["server_type"] = ServerType::RESOURCE_SERVER;
+		root["my_ip"] = cfg["SelfServer"]["Host"];
+		root["my_port"] = cfg["SelfServer"]["Port"];
+		root["my_name"] = cfg["SelfServer"]["Name"];
+		std::string jsonStr = root.toStyledString();
+
+		short msgIdNet = boost::asio::detail::socket_ops::host_to_network_short(ID_REGISTER_REQ);
+		short lenNet = boost::asio::detail::socket_ops::host_to_network_short(static_cast<short>(jsonStr.size()));
+
+		std::vector<boost::asio::const_buffer> buffers;
+		buffers.push_back(boost::asio::buffer(&msgIdNet, 2));
+		buffers.push_back(boost::asio::buffer(&lenNet, 2));
+		buffers.push_back(boost::asio::buffer(jsonStr));
+
+		boost::asio::write(connectionToStatusServer_->getSocket(), buffers, ec);
+		if (ec) {
+			std::cout << "[ResourceServer] Send register failed: " << ec.message() << std::endl;
+			return false;
+		}
+		std::cout << "[ResourceServer] Register request sent (4B header)." << std::endl;
+	}
 	return true;
 }
 
@@ -137,7 +157,14 @@ void CServer::startHeartCheckToStatusServer()
 
 void CServer::sendHeartCheckMsgToStatusServer(boost::system::error_code ec)
 {
-	connectionToStatusServer_->Send("", ID_HEADT_CHECK_REQ);
+	// 使用 4 字节头发送心跳（StatusServer 用 4B 头，ResourceServer 默认 6B）
+	short msgIdNet = boost::asio::detail::socket_ops::host_to_network_short(ID_HEADT_CHECK_REQ);
+	short lenNet = 0;
+	std::vector<boost::asio::const_buffer> buffers;
+	buffers.push_back(boost::asio::buffer(&msgIdNet, 2));
+	buffers.push_back(boost::asio::buffer(&lenNet, 2));
+	boost::system::error_code ignored;
+	boost::asio::write(connectionToStatusServer_->getSocket(), buffers, ignored);
 	startHeartCheckToStatusServer();
 }
 

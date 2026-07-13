@@ -420,7 +420,7 @@ private:
 
 				std::cout << "connect redis failed: " << connect->errstr << std::endl;
 
-				exit(0);
+				//exit(0);
 
 			}
 

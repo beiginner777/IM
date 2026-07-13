@@ -28,6 +28,10 @@ public:
 	bool isClientOverTime();
 	void setClientHeartCheckTime(time_t tm);
 
+	// 设置自定义头部长度（StatusServer 连接用 4 字节头）
+	void setHeaderLen(int len) { headerLen_ = len; }
+	int getHeaderLen() const { return headerLen_; }
+
 public:
 	// 当前 CSession 对应的 ChatServer
 	CServer* server_;
@@ -66,6 +70,8 @@ private:
 
 	// 客户端心跳时间戳
 	std::time_t clientHeartCheckTime_;
+	// 可配置的头部长度（默认 HEAD_TOTOL_LEN=6, StatusServer 连接设为 4）
+	int headerLen_ = HEAD_TOTOL_LEN;
 	std::mutex clientTimeMtx_;
 	// 存储接收到的消息
 	char data_[MAX_RECV_LENGTH];
