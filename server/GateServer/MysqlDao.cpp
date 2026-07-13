@@ -169,11 +169,6 @@ int MysqlDao::userLogin(std::string name, std::string password, std::shared_ptr<
 
 
 
-	// Bloom pre-check
-	auto bf = MysqlManager::getInstance()->getBloomFilter();
-	if (bf && !bf->contains(name)) {
-		return ERROR_USER_NOT_EXIST;
-	}
     try {
 
         std::unique_ptr < sql::PreparedStatement > stmt(conn->con_->prepareStatement("select * from user where name = ?"));
