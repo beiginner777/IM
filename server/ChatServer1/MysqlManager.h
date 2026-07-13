@@ -5,6 +5,8 @@
 #include "MysqlDao.h"
 #include "BloomFilter.h"
 #include <memory>
+#include <unordered_map>
+#include "ShardRouter.h"
 
 class User;
 struct ApplyInfo;
@@ -32,7 +34,7 @@ public:
 	int AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_datas);
 	int getUserFriendListByLastId(int uid, int last_friend_id, std::map<int, std::shared_ptr<UserInfo>>& friend_list, bool forceMaster = false);
 	int getUserFriendApplyByLastId(int uid, int last_friend_id, int page_size, std::vector<std::shared_ptr<ApplyInfo>>& applyList, bool& load_more, int& max_friend_apply_id, bool forceMaster = false);
-	int updateChatMsgStatus(int message_id, MsgStatus status);
+	int updateChatMsgStatus(int thread_id, int message_id, MsgStatus status);
 	int loadChatMessage(int thread_id, int& min_message_id, int& max_message_id, int page_size, bool& is_more, std::vector<ChatMessage>& msgs, bool forceMaster = false);
 
 private:

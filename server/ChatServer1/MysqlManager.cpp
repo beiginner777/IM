@@ -106,7 +106,28 @@ int MysqlManager::createPrivateThread(int user1_id, int user2_id, int& thread_id
 
 int MysqlManager::AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_datas)
 {
-	return dao_.AddChatMsg(chat_datas);
+	// 按 thread_id % 4 分片路由：将同一批次的消息分组，每组写入一张分片表
+	std::unordered_map<int, std::vector<std::shared_ptr<ChatMessage>>> shardGroups;
+	for (auto& msg : chat_datas) {
+		int shard = ShardRouter::getShardIndex(msg->thread_id);
+		shardGroups[shard].push_back(msg);
+	}
+
+	bool anyFailed = false;
+	for (auto& [shard, msgs] : shardGroups) {
+		int ret = dao_.AddChatMsg(shard, msgs);
+		if (ret != SUCCESS) {
+			anyFailed = true;
+			// 标记失败消息，BatchMessageWriter 会上报失败
+			for (auto& m : msgs) {
+				m->status = SEND_FAILED;
+			}
+			std::cerr << "[MysqlManager] shard " << shard
+			          << " batch INSERT " << msgs.size() << " rows FAILED" << std::endl;
+		}
+	}
+
+	return anyFailed ? ERROR_SEND_MSG_FAILED : SUCCESS;
 }
 
 int MysqlManager::getUserFriendListByLastId(int uid, int last_friend_id, std::map<int, std::shared_ptr<UserInfo>>& friend_list, bool forceMaster)
@@ -119,14 +140,16 @@ int MysqlManager::getUserFriendApplyByLastId(int uid, int last_friend_id, int pa
 	return dao_.getUserFriendApplyByLastId(uid,last_friend_id, page_size, applyList,load_more,max_friend_apply_id, forceMaster);
 }
 
-int MysqlManager::updateChatMsgStatus(int message_id, MsgStatus status)
+int MysqlManager::updateChatMsgStatus(int thread_id, int message_id, MsgStatus status)
 {
-	return dao_.updateChatMsgStatus(message_id, status);
+	int shard = ShardRouter::getShardIndex(thread_id);
+	return dao_.updateChatMsgStatus(shard, thread_id, message_id, status);
 }
 
 int MysqlManager::loadChatMessage(int thread_id, int& min_message_id, int& max_message_id, int page_size, bool& is_more, std::vector<ChatMessage>& msgs, bool forceMaster)
 {
-	return dao_.loadChatMessage(thread_id, min_message_id, max_message_id, page_size, is_more, msgs, forceMaster);
+	int shard = ShardRouter::getShardIndex(thread_id);
+	return dao_.loadChatMessage(shard, thread_id, min_message_id, max_message_id, page_size, is_more, msgs, forceMaster);
 }
 
 //bool MysqlManager::pushOfflineMessage(int uid, std::string message)
