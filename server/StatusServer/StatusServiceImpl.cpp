@@ -40,16 +40,15 @@ Status StatusServiceImpl::GetResourceServer(ServerContext* context, const GetRes
 
 	// 遍历所有 TCP 会话，找 RESOURCE_SERVER 类型的活跃连接
 	std::lock_guard<std::mutex> locker(server_->getMutex());
-	const auto& sessions = server_->getSessions();
+	const auto& sessions = server_->getResourceSessions();
 
-	for (const auto& [uuid, session] : sessions) {
+	for (auto& kv : sessions) {
+		auto session = kv.second;
 		Server_Info info = session->GetServerInfo();
-		if (info.server_type != ServerType::RESOURCE_SERVER) continue;
-
+		assert(info.server_type == ServerType::RESOURCE_SERVER);
 		reply->set_host(info.host);
 		reply->set_port(info.port);
 		reply->set_error(SUCCESS);
-
 		std::cout << "[GetResourceServer] Return " << info.name
 		          << " (" << info.host << ":" << info.port << ") for name=" << request->chatserver_name() << std::endl;
 		return Status::OK;
@@ -99,10 +98,10 @@ ChatServer StatusServiceImpl::getChatServer()
 		return indexServer;
 	}
 
-	for (const auto& [uuid, session] : sessions) {
+	for (auto& kv : sessions) {
+		auto session = kv.second;
 		Server_Info info = session->GetServerInfo();
 		if (info.server_type != ServerType::CHAT_SERVER) continue;
-
 		// 从 Redis 读取该 ChatServer 的最新连接数（JSON 格式）
 		std::string jsonStr = RedisManager::getInstance()->HGet(CHATSERVERS, info.name);
 		int con_count = 0;

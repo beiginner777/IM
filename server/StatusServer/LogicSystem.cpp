@@ -104,10 +104,8 @@ void LogicSystem::registerService(std::shared_ptr<CSession> session, short msgId
 	info.con_count = 0;
 	session->SetServerInfo(info);
 
-	// ResourceServer 连接移入 resource_sessions_
-	if (info.server_type == ServerType::RESOURCE_SERVER) {
-		session->server_->moveToResourceSessions(session->getUuid());
-	}
+	// ResourceServer 连接放在CServer当中
+	session->server_->storeInServer(session, info.server_type);
 
 	Json::Value rtvalue;
 	rtvalue["code"] = SUCCESS;

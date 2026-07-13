@@ -33,13 +33,14 @@ public:
 	// 关闭定时器
 
 	void cancelTimer();
-n	// 公开访问器，供 StatusServiceImpl 获取活跃服务器列表
+	// 公开访问器，供 StatusServiceImpl 获取活跃服务器列表
 	const std::map<std::string, std::shared_ptr<CSession>>& getSessions() const { return sessions_; }
+	
 	const std::map<std::string, std::shared_ptr<CSession>>& getResourceSessions() const { return resource_sessions_; }
+	
 	std::mutex& getMutex() { return mtx_; }
-n	// 将指定 uuid 的 session 从 sessions_ 移到 resource_sessions_
-	void moveToResourceSessions(const std::string& uuid);
-
+	
+	void storeInServer(std::shared_ptr<CSession> session, ServerType server_type);
 
 
 private:
@@ -53,9 +54,11 @@ private:
 	void handleAccept(std::shared_ptr<CSession> session, const boost::system::error_code& ec);
 
 	// 定时检测所有的连接
-
 	void checkConnectionIsOverTime(boost::system::error_code ec);
-
+	// 定时检测ChatServer的连接
+	void checkChatServerConnIsOverTime();
+	// 定时检测ResourceServer的连接
+	void checkResourceSercerConnIsOverTime();
 
 
 private:

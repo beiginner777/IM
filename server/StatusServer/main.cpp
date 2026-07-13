@@ -15,7 +15,6 @@ int main() {
     // 2. 先创建 asio 环境和 CServer（TCP 服务）
     boost::asio::io_context io_ctx;
     auto session_server = std::make_shared<CServer>(io_ctx, port);
-    session_server->startTimer();            // 启动心跳定时器
 
     // 3. 启动 gRPC 服务（StatusServer），注入 CServer 指针
     StatusServiceImpl status_service;

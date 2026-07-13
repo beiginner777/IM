@@ -33,7 +33,7 @@ void CServer::startReceiceConnections()
 	std::cout << "[ResourceServer] Registered to StatusServer, start accepting..." << std::endl;
 	std::cout << "Server starting on port: " << port_ << std::endl;
 	startAccept();
-	startTimer();
+	//startTimer();
 }
 
 std::string CServer::getConnectionToStatusServerUuid()
@@ -125,10 +125,8 @@ void CServer::checkConnectionIsOverTime(boost::system::error_code ec)
 		session->Close();
 	}
 
-	timer_.expires_after(std::chrono::seconds(HEART_CHRCK_INTERVAL));
-	timer_.async_wait([this](boost::system::error_code ec) {
-		checkConnectionIsOverTime(ec);
-		});
+	// 开启下一个定时检测任务
+	startTimer();
 }
 
 void CServer::startHeartCheckToStatusServer()
