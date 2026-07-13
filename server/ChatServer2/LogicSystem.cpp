@@ -494,7 +494,6 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 	value["token"] = token;
 	std::string name = cfg["SelfServer"]["Name"];
 	std::string jsonStr = RedisManager::getInstance()->HGet(CHATSERVERS, name);
-	Json::Reader reader;
 	Json::Value json;
 	int count = 0;
 	if (reader.parse(jsonStr, json)) {

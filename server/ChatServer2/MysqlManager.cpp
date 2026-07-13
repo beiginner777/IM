@@ -114,7 +114,9 @@ int MysqlManager::AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_dat
 	}
 
 	bool anyFailed = false;
-	for (auto& [shard, msgs] : shardGroups) {
+	for (auto& kv : shardGroups) {
+		int shard = kv.first;
+		auto& msgs = kv.second;
 		int ret = dao_.AddChatMsg(shard, msgs);
 		if (ret != SUCCESS) {
 			anyFailed = true;
