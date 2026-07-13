@@ -24,9 +24,6 @@ CServer::CServer(boost::asio::io_context& ioc, std::string port)
 
 	// 开始接收连接
 	startAccept();
-
-	// 开始心跳检测的定时任务
-	startTimer();
 }
 
 
