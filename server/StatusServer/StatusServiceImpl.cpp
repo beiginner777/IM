@@ -5,6 +5,12 @@
 #include "CServer.h"
 #include "CSession.h"
 
+// 从指定 sessions 中选出连接数最少的 Server（静态工具函数）
+static Server_Info getLeastLoadedServer(
+	const std::map<std::string, std::shared_ptr<CSession>>& sessions,
+	ServerType expectedType,
+	const std::string& redisKey);
+
 StatusServiceImpl::StatusServiceImpl()
 {
 	// 不再从 config.ini 加载 ChatServer 列表
@@ -16,6 +22,11 @@ Status StatusServiceImpl::GetChatServer(ServerContext* context, const GetChatSer
 	std::string prefix("Jerry StatusServer has received: ");
 
 	ChatServer chatServer = getChatServer();
+	if (chatServer.name.empty()) {
+		reply->set_error(ERROR_RPC);
+		return Status::OK;
+	}
+
 	reply->set_host(chatServer.host);
 	reply->set_port(chatServer.port);
 	reply->set_token(generate_unique_string());
@@ -38,25 +49,25 @@ Status StatusServiceImpl::GetResourceServer(ServerContext* context, const GetRes
 		return Status::OK;
 	}
 
-	// 遍历所有 TCP 会话，找 RESOURCE_SERVER 类型的活跃连接
-	std::lock_guard<std::mutex> locker(server_->getMutex());
-	const auto& sessions = server_->getResourceSessions();
+	Server_Info selected = getLeastLoadedServer(
+		server_->getResourceSessions(),
+		ServerType::RESOURCE_SERVER,
+		RESOURCESERVERS);
 
-	for (auto& kv : sessions) {
-		auto session = kv.second;
-		Server_Info info = session->GetServerInfo();
-		assert(info.server_type == ServerType::RESOURCE_SERVER);
-		reply->set_host(info.host);
-		reply->set_port(info.port);
-		reply->set_error(SUCCESS);
-		std::cout << "[GetResourceServer] Return " << info.name
-		          << " (" << info.host << ":" << info.port << ") for name=" << request->chatserver_name() << std::endl;
+	if (selected.name.empty()) {
+		std::cerr << "[GetResourceServer] No available ResourceServer" << std::endl;
+		reply->set_error(ERROR_RPC);
 		return Status::OK;
 	}
 
-	// 没有可用的 ResourceServer
-	std::cerr << "[GetResourceServer] No available ResourceServer" << std::endl;
-	reply->set_error(ERROR_RPC);
+	reply->set_host(selected.host);
+	reply->set_port(selected.port);
+	reply->set_error(SUCCESS);
+
+	std::cout << "[GetResourceServer] Return " << selected.name
+	          << " (" << selected.host << ":" << selected.port << ")"
+	          << " con_count=" << selected.con_count
+	          << " for " << request->chatserver_name() << std::endl;
 	return Status::OK;
 }
 
@@ -64,46 +75,43 @@ ChatServer StatusServiceImpl::getChatServer()
 {
 	std::lock_guard<std::mutex> locker_(mtx_);
 
-	ChatServer indexServer;
-	indexServer.con_count = INT_MAX;
+	const auto& sessions = server_ ? server_->getSessions()
+	                               : std::map<std::string, std::shared_ptr<CSession>>{};
 
-	// 从 CServer 的 TCP 会话中获取活跃 ChatServer 列表（不再依赖 config.ini）
-	const auto& sessions = server_ ? server_->getSessions() : std::map<std::string, std::shared_ptr<CSession>>{};
+	Server_Info selected = getLeastLoadedServer(sessions, ServerType::CHAT_SERVER, CHATSERVERS);
 
-	if (sessions.empty()) {
-		std::cerr << "[GetChatServer] No active sessions, fallback to config.ini" << std::endl;
-		// fallback: 从 config.ini 读取（兼容开发环境无 ChatServer 连接时）
-		auto cfg = ConfigManager::getInstance();
-		auto server_list = cfg["ChatServers"]["List"];
-		std::stringstream ss(server_list);
-		std::string word;
-		while (std::getline(ss, word, ',')) {
-			if (cfg[word]["Name"].empty()) continue;
-			ChatServer s;
-			s.port = cfg[word]["Port"];
-			s.host = cfg[word]["Host"];
-			s.name = cfg[word]["Name"];
-			std::string jsonStr = RedisManager::getInstance()->HGet(CHATSERVERS, s.name);
-			if (!jsonStr.empty()) {
-				Json::Reader reader;
-				Json::Value json;
-				if (reader.parse(jsonStr, json)) {
-					s.con_count = json["con_count"].asInt();
-				}
-			}
-			if (s.con_count < indexServer.con_count) {
-				indexServer = s;
-			}
-		}
-		return indexServer;
+	ChatServer result;
+	if (selected.name.empty()) {
+		std::cerr << "[GetChatServer] No active ChatServer" << std::endl;
+		return result;
 	}
+
+	result.host = selected.host;
+	result.port = selected.port;
+	result.name = selected.name;
+	result.con_count = selected.con_count;
+
+	std::cout << "[" << "StatusServer]: " << result.name
+	          << " (" << result.host << ":" << result.port << ")"
+	          << " con_count=" << result.con_count << std::endl;
+	return result;
+}
+
+static Server_Info getLeastLoadedServer(
+	const std::map<std::string, std::shared_ptr<CSession>>& sessions,
+	ServerType expectedType,
+	const std::string& redisKey)
+{
+	Server_Info best;
+	best.con_count = INT_MAX;
 
 	for (auto& kv : sessions) {
 		auto session = kv.second;
 		Server_Info info = session->GetServerInfo();
-		if (info.server_type != ServerType::CHAT_SERVER) continue;
-		// 从 Redis 读取该 ChatServer 的最新连接数（JSON 格式）
-		std::string jsonStr = RedisManager::getInstance()->HGet(CHATSERVERS, info.name);
+		if (info.server_type != expectedType) continue;
+
+		// 从 Redis 读取该 Server 的最新连接数（JSON 格式）
+		std::string jsonStr = RedisManager::getInstance()->HGet(redisKey, info.name);
 		int con_count = 0;
 		if (!jsonStr.empty()) {
 			Json::Reader reader;
@@ -113,17 +121,16 @@ ChatServer StatusServiceImpl::getChatServer()
 			}
 		}
 
-		std::cout << "[GetChatServer] " << info.name << " (" << info.host << ":" << info.port
+		std::cout << "[LeastLoaded] " << info.name << " (" << info.host << ":" << info.port
 		          << ") con_count=" << con_count << std::endl;
 
-		if (con_count < indexServer.con_count) {
-			indexServer.host = info.host;
-			indexServer.port = info.port;
-			indexServer.name = info.name;
-			indexServer.con_count = con_count;
+		if (con_count < best.con_count) {
+			best.host = info.host;
+			best.port = info.port;
+			best.name = info.name;
+			best.con_count = con_count;
 		}
 	}
 
-	std::cout << "[" << "StatusServer]: " << indexServer.name << " adds new Connection." << std::endl;
-	return indexServer;
+	return best;
 }
