@@ -97,9 +97,10 @@ int MysqlDao::registerUser(const std::string& name, const std::string& email, co
 
 			int uid = res->getInt("result");
 			std::cout << "注册用户 uid: " << uid << std::endl;
-			auto* bloomBf = MysqlManager::getInstance()->getBloomFilter();
+			auto bloomBf = MysqlManager::getInstance()->getBloomFilter();
 			if (bloomBf) {
 				bloomBf->add((uint64_t)uid);
+				bloomBf->add(name);
 				bloomBf->saveToRedis("bloom:user_search");
 			}
 			return SUCCESS;;
@@ -169,7 +170,7 @@ int MysqlDao::userLogin(std::string name, std::string password, std::shared_ptr<
 
 
 	// Bloom pre-check
-	auto* bf = MysqlManager::getInstance()->getBloomFilter();
+	auto bf = MysqlManager::getInstance()->getBloomFilter();
 	if (bf && !bf->contains(name)) {
 		return ERROR_USER_NOT_EXIST;
 	}

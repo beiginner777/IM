@@ -21,11 +21,12 @@ void MysqlManager::initBloomFilter()
 
 	try {
 		std::unique_ptr<sql::Statement> stmt(conn->con_->createStatement());
-		std::unique_ptr<sql::ResultSet> res(stmt->executeQuery("SELECT uid FROM user"));
+		std::unique_ptr<sql::ResultSet> res(stmt->executeQuery("SELECT uid, name FROM user"));
 
 		int count = 0;
 		while (res->next()) {
 			bloomFilter_->add((uint64_t)res->getInt("uid"));
+			bloomFilter_->add(res->getString("name"));
 			count++;
 		}
 		std::cout << "[BloomFilter] Built from MySQL: " << count << " users"
