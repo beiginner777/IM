@@ -1,21 +1,21 @@
-#include "MsgNode.h"
-
-RecvNode::RecvNode(int max_len, short msg_id) : MsgNode(max_len), msg_id_(msg_id)
-{
-}
-
-SendNode::SendNode(const char* msg, int max_len, short msg_id) : MsgNode(max_len + HEAD_TOTOL_LEN)
-																	, msg_id_(msg_id)
-{
-	// ½« ÏûÏ¢id ×ª»¯Îª ÍøÂç×Ö½ÚĞò ·ÅÔÚ»º³åÇøÖĞ
-	short msg_id_net = boost::asio::detail::socket_ops::host_to_network_short(msg_id);
-	::memcpy(data_, &msg_id_net, HEAD_ID_LEN);
-	// ½« ÏûÏ¢³¤¶È ×ª»¯Îª ÍøÂç×Ö½ÚĞò ·ÅÔÚ»º³åÇøÖĞ
-	int msg_len_net = boost::asio::detail::socket_ops::host_to_network_long(max_len);
-	::memcpy(data_ + HEAD_ID_LEN, &msg_len_net, HEAD_DATA_LEN);
-	// ½« ÏûÏ¢ÊµÌå ¿½±´ µ½ »º³åÇøÖĞ
-	::memcpy(data_ + HEAD_TOTOL_LEN, msg, max_len);
-
-	//std::cout << "id = " << msg_id << " " << "len = " << max_len;
-}
-
+ï»¿#include "MsgNode.h"
+
+RecvNode::RecvNode(int max_len, short msg_id) : MsgNode(max_len), msg_id_(msg_id)
+{
+}
+
+SendNode::SendNode(const char* msg, int max_len, short msg_id) : MsgNode(max_len + HEAD_TOTOL_LEN)
+																	, msg_id_(msg_id)
+{
+	// å°† æ¶ˆæ¯id è½¬åŒ–ä¸º ç½‘ç»œå­—èŠ‚åº æ”¾åœ¨ç¼“å†²åŒºä¸­
+	short msg_id_net = boost::asio::detail::socket_ops::host_to_network_short(msg_id);
+	::memcpy(data_, &msg_id_net, HEAD_ID_LEN);
+	// å°† æ¶ˆæ¯é•¿åº¦ è½¬åŒ–ä¸º ç½‘ç»œå­—èŠ‚åº æ”¾åœ¨ç¼“å†²åŒºä¸­
+	int msg_len_net = boost::asio::detail::socket_ops::host_to_network_long(max_len);
+	::memcpy(data_ + HEAD_ID_LEN, &msg_len_net, HEAD_DATA_LEN);
+	// å°† æ¶ˆæ¯å®ä½“ æ‹·è´ åˆ° ç¼“å†²åŒºä¸­
+	::memcpy(data_ + HEAD_TOTOL_LEN, msg, max_len);
+
+	//std::cout << "id = " << msg_id << " " << "len = " << max_len;
+}
+

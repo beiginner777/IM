@@ -1,4 +1,4 @@
-#include <boost/asio.hpp>
+﻿#include <boost/asio.hpp>
 #include <iostream>
 #include "ConfigManager.h"
 #include "AsioIOContextThreadPool.h"
@@ -6,6 +6,7 @@
 #include "RedisManager.h"
 #include "ChatServiceImpl.h"
 #include "BatchMessageWriter.h"
+#include "MysqlManager.h"
 
 // to do ... 
 // ������ uid_ token_ uip_ ��ʱ����Ҫ�����Լ����ù���ʱ�䡣
@@ -19,12 +20,7 @@ int main()
 		ConfigManager cfg = ConfigManager::getInstance();
 		std::string host = cfg["SelfServer"]["Host"];
 		std::string port = cfg["SelfServer"]["Port"];
-		std::string name = cfg["SelfServer"]["Name"];
 		std::string RPCPort = cfg["SelfServer"]["RPCPort"];
-
-		// ����¼������Ϊ 0
-		std::string initNum = "0";
-		RedisManager::getInstance()->HSet(LOGINCOUNT, name, initNum);
 
 		// rpc����
 		std::string serverAddr = host + ":" + RPCPort;
@@ -46,8 +42,11 @@ int main()
 
 		std::shared_ptr<CServer> s = std::make_shared<CServer>(ioc, port);
 
-		// 设置 Snowflake 降级的 server_id（ChatServer2 = 2）
-		RedisManager::getInstance()->setServerId(2);
+		// 设置 Snowflake 降级的 server_id（不同服务器用不同编号）
+		RedisManager::getInstance()->setServerId(1);
+
+		// 构建布隆过滤器（从 MySQL 加载用户列表，用户搜索加速）
+		MysqlManager::getInstance()->initBloomFilter();
 
 		// 启动异步批量写入线程
 		BatchMessageWriter::getInstance()->start();
@@ -65,10 +64,7 @@ int main()
 		ioc.run();
 		grpc_server_thread.join();
 	}
-	catch (const std::exception& e)
-	{
+	catch (const std::exception& e) {
 		std::cout << "error message: " << e.what();
 	}
-
-	return 0;
 }

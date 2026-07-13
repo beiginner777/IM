@@ -1,292 +1,292 @@
-#include "ChatServiceImpl.h"
-#include "UserManager.h"
-#include "CSession.h"
-#include "RedisManager.h"
-#include "MysqlManager.h"
-#include "LogicSystem.h"
-
-ChatServiceImpl::ChatServiceImpl()
-{
-
-}
-
-ChatServiceImpl::~ChatServiceImpl()
-{
-}
-
-Status ChatServiceImpl::NotifyAddFriend(ServerContext* context, const AddFriendReq* request, AddFriendRsp* reply)
-{
-    //²éÕÒÓÃ»§ÊÇ·ñÔÚ±¾·şÎñÆ÷
-    auto touid = request->touid();
-
-    auto session = UserManager::getInstance()->GetSession(touid);
-
-    /*
-    reply->set_error(ErrorCodes::Success);
-        reply->set_applyuid(request->applyuid());
-        reply->set_touid(request->touid());
-    */
-
-    //ÓÃ»§²»ÔÚÄÚ´æÖĞÔòÖ±½Ó·µ»Ø
-    if (session == nullptr) {
-        std::cout << "ÕÒ²»µ½ uid = " << touid << " µÄÁ¬½Ó." << std::endl;
-        return Status::OK;
-    }
-
-    //ÔÚÄÚ´æÖĞÔòÖ±½Ó·¢ËÍÍ¨Öª¶Ô·½
-    Json::Value  rtvalue;
-    rtvalue["code"] = SUCCESS;
-    rtvalue["fromuid"] = request->applyuid(); // ¶Ô·½uid
-    rtvalue["name"] = request->name(); // ¶Ô·½ÉêÇëname£¬²»ÊÇÕæÕıµÄname
-    rtvalue["desc"] = request->desc(); // ¶Ô·½µÄdesc
-    rtvalue["icon"] = request->icon(); // ¶Ô·½µÄicon
-    rtvalue["sex"] = request->sex(); // ¶Ô·½µÄsex
-    rtvalue["nick"] = request->nick(); // ¶Ô·½µÄnick
-
-    std::string return_str = rtvalue.toStyledString();
-
-    session->Send(return_str, ID_NOTIFY_ADD_FRIEND_REQ);
-
-    return Status::OK;
-}
-
-bool ChatServiceImpl::GetBaseInfo(int uid, std::shared_ptr<UserInfo>& userinfo)
-{
-    std::string base_key = USERBASEINFO + uid;
-
-    //ÓÅÏÈ²éredisÖĞ²éÑ¯ÓÃ»§ĞÅÏ¢
-    std::string info_str = RedisManager::getInstance()->Get(base_key);
-    if (!info_str.empty()) {
-        Json::Reader reader;
-        Json::Value root;
-        reader.parse(info_str, root);
-        auto uid = root["uid"].asInt();
-        auto name = root["name"].asString();
-        auto pwd = root["password"].asString();
-        auto email = root["email"].asString();
-        auto nick = root["nick"].asString();
-        auto desc = root["desc"].asString();
-        auto sex = root["sex"].asInt();
-        auto icon = root["icon"].asString();
-        std::cout << "user  uid is  " << uid << " name  is "
-            << name << " pwd is " << pwd << " email is " << email << " icon is " << icon << std::endl;
-        userinfo->uid_ = uid;
-        userinfo->name_ = name;
-        userinfo->nick_ = nick;
-        userinfo->desc_ = desc;
-        userinfo->sex_ = sex;
-        userinfo->icon_ = icon;
-        return true;
-    }
-
-    //²éÑ¯mysqlÊı¾İ¿â
-    std::shared_ptr<UserInfo> userInfo = MysqlManager::getInstance()->getUserByUid(uid);
-
-    if (userInfo == nullptr) {
-        std::cout << "Can't find uid = " << uid << " in Mysql.";
-        return false;
-    }
-
-    //½«Êı¾İ¿âÄÚÈİĞ´Èëredis»º´æ
-    Json::Value redis_root;
-    redis_root["uid"] = userInfo->uid_;
-    redis_root["password"] = userInfo->pwd_;
-    redis_root["name"] = userInfo->name_;
-    redis_root["email"] = userInfo->email_;
-    redis_root["nick"] = userInfo->nick_;
-    redis_root["desc"] = userInfo->desc_;
-    redis_root["sex"] = userInfo->sex_;
-    redis_root["icon"] = userInfo->icon_;
-
-    if (!RedisManager::getInstance()->Set(base_key, redis_root.toStyledString())) {
-        std::cout << "read user(uid) to redis failed." << std::endl;
-    }
-
-    //·µ»ØÊı¾İ
-    userinfo->uid_ = userInfo->uid_;
-    userinfo->name_ = userInfo->name_;
-    userinfo->nick_ = userInfo->nick_;
-    userinfo->desc_ = userInfo->desc_;
-    userinfo->sex_ = userInfo->sex_;
-    userinfo->icon_ = userInfo->icon_;
-    return true;
-}
-
-Status ChatServiceImpl::NotifyAuthFriend(ServerContext* context, const AuthFriendReq* request, AuthFriendRsp* response)
-{
-    // 
-    int fromuid = request->fromuid();
-    int touid = request->touid();
-
-    auto session = UserManager::getInstance()->GetSession(fromuid);
-    if (session == nullptr) {
-        std::cout << "ÕÒ²»µ½ uid = " << fromuid << " µÄÁ¬½Ó." << std::endl;
-        return Status::OK;
-    }
-
-    Json::Value rtvalue;
-    rtvalue["fromuid"] = fromuid;
-    rtvalue["touid"] = touid;
-
-    std::shared_ptr<UserInfo> userinfo = std::make_shared<UserInfo>();
-    GetBaseInfo(touid, userinfo);
-    rtvalue["uid"] = userinfo->uid_;
-    rtvalue["name"] = userinfo->name_;
-    rtvalue["desc"] = userinfo->desc_;
-    rtvalue["nick"] = userinfo->nick_;
-    rtvalue["icon"] = userinfo->icon_;
-    rtvalue["sex"] = userinfo->sex_;
-
-    session->Send(rtvalue.toStyledString(), ID_NOTIFY_ACCESS_VERIFY);
-
-    return Status::OK;
-}
-
-Status ChatServiceImpl::NotifyTextChatMsg(::grpc::ServerContext* context, const TextChatMsgReq* request, TextChatMsgRsp* response)
-{
-    //²éÕÒÓÃ»§ÊÇ·ñÔÚ±¾·şÎñÆ÷
-    auto touid = request->touid();
-
-    std::cout << "RcpService: notify uid = " << touid << " receive TextMsg." << std::endl;
-
-    auto session = UserManager::getInstance()->GetSession(touid);
-
-    response->set_error(ERROE_CODR::SUCCESS);
-
-    //ÓÃ»§²»ÔÚÄÚ´æÖĞÔòÖ±½Ó·µ»Ø
-    if (session == nullptr) {
-        return Status::OK;
-    }
-
-    //ÔÚÄÚ´æÖĞÔòÖ±½Ó·¢ËÍÍ¨Öª¶Ô·½
-    Json::Value  rtvalue;
-    rtvalue["code"] = ERROE_CODR::SUCCESS;
-    rtvalue["fromuid"] = request->fromuid();
-    rtvalue["touid"] = request->touid();
-
-    //½«ÁÄÌìÊı¾İ×éÖ¯ÎªÊı×é
-    Json::Value text_array;
-    for (auto& msg : request->textmsgs()) {
-        Json::Value element;
-        element["content"] = msg.msgcontent();
-        element["msgid"] = msg.msgid();
-        text_array.append(element);
-    }
-    rtvalue["text_array"] = text_array;
-
-    std::string return_str = rtvalue.toStyledString();
-
-    session->Send(return_str, ID_NOTIFY_TEXT_CHAT_MSG_REQ);
-    
-    return Status::OK;
-}
-
-Status ChatServiceImpl::NotifyKickUser(ServerContext* context, const KickUserReq* request, KickUserRsp* response)
-{
-    std::cout << "receive GrpcClient NotifyKickUser messgae." << std::endl;
-
-    auto cfg = ConfigManager::getInstance();
-
-    //²éÕÒÓÃ»§ÊÇ·ñÔÚ±¾·şÎñÆ÷
-    auto touid = request->uid();
-    auto session = UserManager::getInstance()->GetSession(touid);
-
-    response->set_error(ERROE_CODR::SUCCESS);
-
-    //ÓÃ»§²»ÔÚÄÚ´æÖĞÔòÖ±½Ó·µ»Ø
-    if (session == nullptr) {
-        std::cout << "recver = " << touid << " is not in current " << cfg["SelfServer"]["Name"] << std::endl;
-        return Status::OK;
-    }
-
-    session->Send("", ID_NOTIFY_OFFLINE);
-
-    return Status::OK;
-}
-
-Status ChatServiceImpl::NotifyChatServerImg(ServerContext* context, const NotifyChatServerImgReq* req, NotifyChatServerImgRsp* response)
-{
-    std::cout << "recvice Resource request to notify Client ChatImgInfo." << std::endl;
-
-    auto cfg = ConfigManager::getInstance();
-
-    int uid = req->uid();
-    std::string unique_name = req->unique_name();
-
-    // ÑéÖ¤uidÊÇ·ñÊÇÔÚµ±Ç°·şÎñÆ÷
-    auto session = UserManager::getInstance()->GetSession(uid);
-    if (session == nullptr) {
-        response->set_error(ERROE_CODR::ERROR_USER_NOT_EXIST_IN_CHATSERVER);
-        return Status::OK;
-    }
-    
-    // ÏòLogicSystemÇëÇóÏàÓ¦µÄĞÅÏ¢£¬²¢Ïò Client »Ø°ü
-    std::shared_ptr<ChatMessage> msg = LogicSystem::getInstance()->GetUserThreadImageMsg(unique_name);
-    if (msg == nullptr) {
-        response->set_error(ERROE_CODR::ERROR_CHATIMG_NOT_EXIST_IN_CHATSERVER);
-        return Status::OK;
-    }
-    Json::Value rtvalue;
-    rtvalue["message_id"] = msg->message_id;
-    rtvalue["send_id"] = msg->sender_id;
-    rtvalue["recv_id"] = msg->recv_id;
-    rtvalue["thread_id"] = msg->thread_id;
-    rtvalue["unique_id"] = msg->unique_id;
-    rtvalue["chat_time"] = msg->chat_time;
-    rtvalue["unique_name"] = msg->content;
-    rtvalue["status"] = MsgStatus::READED;
-    rtvalue["code"] = SUCCESS;
-    rtvalue["message"] = "receive new image message.";
-    rtvalue["type"] = msg->type;
-
-    // ĞŞ¸ÄMysqlµÄChatMessage±í message_id = msg->message_id µÄ status Îª 2
-    MysqlManager::getInstance()->updateChatMsgStatus(msg->message_id, MsgStatus::READED);
-    // Í¨Öª·¢ËÍ·½ÏûÏ¢·¢ËÍÍê³É
-    session->Send(rtvalue.toStyledString(), ID_IMAGE_CHAT_MSG_RSP);
-
-    // Í¨Öª½ÓÊÕ·½ÓĞÁÄÌìÍ¼Æ¬ÏûÏ¢
-    // to do ... ÅĞ¶ÏÊÇ·ñÊÇÔÚ±¾·şÎñÆ÷£¬Èç¹û²»ÊÇ£¬»¹ĞèÒªÊ¹ÓÃ grpc Ô¶³Ìµ÷ÓÃÈ¥Í¨Öª
-    auto peer_session = UserManager::getInstance()->GetSession(msg->recv_id);
-    if (peer_session == nullptr) {
-        response->set_error(ERROE_CODR::SUCCESS);
-        std::cout << "recver = " << msg->recv_id << " is not in current " << cfg["SelfServer"]["Name"] << std::endl;
-        return Status::OK;
-    }
-    else {
-        // Í¨Öª½ÓÊÕ·½ÊÕµ½ÏûÏ¢
-        std::cout << "receicer is " << msg->recv_id << std::endl;
-        std::string ans = rtvalue.toStyledString();
-        peer_session->Send(ans, ID_NOTIFY_CHAT_IMAGE_MSG);
-    }
-
-    response->set_error(SUCCESS);
-    return Status::OK;
-}
-
-Status ChatServiceImpl::NotifyFriendIconChange(ServerContext* context, const NotifyFriendIconChangeReq* req, NotifyFriendIconChangeRsp* response)
-{
-    int uid = req->uid();
-    int friend_id = req->friend_id();
-    int redis_id = req->redis_id();
-    std::string friend_icon = req->friend_icon();
-    std::string message = req->messgae();
-    auto cfg = ConfigManager::getInstance();
-    auto session = UserManager::getInstance()->GetSession(uid);
-    if (session == nullptr) {
-        std::cout << "recver = " << friend_id << " is not in current " << cfg["SelfServer"]["Name"] << std::endl;
-        response->set_error(ERROE_CODR::ERROR_USER_NOT_EXIST_IN_CHATSERVER);
-        return Status::OK;
-    }
-
-    Json::Value rtvalue;
-    rtvalue["uid"] = uid;
-    rtvalue["friend_id"] = friend_id;
-    rtvalue["redis_id"] = redis_id;
-    rtvalue["friend_icon"] = friend_icon;
-    rtvalue["code"] = SUCCESS;
-    rtvalue["message"] = "friend icon change";
-    session->Send(rtvalue.toStyledString(), ID_NOTIFY_FRIEND_ICON_CHANGE);
-
-    response->set_error(ERROE_CODR::SUCCESS);
-    return Status::OK;
-}
+ï»¿#include "ChatServiceImpl.h"
+#include "UserManager.h"
+#include "CSession.h"
+#include "RedisManager.h"
+#include "MysqlManager.h"
+#include "LogicSystem.h"
+
+ChatServiceImpl::ChatServiceImpl()
+{
+
+}
+
+ChatServiceImpl::~ChatServiceImpl()
+{
+}
+
+Status ChatServiceImpl::NotifyAddFriend(ServerContext* context, const AddFriendReq* request, AddFriendRsp* reply)
+{
+    //æŸ¥æ‰¾ç”¨æˆ·æ˜¯å¦åœ¨æœ¬æœåŠ¡å™¨
+    auto touid = request->touid();
+
+    auto session = UserManager::getInstance()->GetSession(touid);
+
+    /*
+    reply->set_error(ErrorCodes::Success);
+        reply->set_applyuid(request->applyuid());
+        reply->set_touid(request->touid());
+    */
+
+    //ç”¨æˆ·ä¸åœ¨å†…å­˜ä¸­åˆ™ç›´æ¥è¿”å›
+    if (session == nullptr) {
+        std::cout << "æ‰¾ä¸åˆ° uid = " << touid << " çš„è¿æ¥." << std::endl;
+        return Status::OK;
+    }
+
+    //åœ¨å†…å­˜ä¸­åˆ™ç›´æ¥å‘é€é€šçŸ¥å¯¹æ–¹
+    Json::Value  rtvalue;
+    rtvalue["code"] = SUCCESS;
+    rtvalue["fromuid"] = request->applyuid(); // å¯¹æ–¹uid
+    rtvalue["name"] = request->name(); // å¯¹æ–¹ç”³è¯·nameï¼Œä¸æ˜¯çœŸæ­£çš„name
+    rtvalue["desc"] = request->desc(); // å¯¹æ–¹çš„desc
+    rtvalue["icon"] = request->icon(); // å¯¹æ–¹çš„icon
+    rtvalue["sex"] = request->sex(); // å¯¹æ–¹çš„sex
+    rtvalue["nick"] = request->nick(); // å¯¹æ–¹çš„nick
+
+    std::string return_str = rtvalue.toStyledString();
+
+    session->Send(return_str, ID_NOTIFY_ADD_FRIEND_REQ);
+
+    return Status::OK;
+}
+
+bool ChatServiceImpl::GetBaseInfo(int uid, std::shared_ptr<UserInfo>& userinfo)
+{
+    std::string base_key = USERBASEINFO + uid;
+
+    //ä¼˜å…ˆæŸ¥redisä¸­æŸ¥è¯¢ç”¨æˆ·ä¿¡æ¯
+    std::string info_str = RedisManager::getInstance()->Get(base_key);
+    if (!info_str.empty()) {
+        Json::Reader reader;
+        Json::Value root;
+        reader.parse(info_str, root);
+        auto uid = root["uid"].asInt();
+        auto name = root["name"].asString();
+        auto pwd = root["password"].asString();
+        auto email = root["email"].asString();
+        auto nick = root["nick"].asString();
+        auto desc = root["desc"].asString();
+        auto sex = root["sex"].asInt();
+        auto icon = root["icon"].asString();
+        std::cout << "user  uid is  " << uid << " name  is "
+            << name << " pwd is " << pwd << " email is " << email << " icon is " << icon << std::endl;
+        userinfo->uid_ = uid;
+        userinfo->name_ = name;
+        userinfo->nick_ = nick;
+        userinfo->desc_ = desc;
+        userinfo->sex_ = sex;
+        userinfo->icon_ = icon;
+        return true;
+    }
+
+    //æŸ¥è¯¢mysqlæ•°æ®åº“
+    std::shared_ptr<UserInfo> userInfo = MysqlManager::getInstance()->getUserByUid(uid);
+
+    if (userInfo == nullptr) {
+        std::cout << "Can't find uid = " << uid << " in Mysql.";
+        return false;
+    }
+
+    //å°†æ•°æ®åº“å†…å®¹å†™å…¥redisç¼“å­˜
+    Json::Value redis_root;
+    redis_root["uid"] = userInfo->uid_;
+    redis_root["password"] = userInfo->pwd_;
+    redis_root["name"] = userInfo->name_;
+    redis_root["email"] = userInfo->email_;
+    redis_root["nick"] = userInfo->nick_;
+    redis_root["desc"] = userInfo->desc_;
+    redis_root["sex"] = userInfo->sex_;
+    redis_root["icon"] = userInfo->icon_;
+
+    if (!RedisManager::getInstance()->Set(base_key, redis_root.toStyledString())) {
+        std::cout << "read user(uid) to redis failed." << std::endl;
+    }
+
+    //è¿”å›æ•°æ®
+    userinfo->uid_ = userInfo->uid_;
+    userinfo->name_ = userInfo->name_;
+    userinfo->nick_ = userInfo->nick_;
+    userinfo->desc_ = userInfo->desc_;
+    userinfo->sex_ = userInfo->sex_;
+    userinfo->icon_ = userInfo->icon_;
+    return true;
+}
+
+Status ChatServiceImpl::NotifyAuthFriend(ServerContext* context, const AuthFriendReq* request, AuthFriendRsp* response)
+{
+    // 
+    int fromuid = request->fromuid();
+    int touid = request->touid();
+
+    auto session = UserManager::getInstance()->GetSession(fromuid);
+    if (session == nullptr) {
+        std::cout << "æ‰¾ä¸åˆ° uid = " << fromuid << " çš„è¿æ¥." << std::endl;
+        return Status::OK;
+    }
+
+    Json::Value rtvalue;
+    rtvalue["fromuid"] = fromuid;
+    rtvalue["touid"] = touid;
+
+    std::shared_ptr<UserInfo> userinfo = std::make_shared<UserInfo>();
+    GetBaseInfo(touid, userinfo);
+    rtvalue["uid"] = userinfo->uid_;
+    rtvalue["name"] = userinfo->name_;
+    rtvalue["desc"] = userinfo->desc_;
+    rtvalue["nick"] = userinfo->nick_;
+    rtvalue["icon"] = userinfo->icon_;
+    rtvalue["sex"] = userinfo->sex_;
+
+    session->Send(rtvalue.toStyledString(), ID_NOTIFY_ACCESS_VERIFY);
+
+    return Status::OK;
+}
+
+Status ChatServiceImpl::NotifyTextChatMsg(::grpc::ServerContext* context, const TextChatMsgReq* request, TextChatMsgRsp* response)
+{
+    //æŸ¥æ‰¾ç”¨æˆ·æ˜¯å¦åœ¨æœ¬æœåŠ¡å™¨
+    auto touid = request->touid();
+
+    std::cout << "RcpService: notify uid = " << touid << " receive TextMsg." << std::endl;
+
+    auto session = UserManager::getInstance()->GetSession(touid);
+
+    response->set_error(ERROE_CODR::SUCCESS);
+
+    //ç”¨æˆ·ä¸åœ¨å†…å­˜ä¸­åˆ™ç›´æ¥è¿”å›
+    if (session == nullptr) {
+        return Status::OK;
+    }
+
+    //åœ¨å†…å­˜ä¸­åˆ™ç›´æ¥å‘é€é€šçŸ¥å¯¹æ–¹
+    Json::Value  rtvalue;
+    rtvalue["code"] = ERROE_CODR::SUCCESS;
+    rtvalue["fromuid"] = request->fromuid();
+    rtvalue["touid"] = request->touid();
+
+    //å°†èŠå¤©æ•°æ®ç»„ç»‡ä¸ºæ•°ç»„
+    Json::Value text_array;
+    for (auto& msg : request->textmsgs()) {
+        Json::Value element;
+        element["content"] = msg.msgcontent();
+        element["msgid"] = msg.msgid();
+        text_array.append(element);
+    }
+    rtvalue["text_array"] = text_array;
+
+    std::string return_str = rtvalue.toStyledString();
+
+    session->Send(return_str, ID_NOTIFY_TEXT_CHAT_MSG_REQ);
+    
+    return Status::OK;
+}
+
+Status ChatServiceImpl::NotifyKickUser(ServerContext* context, const KickUserReq* request, KickUserRsp* response)
+{
+    std::cout << "receive GrpcClient NotifyKickUser messgae." << std::endl;
+
+    auto cfg = ConfigManager::getInstance();
+
+    //æŸ¥æ‰¾ç”¨æˆ·æ˜¯å¦åœ¨æœ¬æœåŠ¡å™¨
+    auto touid = request->uid();
+    auto session = UserManager::getInstance()->GetSession(touid);
+
+    response->set_error(ERROE_CODR::SUCCESS);
+
+    //ç”¨æˆ·ä¸åœ¨å†…å­˜ä¸­åˆ™ç›´æ¥è¿”å›
+    if (session == nullptr) {
+        std::cout << "recver = " << touid << " is not in current " << cfg["SelfServer"]["Name"] << std::endl;
+        return Status::OK;
+    }
+
+    session->Send("", ID_NOTIFY_OFFLINE);
+
+    return Status::OK;
+}
+
+Status ChatServiceImpl::NotifyChatServerImg(ServerContext* context, const NotifyChatServerImgReq* req, NotifyChatServerImgRsp* response)
+{
+    std::cout << "recvice Resource request to notify Client ChatImgInfo." << std::endl;
+
+    auto cfg = ConfigManager::getInstance();
+
+    int uid = req->uid();
+    std::string unique_name = req->unique_name();
+
+    // éªŒè¯uidæ˜¯å¦æ˜¯åœ¨å½“å‰æœåŠ¡å™¨
+    auto session = UserManager::getInstance()->GetSession(uid);
+    if (session == nullptr) {
+        response->set_error(ERROE_CODR::ERROR_USER_NOT_EXIST_IN_CHATSERVER);
+        return Status::OK;
+    }
+    
+    // å‘LogicSystemè¯·æ±‚ç›¸åº”çš„ä¿¡æ¯ï¼Œå¹¶å‘ Client å›åŒ…
+    std::shared_ptr<ChatMessage> msg = LogicSystem::getInstance()->GetUserThreadImageMsg(unique_name);
+    if (msg == nullptr) {
+        response->set_error(ERROE_CODR::ERROR_CHATIMG_NOT_EXIST_IN_CHATSERVER);
+        return Status::OK;
+    }
+    Json::Value rtvalue;
+    rtvalue["message_id"] = msg->message_id;
+    rtvalue["send_id"] = msg->sender_id;
+    rtvalue["recv_id"] = msg->recv_id;
+    rtvalue["thread_id"] = msg->thread_id;
+    rtvalue["unique_id"] = msg->unique_id;
+    rtvalue["chat_time"] = msg->chat_time;
+    rtvalue["unique_name"] = msg->content;
+    rtvalue["status"] = MsgStatus::READED;
+    rtvalue["code"] = SUCCESS;
+    rtvalue["message"] = "receive new image message.";
+    rtvalue["type"] = msg->type;
+
+    // ä¿®æ”¹Mysqlçš„ChatMessageè¡¨ message_id = msg->message_id çš„ status ä¸º 2
+    MysqlManager::getInstance()->updateChatMsgStatus(msg->message_id, MsgStatus::READED);
+    // é€šçŸ¥å‘é€æ–¹æ¶ˆæ¯å‘é€å®Œæˆ
+    session->Send(rtvalue.toStyledString(), ID_IMAGE_CHAT_MSG_RSP);
+
+    // é€šçŸ¥æ¥æ”¶æ–¹æœ‰èŠå¤©å›¾ç‰‡æ¶ˆæ¯
+    // to do ... åˆ¤æ–­æ˜¯å¦æ˜¯åœ¨æœ¬æœåŠ¡å™¨ï¼Œå¦‚æœä¸æ˜¯ï¼Œè¿˜éœ€è¦ä½¿ç”¨ grpc è¿œç¨‹è°ƒç”¨å»é€šçŸ¥
+    auto peer_session = UserManager::getInstance()->GetSession(msg->recv_id);
+    if (peer_session == nullptr) {
+        response->set_error(ERROE_CODR::SUCCESS);
+        std::cout << "recver = " << msg->recv_id << " is not in current " << cfg["SelfServer"]["Name"] << std::endl;
+        return Status::OK;
+    }
+    else {
+        // é€šçŸ¥æ¥æ”¶æ–¹æ”¶åˆ°æ¶ˆæ¯
+        std::cout << "receicer is " << msg->recv_id << std::endl;
+        std::string ans = rtvalue.toStyledString();
+        peer_session->Send(ans, ID_NOTIFY_CHAT_IMAGE_MSG);
+    }
+
+    response->set_error(SUCCESS);
+    return Status::OK;
+}
+
+Status ChatServiceImpl::NotifyFriendIconChange(ServerContext* context, const NotifyFriendIconChangeReq* req, NotifyFriendIconChangeRsp* response)
+{
+    int uid = req->uid();
+    int friend_id = req->friend_id();
+    int redis_id = req->redis_id();
+    std::string friend_icon = req->friend_icon();
+    std::string message = req->messgae();
+    auto cfg = ConfigManager::getInstance();
+    auto session = UserManager::getInstance()->GetSession(uid);
+    if (session == nullptr) {
+        std::cout << "recver = " << friend_id << " is not in current " << cfg["SelfServer"]["Name"] << std::endl;
+        response->set_error(ERROE_CODR::ERROR_USER_NOT_EXIST_IN_CHATSERVER);
+        return Status::OK;
+    }
+
+    Json::Value rtvalue;
+    rtvalue["uid"] = uid;
+    rtvalue["friend_id"] = friend_id;
+    rtvalue["redis_id"] = redis_id;
+    rtvalue["friend_icon"] = friend_icon;
+    rtvalue["code"] = SUCCESS;
+    rtvalue["message"] = "friend icon change";
+    session->Send(rtvalue.toStyledString(), ID_NOTIFY_FRIEND_ICON_CHANGE);
+
+    response->set_error(ERROE_CODR::SUCCESS);
+    return Status::OK;
+}

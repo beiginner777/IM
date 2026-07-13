@@ -1,11 +1,11 @@
-#include "global.h"
-
-std::string generate_unique_string()
-{
-    // ´´½¨uuid¶ÔÏó
-    boost::uuids::uuid uuid = boost::uuids::random_generator()();
-    // ½«uuid¶ÔÏó×ª»¯Îª×Ö·û´®
-    std::string unique_string = to_string(uuid);
-
-    return unique_string;
-}
+ï»¿#include "global.h"
+
+std::string generate_unique_string()
+{
+    // åˆ›å»ºuuidå¯¹è±¡
+    boost::uuids::uuid uuid = boost::uuids::random_generator()();
+    // å°†uuidå¯¹è±¡è½¬åŒ–ä¸ºå­—ç¬¦ä¸²
+    std::string unique_string = to_string(uuid);
+
+    return unique_string;
+}

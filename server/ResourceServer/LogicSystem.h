@@ -1,91 +1,91 @@
-#ifndef LOGINSTSREM_H
-#define LOGINSTSREM_H
-
-#include "global.h"
-#include "SingleTon.h"
-
-class RecvNode;
-class CSession;
-class LogicWorker;
-
-class FileInfo {
-public:
-	FileInfo(int uid = 0, int seq = 0, std::string name = "", int total_size = 0,
-		int trans_size = 0, int last_seq = 0, std::string file_path_str = "")
-		:uid_(uid), seq_(seq), name_(name), totolSize_(total_size),
-		transfferredSize_(trans_size), last_seq_(last_seq), filePath_(file_path_str) 
-	{
-	}
-	// 
-	int uid_;
-	// Õâ¸öÎÄ¼şÒÑ¾­½ÓÊÕµÄĞòºÅÊı
-	int seq_;
-	//  Î¨Ò»µÄÎÄ¼şÃû±êÊ¶
-	std::string name_;
-	// ÎÄ¼ş×Ü´óĞ¡
-	int totolSize_;
-	// ÒÑ¾­´«ÊäµÄ´óĞ¡
-	int transfferredSize_;
-	// ÎÄ¼şÔÚ×ÊÔ´·şÎñÆ÷´æ·ÅµÄÂ·¾¶
-	std::string filePath_;
-	// ÎÄ¼ş×îºóÒ»¸ö°üµÄĞòºÅ
-	int last_seq_;
-};
-
-class DownloadFileInfo 
-{
-public:
-	DownloadFileInfo(int uid = 0, std::string download_file = "", int seq = 0, int last_seq = 0, int trans_size = 0, int total_size = 0,
-		std::string client_save_path = "", int download_file_type = -1)
-		:uid_(uid), download_file_(download_file), seq_(seq), last_seq_(last_seq), trans_size_(trans_size), total_size_(total_size),
-		client_save_path_(client_save_path), download_file_type_(download_file_type)
-	{
-	}
-	int uid_;
-	std::string download_file_;
-	int seq_;
-	int last_seq_;
-	int trans_size_;
-	int total_size_;
-	std::string client_save_path_;
-	int download_file_type_; // ÏÂÔØÎÄ¼şµÄÀàĞÍ
-};
-
-class LogicNode
-{
-	friend class LogicWorker;
-public:
-	LogicNode(std::shared_ptr<CSession> session, std::shared_ptr<RecvNode> recvNode) : session_(session), recvNode_(recvNode)
-	{
-	}
-	~LogicNode()
-	{
-	}
-private:
-	std::shared_ptr<CSession> session_;
-	std::shared_ptr<RecvNode> recvNode_;
-};
-
-class LogicSystem : public SingleTon<LogicSystem>
-{
-	friend class SingleTon<LogicSystem>;
-public:
-	~LogicSystem();
-	// ÏòÍâÌá¹©½Ó¿Ú£¬¸ù¾İÁ¬½ÓÊÇ uuid À´ÅĞ¶Ï Í¶µİ µ½ ÄÄ¸öÂß¼­Ïß³Ì
-	void postMsgToQue(std::shared_ptr<LogicNode> logicNode,int index);
-	// ÉÏ´«µÄÎÄ¼şĞÅÏ¢±£´æµ½ Redis ÖĞ
-	bool addMd5FileInfo(std::string name, std::shared_ptr<FileInfo> fileInfo);
-	std::shared_ptr<FileInfo> getFileInfo(std::string name);
-	bool DeleteMd5FileInfo(const std::string& name);
-	// ÏÂÔØµÄÎÄ¼şĞÅÏ¢±£´æµ½ Redis ÖĞ
-	bool addDownloadFileInfo(std::string name, std::shared_ptr<DownloadFileInfo> fileInfo);
-	std::shared_ptr<DownloadFileInfo> GetDownloadFileInfo(std::string name);
-	bool DeleteDownloadFileInfo(const std::string& name);
-private:
-	LogicSystem();
-	std::vector<std::shared_ptr<LogicWorker>> logicWorkers_;
-	//std::map<std::string, std::shared_ptr<FileInfo>> md5FileMap_;// file_name : FileInfo
-	//std::mutex mtx_;
-};
-
-#endif
+ï»¿#ifndef LOGINSTSREM_H
+#define LOGINSTSREM_H
+
+#include "global.h"
+#include "SingleTon.h"
+
+class RecvNode;
+class CSession;
+class LogicWorker;
+
+class FileInfo {
+public:
+	FileInfo(int uid = 0, int seq = 0, std::string name = "", int total_size = 0,
+		int trans_size = 0, int last_seq = 0, std::string file_path_str = "")
+		:uid_(uid), seq_(seq), name_(name), totolSize_(total_size),
+		transfferredSize_(trans_size), last_seq_(last_seq), filePath_(file_path_str) 
+	{
+	}
+	// 
+	int uid_;
+	// è¿™ä¸ªæ–‡ä»¶å·²ç»æ¥æ”¶çš„åºå·æ•°
+	int seq_;
+	//  å”¯ä¸€çš„æ–‡ä»¶åæ ‡è¯†
+	std::string name_;
+	// æ–‡ä»¶æ€»å¤§å°
+	int totolSize_;
+	// å·²ç»ä¼ è¾“çš„å¤§å°
+	int transfferredSize_;
+	// æ–‡ä»¶åœ¨èµ„æºæœåŠ¡å™¨å­˜æ”¾çš„è·¯å¾„
+	std::string filePath_;
+	// æ–‡ä»¶æœ€åä¸€ä¸ªåŒ…çš„åºå·
+	int last_seq_;
+};
+
+class DownloadFileInfo 
+{
+public:
+	DownloadFileInfo(int uid = 0, std::string download_file = "", int seq = 0, int last_seq = 0, int trans_size = 0, int total_size = 0,
+		std::string client_save_path = "", int download_file_type = -1)
+		:uid_(uid), download_file_(download_file), seq_(seq), last_seq_(last_seq), trans_size_(trans_size), total_size_(total_size),
+		client_save_path_(client_save_path), download_file_type_(download_file_type)
+	{
+	}
+	int uid_;
+	std::string download_file_;
+	int seq_;
+	int last_seq_;
+	int trans_size_;
+	int total_size_;
+	std::string client_save_path_;
+	int download_file_type_; // ä¸‹è½½æ–‡ä»¶çš„ç±»å‹
+};
+
+class LogicNode
+{
+	friend class LogicWorker;
+public:
+	LogicNode(std::shared_ptr<CSession> session, std::shared_ptr<RecvNode> recvNode) : session_(session), recvNode_(recvNode)
+	{
+	}
+	~LogicNode()
+	{
+	}
+private:
+	std::shared_ptr<CSession> session_;
+	std::shared_ptr<RecvNode> recvNode_;
+};
+
+class LogicSystem : public SingleTon<LogicSystem>
+{
+	friend class SingleTon<LogicSystem>;
+public:
+	~LogicSystem();
+	// å‘å¤–æä¾›æ¥å£ï¼Œæ ¹æ®è¿æ¥æ˜¯ uuid æ¥åˆ¤æ–­ æŠ•é€’ åˆ° å“ªä¸ªé€»è¾‘çº¿ç¨‹
+	void postMsgToQue(std::shared_ptr<LogicNode> logicNode,int index);
+	// ä¸Šä¼ çš„æ–‡ä»¶ä¿¡æ¯ä¿å­˜åˆ° Redis ä¸­
+	bool addMd5FileInfo(std::string name, std::shared_ptr<FileInfo> fileInfo);
+	std::shared_ptr<FileInfo> getFileInfo(std::string name);
+	bool DeleteMd5FileInfo(const std::string& name);
+	// ä¸‹è½½çš„æ–‡ä»¶ä¿¡æ¯ä¿å­˜åˆ° Redis ä¸­
+	bool addDownloadFileInfo(std::string name, std::shared_ptr<DownloadFileInfo> fileInfo);
+	std::shared_ptr<DownloadFileInfo> GetDownloadFileInfo(std::string name);
+	bool DeleteDownloadFileInfo(const std::string& name);
+private:
+	LogicSystem();
+	std::vector<std::shared_ptr<LogicWorker>> logicWorkers_;
+	//std::map<std::string, std::shared_ptr<FileInfo>> md5FileMap_;// file_name : FileInfo
+	//std::mutex mtx_;
+};
+
+#endif

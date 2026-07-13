@@ -1,103 +1,103 @@
-#ifndef DATA_H
-#define DATA_H
-
-#include "global.h"
-
-struct UserInfo {
-	UserInfo() :name_(""), pwd_(""), uid_(), email_(""), nick_(""), desc_(""), sex_(0), icon_(""), back_("") 
-	{
-	}
-	UserInfo(int uid,std::string name, std::string email,
-		std::string pwd, std::string desc, std::string icon,
-		int sex,std::string nick)
-		:uid_(uid), name_(name), email_(email),
-		pwd_(pwd), desc_(desc), icon_(icon),
-		sex_(sex),nick_(nick)
-	{
-	}
-
-	std::string name_;
-	std::string pwd_;
-	int uid_;
-	std::string email_;
-	std::string nick_;
-	std::string desc_;
-	int sex_;
-	std::string icon_;
-	std::string back_;
-};
-
-struct ApplyInfo {
-	ApplyInfo(int uid, std::string name, std::string desc,
-		std::string icon, std::string nick, int sex, int status = 0)
-		:uid_(uid), name_(name), desc_(desc),
-		icon_(icon), nick_(nick), sex_(sex), status_(status) {
-	}
-
-	ApplyInfo(int id, int uid, std::string name, std::string email, std::string desc,
-		std::string icon, int sex, std::string apply_time, int status)
-		: id_(id), uid_(uid), name_(name), email_(email), desc_(desc),
-		icon_(icon), sex_(sex), apply_time_(apply_time), status_(status)
-	{
-	}
-
-	int id_;
-	int uid_;
-	std::string name_;
-	std::string email_;
-	std::string desc_;
-	std::string icon_;
-	std::string nick_;
-	int sex_;
-	std::string apply_time_;
-	int status_;
-};
-
-// ÁÄÌìÏß³ÌĞÅÏ¢
-struct ChatThreadInfo
-{
-	ChatThreadInfo() {}
-	ChatThreadInfo(int threadId, int type,int user1_id,int user2_id) 
-		: threadId_(threadId), threadType_(type), user1_id_(user1_id), user2_id_(user2_id){
-	}
-	int threadId_;
-	int threadType_;
-	int user1_id_;
-	int user2_id_;
-};
-
-enum CHAT_MSG_TYPE
-{
-	TEXT_MSG, // ÎÄ±¾ÏûÏ¢
-	PIC_MSG, // Í¼Æ¬ĞÅÏ¢
-	EMOJI, //±íÇéÏûÏ¢
-	FILE_MSG // ÎÄ¼şĞÅÏ¢
-};
-
-// ÁÄÌìÏûÏ¢ĞÅÏ¢
-struct ChatMessage {
-	int message_id; // ÏûÏ¢id
-	int thread_id; // Ïß³Ìid
-	int sender_id; // ·¢ËÍÕßid
-	int recv_id; // ½ÓÊÕÕßid
-	std::string unique_id; // uuid
-	std::string content; // ÏûÏ¢ÄÚÈİ
-	std::string chat_time; // ÏûÏ¢Ê±¼ä
-	int status; // ÏûÏ¢×´Ì¬£¨0 1 2£©
-	CHAT_MSG_TYPE type; // ÏûÏ¢ÀàĞÍ£¨ÎÄ±¾£¬Í¼Æ¬µÈ£©
-	/*
-	status : 
-	UN_READ = 0,  // ÕıÔÚ·¢ËÍ
-    SEND_FAILED = 1,  //·¢ËÍÊ§°Ü
-    READED = 2,  // ·¢ËÍ³É¹¦
-	*/
-};
-
-enum MsgStatus {
-	UN_READ = 0,  // ÕıÔÚ·¢ËÍ
-	SEND_FAILED = 1,  //·¢ËÍÊ§°Ü
-	READED = 2,  // ÉÏ´«³É¹¦
-	//UN_UPLOAD = 3 // Î´ÉÏ´«Íê³É
-};
-
+ï»¿#ifndef DATA_H
+#define DATA_H
+
+#include "global.h"
+
+struct UserInfo {
+	UserInfo() :name_(""), pwd_(""), uid_(), email_(""), nick_(""), desc_(""), sex_(0), icon_(""), back_("") 
+	{
+	}
+	UserInfo(int uid,std::string name, std::string email,
+		std::string pwd, std::string desc, std::string icon,
+		int sex,std::string nick)
+		:uid_(uid), name_(name), email_(email),
+		pwd_(pwd), desc_(desc), icon_(icon),
+		sex_(sex),nick_(nick)
+	{
+	}
+
+	std::string name_;
+	std::string pwd_;
+	int uid_;
+	std::string email_;
+	std::string nick_;
+	std::string desc_;
+	int sex_;
+	std::string icon_;
+	std::string back_;
+};
+
+struct ApplyInfo {
+	ApplyInfo(int uid, std::string name, std::string desc,
+		std::string icon, std::string nick, int sex, int status = 0)
+		:uid_(uid), name_(name), desc_(desc),
+		icon_(icon), nick_(nick), sex_(sex), status_(status) {
+	}
+
+	ApplyInfo(int id, int uid, std::string name, std::string email, std::string desc,
+		std::string icon, int sex, std::string apply_time, int status)
+		: id_(id), uid_(uid), name_(name), email_(email), desc_(desc),
+		icon_(icon), sex_(sex), apply_time_(apply_time), status_(status)
+	{
+	}
+
+	int id_;
+	int uid_;
+	std::string name_;
+	std::string email_;
+	std::string desc_;
+	std::string icon_;
+	std::string nick_;
+	int sex_;
+	std::string apply_time_;
+	int status_;
+};
+
+// èŠå¤©çº¿ç¨‹ä¿¡æ¯
+struct ChatThreadInfo
+{
+	ChatThreadInfo() {}
+	ChatThreadInfo(int threadId, int type,int user1_id,int user2_id) 
+		: threadId_(threadId), threadType_(type), user1_id_(user1_id), user2_id_(user2_id){
+	}
+	int threadId_;
+	int threadType_;
+	int user1_id_;
+	int user2_id_;
+};
+
+enum CHAT_MSG_TYPE
+{
+	TEXT_MSG, // æ–‡æœ¬æ¶ˆæ¯
+	PIC_MSG, // å›¾ç‰‡ä¿¡æ¯
+	EMOJI, //è¡¨æƒ…æ¶ˆæ¯
+	FILE_MSG // æ–‡ä»¶ä¿¡æ¯
+};
+
+// èŠå¤©æ¶ˆæ¯ä¿¡æ¯
+struct ChatMessage {
+	int message_id; // æ¶ˆæ¯id
+	int thread_id; // çº¿ç¨‹id
+	int sender_id; // å‘é€è€…id
+	int recv_id; // æ¥æ”¶è€…id
+	std::string unique_id; // uuid
+	std::string content; // æ¶ˆæ¯å†…å®¹
+	std::string chat_time; // æ¶ˆæ¯æ—¶é—´
+	int status; // æ¶ˆæ¯çŠ¶æ€ï¼ˆ0 1 2ï¼‰
+	CHAT_MSG_TYPE type; // æ¶ˆæ¯ç±»å‹ï¼ˆæ–‡æœ¬ï¼Œå›¾ç‰‡ç­‰ï¼‰
+	/*
+	status : 
+	UN_READ = 0,  // æ­£åœ¨å‘é€
+    SEND_FAILED = 1,  //å‘é€å¤±è´¥
+    READED = 2,  // å‘é€æˆåŠŸ
+	*/
+};
+
+enum MsgStatus {
+	UN_READ = 0,  // æ­£åœ¨å‘é€
+	SEND_FAILED = 1,  //å‘é€å¤±è´¥
+	READED = 2,  // ä¸Šä¼ æˆåŠŸ
+	//UN_UPLOAD = 3 // æœªä¸Šä¼ å®Œæˆ
+};
+
 #endif

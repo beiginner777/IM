@@ -1,419 +1,419 @@
-#include "FileWorker.h"
-#include "CSession.h"
-#include "ConfigManager.h"
-#include "LogicSystem.h"
-#include "MysqlManager.h"
-#include "RedisManager.h"
-#include "ResouceServerClient.h"
-
-FileWorker::FileWorker()
-	: b_stop_(false)
-{
-	registerHandlers();
-	work_thread_ = std::thread(&FileWorker::dealTask, this);
-}
-
-FileWorker::~FileWorker()
-{
-	// todo ...
-}
-
-void FileWorker::registerHandlers()
-{
-	handlers_[ID_UPLOAD_HEAD_ICON_REQ] = std::bind(&FileWorker::handleUploadHeadIcon, this, std::placeholders::_1);
-	handlers_[ID_IMAGE_CHAT_MSG_REQ] = std::bind(&FileWorker::handleUploadFile, this, std::placeholders::_1);
-}
-
-void FileWorker::dealTask()
-{
-	while (true)
-	{
-		std::unique_lock<std::mutex> locker(mtx_);
-
-		while (que_.empty() && !b_stop_)
-		{
-			std::cout << "LoginSystem is waiting for data . . ." << std::endl;
-			cond_.wait(locker);
-		}
-		// ÎÄ¼ş´¦Àí²ãÍ£Ö¹¹¤×÷
-		if (b_stop_)
-		{
-			while (!que_.empty())
-			{
-				std::shared_ptr<FileTask> task = que_.front();
-				que_.pop();
-				taskHandler(task);
-			}
-			// detail break
-			break;
-		}
-
-		// ÎÄ¼ş´¦Àí²ãÃ»ÓĞÍË³ö£¬ÄÇÃ´¾ÍÕı³£È¡Êı¾İ
-		if (!que_.empty())
-		{
-			std::shared_ptr<FileTask> task = que_.front();
-			que_.pop();
-			taskHandler(task);
-		}
-	}
-}
-
-std::string FileWorker::base64_decode(const std::string& in)
-{
-	const std::string base64_chars =
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-		"abcdefghijklmnopqrstuvwxyz"
-		"0123456789+/";
-
-	// ´´½¨½âÂë±í
-	std::vector<int> decoding_table(256, -1);
-	for (int i = 0; i < 64; i++) {
-		decoding_table[base64_chars[i]] = i;
-	}
-
-	int input_length = in.size();
-	int i = 0;
-	std::string out;
-	out.reserve((input_length * 3) / 4);
-
-	while (i < input_length) {
-		// ½âÂë4¸ö×Ö·ûÎª3¸ö×Ö½Ú
-		int sextet_a = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
-		int sextet_b = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
-		int sextet_c = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
-		int sextet_d = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
-
-		if (sextet_a == -1 || sextet_b == -1 || sextet_c == -1 || sextet_d == -1) {
-			throw std::runtime_error("Invalid base64 character");
-		}
-
-		int triple = (sextet_a << 3 * 6) + (sextet_b << 2 * 6) + (sextet_c << 1 * 6) + (sextet_d << 0 * 6);
-
-		if (in.length() > i - 3 && in[i - 2] == '=') {
-			// 2¸öÌî³ä×Ö·û£¬Ö»Êä³ö1¸ö×Ö½Ú
-			out.push_back(static_cast<char>((triple >> 16) & 0xFF));
-		}
-		else if (in.length() > i - 2 && in[i - 1] == '=') {
-			// 1¸öÌî³ä×Ö·û£¬Êä³ö2¸ö×Ö½Ú
-			out.push_back(static_cast<char>((triple >> 16) & 0xFF));
-			out.push_back(static_cast<char>((triple >> 8) & 0xFF));
-		}
-		else {
-			// ÎŞÌî³ä×Ö·û£¬Êä³ö3¸ö×Ö½Ú
-			out.push_back(static_cast<char>((triple >> 16) & 0xFF));
-			out.push_back(static_cast<char>((triple >> 8) & 0xFF));
-			out.push_back(static_cast<char>(triple & 0xFF));
-		}
-	}
-
-	return out;
-}
-
-void FileWorker::taskHandler(std::shared_ptr<FileTask> task)
-{
-	if(handlers_.count(task->req_id_) != 0){
-		handlers_[task->req_id_](task);
-		return;
-	}
-	std::cout << "system error: can't find FunctinCallback: " << task->req_id_ << std::endl;
-}
-
-void FileWorker::notifyFriendNewHeadIcon(int self_id, std::string fileName)
-{
-	// 1 MysqlManagerÈ¥²éÕÒself_idµÄºÃÓÑÁĞ±í
-	std::vector<int> friendList;
-	bool ret = MysqlManager::getInstance()->GetFriendList(self_id, friendList);
-	if (ret != SUCCESS) {
-		std::cout << "Get friend list from mysql failed. uid = " << self_id << std::endl;
-		return;
-	}
-
-	// 2 RedisManagerÈ¥²éÕÒÃ¿¸öºÃÓÑµ±Ç°ÔÚÏßµÄChatServer
-	std::vector<std::string> keys;
-	for(int& friend_id : friendList){
-		std::string friend_chat_server_key = USERIPPREFIX + std::to_string(friend_id);
-		keys.push_back(friend_chat_server_key);
-	}
-	std::unordered_map<std::string, std::string> servers;
-	ret = RedisManager::getInstance()->MGet(keys, servers);
-	if(ret == false){
-		std::cout << "Redis MGet friend chat server failed. uid = " << self_id << std::endl;
-		return;
-	}
-	// 3 ½«ÔÚÏßµÄºÃÓÑºÍÀëÏßµÄºÃÓÑ·Ö¿ª´¦Àí
-	std::vector<int> onlineFriends;
-	std::vector<int> offlineFriends;
-	for (auto& server : servers) {
-		std::string key = server.first;
-		std::string value = server.second;
-		if (value != "") {
-			std::cout << "friend online: " << key << " in chat server: " << value << std::endl;
-			onlineFriends.push_back(std::stoi(key.substr(strlen(USERIPPREFIX))));
-		}
-		else {
-			offlineFriends.push_back(std::stoi(key.substr(strlen(USERIPPREFIX))));
-		}
-	}
-	// 4 Í¨¹ıRpcµ÷ÓÃ¶ÔÓ¦µÄChatServer£¬Í¨ÖªÔÚÏßµÄºÃÓÑ¸üĞÂÍ·Ïñ
-	for (int online_friend_id : onlineFriends) {
-		// Grpcµ÷ÓÃChatServerÈ¥Í¨ÖªClient¶ËÓĞĞÂµÄÍ¼Æ¬ÏûÏ¢
-		std::string key = USERIPPREFIX + std::to_string(online_friend_id);
-		std::string server_ip = servers[key];
-		if (server_ip == "") {
-			std::cerr << "online_friend_id: " << online_friend_id << " is not in any ChatSerevr." << std::endl;
-			return;
-		}
-		std::cout << "Call ChatServer to Notify uid = " << online_friend_id << " friend icon change success.\n";
-		
-		NotifyFriendIconChangeReq req;
-		req.set_uid(online_friend_id);
-		req.set_redis_id(REDIS_ID::REDIS_ID_FRIEND_ICON_CHANGE);
-		req.set_friend_id(self_id);
-		req.set_messgae("Friend Icon Change");
-		req.set_friend_icon(fileName);
-
-		NotifyFriendIconChangeRsp rsp = ResouceServerClient::getInstance()->NotifyFriendIconChange(server_ip, req);
-		if (rsp.error() == SUCCESS) {
-			std::cout << "Notify msg(friend icon change) to Server(" << server_ip << ") friend_id = " << online_friend_id << " success.";
-		}
-		else {
-			// ½«ÏûÏ¢´æÔÚredisÖĞ£¬µÈ´ıÏÂ´ÎÉÏÏßÔÙ»ñÈ¡
-			Json::Value offlineMsg;
-			offlineMsg["redis_id"] = REDIS_ID::REDIS_ID_FRIEND_ICON_CHANGE;
-			offlineMsg["friend_id"] = self_id;
-			offlineMsg["messgae"] = "ºÃÓÑÍ·Ïñ¸üĞÂ";
-			offlineMsg["friend_icon"] = fileName;
-			RedisManager::getInstance()->pushOfflineMessage(online_friend_id, offlineMsg.toStyledString());
-		}
-	}
-	// 5 ½«ÏûÏ¢´æ´¢ÔÚRedis£¬ÀëÏßµÄºÃÓÑÔÚÏÂ´ÎµÇÂ¼Ê±»ñÈ¡×îĞÂµÄÍ·ÏñĞÅÏ¢
-	for (int offline_friend_id : offlineFriends) {
-		Json::Value offlineMsg;
-		offlineMsg["redis_id"] = REDIS_ID::REDIS_ID_FRIEND_ICON_CHANGE;
-		offlineMsg["friend_id"] = self_id;
-		offlineMsg["messgae"] = "ºÃÓÑÍ·Ïñ¸üĞÂ";
-		offlineMsg["friend_icon"] = fileName;
-		RedisManager::getInstance()->pushOfflineMessage(offline_friend_id, offlineMsg.toStyledString());
-	}
-}
-
-void FileWorker::handleUploadHeadIcon(std::shared_ptr<FileTask> task)
-{
-	std::shared_ptr<CSession> session = task->session_;
-	int uid = task->session_->getUserId();
-
-	Json::Value rtvalue;
-
-	Defer defer([session, this, &rtvalue]() {
-		// ·¢ËÍÏìÓ¦¸ø¿Í»§¶Ë
-		session->Send(rtvalue.toStyledString(), ID_UPLOAD_HEAD_ICON_RSP);
-		});
-
-	rtvalue["code"] = 0;
-	rtvalue["message"] = "upload success";
-
-	std::string md5 = task->md5_;
-	int seq = task->seq_;
-	int lastSeq = task->lastSeq_;
-	std::string fileName = task->name_;
-	int transferredSize = task->transfferredSize_;
-	int totolSize = task->totolSize_;
-	std::string data = task->data_;
-
-	// ¶Ôbase64±àÂëµÄÊı¾İ½øĞĞ½âÂë
-	std::string decodedData = base64_decode(task->data_);
-
-	/*std::cout << "=================================================" << std::endl;
-	std::cout << "receive from client: " << fileName << "(" << seq << "/ " << lastSeq << ")"
-		<< ",transferredSize = " << transferredSize << ",totolSize = " << totolSize << std::endl
-		<< ",decodedData size = " << decodedData.size() << std::endl;
-	std::cout << "data = " << data << std::endl;
-	std::cout << "=================================================" << std::endl << std::endl;*/
-
-	auto cfg = ConfigManager::getInstance();
-	std::string uploadPath = cfg["SelfServer"]["UploadPath"];
-
-	std::string fullPath = uploadPath + "/" + fileName;
-
-	std::ofstream ofs;
-	// µÚÒ»¸ö°ü£¬ÄÇÃ´¾ÍĞèÒª´´½¨ÎÄ¼şÀ´±£´æÕâ¸öÎÄ¼ş
-	if (seq == 1) {
-		// ´æÔÚ¾ÍÇå¿Õ£¬²»´æÔÚ¾Í´´½¨
-		ofs.open(fullPath, std::ios::binary | std::ios::out);
-	}
-	else {
-		// ÒÔ¶ş½øÖÆµÄĞÎÊ½¶ÔÎÄ¼ş½øĞĞ×·¼Ó
-		ofs.open(fullPath, std::ios::binary | std::ios::app);
-	}
-
-	if (!ofs.is_open()) {
-		std::cout << "ÎÄ¼ş" << fullPath << "´ò¿ªÊ§°Ü" << std::endl;
-		rtvalue["code"] = 1;
-		rtvalue["msg"] = "open file failed";
-		rtvalue["seq"] = seq;
-		session->Send(rtvalue.toStyledString(), ID_UPLOAD_HEAD_ICON_RSP);
-		return;
-	}
-
-	ofs.write(decodedData.c_str(), decodedData.size());
-
-	if (!ofs) {
-		std::cout << "Ğ´Èë" << fullPath << "Ê§°Ü" << std::endl;
-		rtvalue["code"] = 2;
-		rtvalue["message"] = "write into file failed";
-		rtvalue["seq"] = seq;
-		session->Send(rtvalue.toStyledString(), ID_UPLOAD_HEAD_ICON_RSP);
-		return;
-	}
-
-	ofs.close();
-
-	std::cout << "write " << fileName << "(" << seq << "/ " << lastSeq << ")" << " into " << fullPath << " success." << std::endl;
-
-	rtvalue["uid"] = uid;
-	rtvalue["seq"] = seq;
-	rtvalue["lastseq"] = lastSeq;
-	rtvalue["file"] = fileName;
-	rtvalue["md5"] = md5;
-	rtvalue["totol_size"] = totolSize;
-	rtvalue["trans_size"] = transferredSize;
-
-	if (seq == lastSeq) {
-		// É¾³ıÉÏ´«ÎÄ¼şµÄĞÅÏ¢
-		LogicSystem::getInstance()->DeleteMd5FileInfo(fileName);
-		// ½«redisÖĞµÄÓÃ»§ĞÅÏ¢É¾³ı(to do ... ×îºÃÊÇÖØĞÂÉèÖÃĞÂµÄÊı¾İ)
-		std::string base_info = USERBASEINFO + std::to_string(uid);
-		RedisManager::getInstance()->Del(base_info);
-		// ½«Í·ÏñĞÅÏ¢ĞŞ¸Äµ½MysqlÊı¾İ¿â
-		int ret = MysqlManager::getInstance()->updateUserIcon(uid, fileName);
-		if (ret != 0) {
-			std::cout << "update user icon in mysql failed. uid = " << uid << std::endl;
-			rtvalue["code"] = ERROR_UPDATE_HEAD_ICON;
-			rtvalue["message"] = "update user icon in mysql failed";
-			return;
-		}
-		// Í¨ÖªºÃÓÑÓĞĞÂµÄÍ·ÏñÉÏ´«
-		notifyFriendNewHeadIcon(uid, fileName);
-	}
-	else {
-		LogicSystem::getInstance()->addMd5FileInfo(fileName,
-			std::make_shared<FileInfo>(uid, seq, fileName, totolSize, transferredSize, lastSeq, fullPath));
-	}
-}
-
-void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
-{
-	std::shared_ptr<CSession> session = task->session_;
-	int uid = task->session_->getUserId();
-
-	Json::Value rtvalue;
-
-	Defer defer([session, this, &rtvalue]() {
-		// ·¢ËÍÏìÓ¦¸ø¿Í»§¶Ë
-		session->Send(rtvalue.toStyledString(), ID_IMAGE_CHAT_MSG_RSP);
-		});
-
-	rtvalue["code"] = 0;
-	rtvalue["message"] = "upload success";
-
-	std::string md5 = task->md5_;
-	int seq = task->seq_;
-	int lastSeq = task->lastSeq_;
-	std::string fileName = task->name_;
-	int transferredSize = task->transfferredSize_;
-	int totolSize = task->totolSize_;
-	std::string data = task->data_;
-	int type = task->type_;
-
-	// ¶Ôbase64±àÂëµÄÊı¾İ½øĞĞ½âÂë
-	std::string decodedData = base64_decode(task->data_);
-
-	/*std::cout << "=================================================" << std::endl;
-	std::cout << "receive from client: " << fileName << "(" << seq << "/ " << lastSeq << ")"
-		<< ",transferredSize = " << transferredSize << ",totolSize = " << totolSize << std::endl
-		<< ",decodedData size = " << decodedData.size() << std::endl;
-	std::cout << "data = " << data << std::endl;
-	std::cout << "=================================================" << std::endl << std::endl;*/
-
-	auto cfg = ConfigManager::getInstance();
-	std::string uploadPath = cfg["SelfServer"]["UploadPath"];
-
-	std::string fullPath = uploadPath + "/" + fileName;
-
-	std::ofstream ofs;
-	// µÚÒ»¸ö°ü£¬ÄÇÃ´¾ÍĞèÒª´´½¨ÎÄ¼şÀ´±£´æÕâ¸öÎÄ¼ş
-	if (seq == 1) {
-		// ´æÔÚ¾ÍÇå¿Õ£¬²»´æÔÚ¾Í´´½¨
-		ofs.open(fullPath, std::ios::binary | std::ios::out);
-	}
-	else {
-		// ÒÔ¶ş½øÖÆµÄĞÎÊ½¶ÔÎÄ¼ş½øĞĞ×·¼Ó
-		ofs.open(fullPath, std::ios::binary | std::ios::app);
-	}
-
-	if (!ofs.is_open()) {
-		std::cout << "ÎÄ¼ş" << fullPath << "´ò¿ªÊ§°Ü" << std::endl;
-		rtvalue["code"] = 1;
-		rtvalue["msg"] = "open file failed";
-		rtvalue["seq"] = seq;
-		session->Send(rtvalue.toStyledString(), ID_UPLOAD_FILE_RSP);
-		return;
-	}
-
-	ofs.write(decodedData.c_str(), decodedData.size());
-
-	if (!ofs) {
-		std::cout << "Ğ´Èë" << fullPath << "Ê§°Ü" << std::endl;
-		rtvalue["code"] = 2;
-		rtvalue["message"] = "write into file failed";
-		rtvalue["seq"] = seq;
-		session->Send(rtvalue.toStyledString(), ID_UPLOAD_FILE_RSP);
-		return;
-	}
-
-	ofs.close();
-
-	std::cout << "write " << fileName << "(" << seq << "/ " << lastSeq << ")" << " into " << fullPath << " success." << std::endl;
-
-	rtvalue["seq"] = seq;
-	rtvalue["lastseq"] = lastSeq;
-	rtvalue["file"] = fileName;
-	rtvalue["md5"] = md5;
-	rtvalue["totol_size"] = totolSize;
-	rtvalue["trans_size"] = transferredSize;
-	rtvalue["type"] = type;
-
-	if (seq == lastSeq) {
-		// ½«RedisÖĞÏà¹ØµÄĞÅÏ¢É¾³ı
-		LogicSystem::getInstance()->DeleteMd5FileInfo(fileName);
-		// Grpcµ÷ÓÃChatServerÈ¥Í¨ÖªClient¶ËÓĞĞÂµÄÍ¼Æ¬ÏûÏ¢
-		std::string key = USERIPPREFIX + std::to_string(session->getUserId());
-		std::string server_ip = RedisManager::getInstance()->Get(key);
-		if (server_ip == "") {
-			rtvalue["code"] = ERROE_CODR::ERROR_USER_IP_NOT_FIND;
-			rtvalue["message"] = "Can not find User_IP by uid,ImageMsg transfer failed.";
-			std::cout << "[ERROR]: Can not find User_IP by uid,ImageMsg transfer failed.\n";
-			return;
-		}
-		std::cout << "Call ChatServer to Notifu uid = " << session->getUserId() << " ImageMsg success.\n";
-		NotifyChatServerImgReq req;
-		req.set_uid(session->getUserId());
-		req.set_unique_name(fileName);
-		NotifyChatServerImgRsp rsp = ResouceServerClient::getInstance()->NotifyChatServerImg(server_ip, req);
-		if (rsp.error() != 0) {
-			std::cout << "Notify Client ChatImg failed.\n";
-		}
-	}
-	else {
-		LogicSystem::getInstance()->addMd5FileInfo(fileName,
-			std::make_shared<FileInfo>(uid,seq,fileName,totolSize,transferredSize,lastSeq, fullPath));
-	}
-}
-
-void FileWorker::postTaskToQue(std::shared_ptr<FileTask> task)
-{
-	// ½«ÎÄ¼ş½áµã ¸ù¾İ ÎÄ¼şÃû ·ÅÈëFileSystemµÄÄ³¸öFileWorkerÖĞ
-	std::lock_guard<std::mutex> locket(mtx_);
-	que_.push(task);
-	cond_.notify_one();
+ï»¿#include "FileWorker.h"
+#include "CSession.h"
+#include "ConfigManager.h"
+#include "LogicSystem.h"
+#include "MysqlManager.h"
+#include "RedisManager.h"
+#include "ResouceServerClient.h"
+
+FileWorker::FileWorker()
+	: b_stop_(false)
+{
+	registerHandlers();
+	work_thread_ = std::thread(&FileWorker::dealTask, this);
+}
+
+FileWorker::~FileWorker()
+{
+	// todo ...
+}
+
+void FileWorker::registerHandlers()
+{
+	handlers_[ID_UPLOAD_HEAD_ICON_REQ] = std::bind(&FileWorker::handleUploadHeadIcon, this, std::placeholders::_1);
+	handlers_[ID_IMAGE_CHAT_MSG_REQ] = std::bind(&FileWorker::handleUploadFile, this, std::placeholders::_1);
+}
+
+void FileWorker::dealTask()
+{
+	while (true)
+	{
+		std::unique_lock<std::mutex> locker(mtx_);
+
+		while (que_.empty() && !b_stop_)
+		{
+			std::cout << "LoginSystem is waiting for data . . ." << std::endl;
+			cond_.wait(locker);
+		}
+		// æ–‡ä»¶å¤„ç†å±‚åœæ­¢å·¥ä½œ
+		if (b_stop_)
+		{
+			while (!que_.empty())
+			{
+				std::shared_ptr<FileTask> task = que_.front();
+				que_.pop();
+				taskHandler(task);
+			}
+			// detail break
+			break;
+		}
+
+		// æ–‡ä»¶å¤„ç†å±‚æ²¡æœ‰é€€å‡ºï¼Œé‚£ä¹ˆå°±æ­£å¸¸å–æ•°æ®
+		if (!que_.empty())
+		{
+			std::shared_ptr<FileTask> task = que_.front();
+			que_.pop();
+			taskHandler(task);
+		}
+	}
+}
+
+std::string FileWorker::base64_decode(const std::string& in)
+{
+	const std::string base64_chars =
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		"abcdefghijklmnopqrstuvwxyz"
+		"0123456789+/";
+
+	// åˆ›å»ºè§£ç è¡¨
+	std::vector<int> decoding_table(256, -1);
+	for (int i = 0; i < 64; i++) {
+		decoding_table[base64_chars[i]] = i;
+	}
+
+	int input_length = in.size();
+	int i = 0;
+	std::string out;
+	out.reserve((input_length * 3) / 4);
+
+	while (i < input_length) {
+		// è§£ç 4ä¸ªå­—ç¬¦ä¸º3ä¸ªå­—èŠ‚
+		int sextet_a = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
+		int sextet_b = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
+		int sextet_c = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
+		int sextet_d = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
+
+		if (sextet_a == -1 || sextet_b == -1 || sextet_c == -1 || sextet_d == -1) {
+			throw std::runtime_error("Invalid base64 character");
+		}
+
+		int triple = (sextet_a << 3 * 6) + (sextet_b << 2 * 6) + (sextet_c << 1 * 6) + (sextet_d << 0 * 6);
+
+		if (in.length() > i - 3 && in[i - 2] == '=') {
+			// 2ä¸ªå¡«å……å­—ç¬¦ï¼Œåªè¾“å‡º1ä¸ªå­—èŠ‚
+			out.push_back(static_cast<char>((triple >> 16) & 0xFF));
+		}
+		else if (in.length() > i - 2 && in[i - 1] == '=') {
+			// 1ä¸ªå¡«å……å­—ç¬¦ï¼Œè¾“å‡º2ä¸ªå­—èŠ‚
+			out.push_back(static_cast<char>((triple >> 16) & 0xFF));
+			out.push_back(static_cast<char>((triple >> 8) & 0xFF));
+		}
+		else {
+			// æ— å¡«å……å­—ç¬¦ï¼Œè¾“å‡º3ä¸ªå­—èŠ‚
+			out.push_back(static_cast<char>((triple >> 16) & 0xFF));
+			out.push_back(static_cast<char>((triple >> 8) & 0xFF));
+			out.push_back(static_cast<char>(triple & 0xFF));
+		}
+	}
+
+	return out;
+}
+
+void FileWorker::taskHandler(std::shared_ptr<FileTask> task)
+{
+	if(handlers_.count(task->req_id_) != 0){
+		handlers_[task->req_id_](task);
+		return;
+	}
+	std::cout << "system error: can't find FunctinCallback: " << task->req_id_ << std::endl;
+}
+
+void FileWorker::notifyFriendNewHeadIcon(int self_id, std::string fileName)
+{
+	// 1 MysqlManagerå»æŸ¥æ‰¾self_idçš„å¥½å‹åˆ—è¡¨
+	std::vector<int> friendList;
+	bool ret = MysqlManager::getInstance()->GetFriendList(self_id, friendList);
+	if (ret != SUCCESS) {
+		std::cout << "Get friend list from mysql failed. uid = " << self_id << std::endl;
+		return;
+	}
+
+	// 2 RedisManagerå»æŸ¥æ‰¾æ¯ä¸ªå¥½å‹å½“å‰åœ¨çº¿çš„ChatServer
+	std::vector<std::string> keys;
+	for(int& friend_id : friendList){
+		std::string friend_chat_server_key = USERIPPREFIX + std::to_string(friend_id);
+		keys.push_back(friend_chat_server_key);
+	}
+	std::unordered_map<std::string, std::string> servers;
+	ret = RedisManager::getInstance()->MGet(keys, servers);
+	if(ret == false){
+		std::cout << "Redis MGet friend chat server failed. uid = " << self_id << std::endl;
+		return;
+	}
+	// 3 å°†åœ¨çº¿çš„å¥½å‹å’Œç¦»çº¿çš„å¥½å‹åˆ†å¼€å¤„ç†
+	std::vector<int> onlineFriends;
+	std::vector<int> offlineFriends;
+	for (auto& server : servers) {
+		std::string key = server.first;
+		std::string value = server.second;
+		if (value != "") {
+			std::cout << "friend online: " << key << " in chat server: " << value << std::endl;
+			onlineFriends.push_back(std::stoi(key.substr(strlen(USERIPPREFIX))));
+		}
+		else {
+			offlineFriends.push_back(std::stoi(key.substr(strlen(USERIPPREFIX))));
+		}
+	}
+	// 4 é€šè¿‡Rpcè°ƒç”¨å¯¹åº”çš„ChatServerï¼Œé€šçŸ¥åœ¨çº¿çš„å¥½å‹æ›´æ–°å¤´åƒ
+	for (int online_friend_id : onlineFriends) {
+		// Grpcè°ƒç”¨ChatServerå»é€šçŸ¥Clientç«¯æœ‰æ–°çš„å›¾ç‰‡æ¶ˆæ¯
+		std::string key = USERIPPREFIX + std::to_string(online_friend_id);
+		std::string server_ip = servers[key];
+		if (server_ip == "") {
+			std::cerr << "online_friend_id: " << online_friend_id << " is not in any ChatSerevr." << std::endl;
+			return;
+		}
+		std::cout << "Call ChatServer to Notify uid = " << online_friend_id << " friend icon change success.\n";
+		
+		NotifyFriendIconChangeReq req;
+		req.set_uid(online_friend_id);
+		req.set_redis_id(REDIS_ID::REDIS_ID_FRIEND_ICON_CHANGE);
+		req.set_friend_id(self_id);
+		req.set_messgae("Friend Icon Change");
+		req.set_friend_icon(fileName);
+
+		NotifyFriendIconChangeRsp rsp = ResouceServerClient::getInstance()->NotifyFriendIconChange(server_ip, req);
+		if (rsp.error() == SUCCESS) {
+			std::cout << "Notify msg(friend icon change) to Server(" << server_ip << ") friend_id = " << online_friend_id << " success.";
+		}
+		else {
+			// å°†æ¶ˆæ¯å­˜åœ¨redisä¸­ï¼Œç­‰å¾…ä¸‹æ¬¡ä¸Šçº¿å†è·å–
+			Json::Value offlineMsg;
+			offlineMsg["redis_id"] = REDIS_ID::REDIS_ID_FRIEND_ICON_CHANGE;
+			offlineMsg["friend_id"] = self_id;
+			offlineMsg["messgae"] = "å¥½å‹å¤´åƒæ›´æ–°";
+			offlineMsg["friend_icon"] = fileName;
+			RedisManager::getInstance()->pushOfflineMessage(online_friend_id, offlineMsg.toStyledString());
+		}
+	}
+	// 5 å°†æ¶ˆæ¯å­˜å‚¨åœ¨Redisï¼Œç¦»çº¿çš„å¥½å‹åœ¨ä¸‹æ¬¡ç™»å½•æ—¶è·å–æœ€æ–°çš„å¤´åƒä¿¡æ¯
+	for (int offline_friend_id : offlineFriends) {
+		Json::Value offlineMsg;
+		offlineMsg["redis_id"] = REDIS_ID::REDIS_ID_FRIEND_ICON_CHANGE;
+		offlineMsg["friend_id"] = self_id;
+		offlineMsg["messgae"] = "å¥½å‹å¤´åƒæ›´æ–°";
+		offlineMsg["friend_icon"] = fileName;
+		RedisManager::getInstance()->pushOfflineMessage(offline_friend_id, offlineMsg.toStyledString());
+	}
+}
+
+void FileWorker::handleUploadHeadIcon(std::shared_ptr<FileTask> task)
+{
+	std::shared_ptr<CSession> session = task->session_;
+	int uid = task->session_->getUserId();
+
+	Json::Value rtvalue;
+
+	Defer defer([session, this, &rtvalue]() {
+		// å‘é€å“åº”ç»™å®¢æˆ·ç«¯
+		session->Send(rtvalue.toStyledString(), ID_UPLOAD_HEAD_ICON_RSP);
+		});
+
+	rtvalue["code"] = 0;
+	rtvalue["message"] = "upload success";
+
+	std::string md5 = task->md5_;
+	int seq = task->seq_;
+	int lastSeq = task->lastSeq_;
+	std::string fileName = task->name_;
+	int transferredSize = task->transfferredSize_;
+	int totolSize = task->totolSize_;
+	std::string data = task->data_;
+
+	// å¯¹base64ç¼–ç çš„æ•°æ®è¿›è¡Œè§£ç 
+	std::string decodedData = base64_decode(task->data_);
+
+	/*std::cout << "=================================================" << std::endl;
+	std::cout << "receive from client: " << fileName << "(" << seq << "/ " << lastSeq << ")"
+		<< ",transferredSize = " << transferredSize << ",totolSize = " << totolSize << std::endl
+		<< ",decodedData size = " << decodedData.size() << std::endl;
+	std::cout << "data = " << data << std::endl;
+	std::cout << "=================================================" << std::endl << std::endl;*/
+
+	auto cfg = ConfigManager::getInstance();
+	std::string uploadPath = cfg["SelfServer"]["UploadPath"];
+
+	std::string fullPath = uploadPath + "/" + fileName;
+
+	std::ofstream ofs;
+	// ç¬¬ä¸€ä¸ªåŒ…ï¼Œé‚£ä¹ˆå°±éœ€è¦åˆ›å»ºæ–‡ä»¶æ¥ä¿å­˜è¿™ä¸ªæ–‡ä»¶
+	if (seq == 1) {
+		// å­˜åœ¨å°±æ¸…ç©ºï¼Œä¸å­˜åœ¨å°±åˆ›å»º
+		ofs.open(fullPath, std::ios::binary | std::ios::out);
+	}
+	else {
+		// ä»¥äºŒè¿›åˆ¶çš„å½¢å¼å¯¹æ–‡ä»¶è¿›è¡Œè¿½åŠ 
+		ofs.open(fullPath, std::ios::binary | std::ios::app);
+	}
+
+	if (!ofs.is_open()) {
+		std::cout << "æ–‡ä»¶" << fullPath << "æ‰“å¼€å¤±è´¥" << std::endl;
+		rtvalue["code"] = 1;
+		rtvalue["msg"] = "open file failed";
+		rtvalue["seq"] = seq;
+		session->Send(rtvalue.toStyledString(), ID_UPLOAD_HEAD_ICON_RSP);
+		return;
+	}
+
+	ofs.write(decodedData.c_str(), decodedData.size());
+
+	if (!ofs) {
+		std::cout << "å†™å…¥" << fullPath << "å¤±è´¥" << std::endl;
+		rtvalue["code"] = 2;
+		rtvalue["message"] = "write into file failed";
+		rtvalue["seq"] = seq;
+		session->Send(rtvalue.toStyledString(), ID_UPLOAD_HEAD_ICON_RSP);
+		return;
+	}
+
+	ofs.close();
+
+	std::cout << "write " << fileName << "(" << seq << "/ " << lastSeq << ")" << " into " << fullPath << " success." << std::endl;
+
+	rtvalue["uid"] = uid;
+	rtvalue["seq"] = seq;
+	rtvalue["lastseq"] = lastSeq;
+	rtvalue["file"] = fileName;
+	rtvalue["md5"] = md5;
+	rtvalue["totol_size"] = totolSize;
+	rtvalue["trans_size"] = transferredSize;
+
+	if (seq == lastSeq) {
+		// åˆ é™¤ä¸Šä¼ æ–‡ä»¶çš„ä¿¡æ¯
+		LogicSystem::getInstance()->DeleteMd5FileInfo(fileName);
+		// å°†redisä¸­çš„ç”¨æˆ·ä¿¡æ¯åˆ é™¤(to do ... æœ€å¥½æ˜¯é‡æ–°è®¾ç½®æ–°çš„æ•°æ®)
+		std::string base_info = USERBASEINFO + std::to_string(uid);
+		RedisManager::getInstance()->Del(base_info);
+		// å°†å¤´åƒä¿¡æ¯ä¿®æ”¹åˆ°Mysqlæ•°æ®åº“
+		int ret = MysqlManager::getInstance()->updateUserIcon(uid, fileName);
+		if (ret != 0) {
+			std::cout << "update user icon in mysql failed. uid = " << uid << std::endl;
+			rtvalue["code"] = ERROR_UPDATE_HEAD_ICON;
+			rtvalue["message"] = "update user icon in mysql failed";
+			return;
+		}
+		// é€šçŸ¥å¥½å‹æœ‰æ–°çš„å¤´åƒä¸Šä¼ 
+		notifyFriendNewHeadIcon(uid, fileName);
+	}
+	else {
+		LogicSystem::getInstance()->addMd5FileInfo(fileName,
+			std::make_shared<FileInfo>(uid, seq, fileName, totolSize, transferredSize, lastSeq, fullPath));
+	}
+}
+
+void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
+{
+	std::shared_ptr<CSession> session = task->session_;
+	int uid = task->session_->getUserId();
+
+	Json::Value rtvalue;
+
+	Defer defer([session, this, &rtvalue]() {
+		// å‘é€å“åº”ç»™å®¢æˆ·ç«¯
+		session->Send(rtvalue.toStyledString(), ID_IMAGE_CHAT_MSG_RSP);
+		});
+
+	rtvalue["code"] = 0;
+	rtvalue["message"] = "upload success";
+
+	std::string md5 = task->md5_;
+	int seq = task->seq_;
+	int lastSeq = task->lastSeq_;
+	std::string fileName = task->name_;
+	int transferredSize = task->transfferredSize_;
+	int totolSize = task->totolSize_;
+	std::string data = task->data_;
+	int type = task->type_;
+
+	// å¯¹base64ç¼–ç çš„æ•°æ®è¿›è¡Œè§£ç 
+	std::string decodedData = base64_decode(task->data_);
+
+	/*std::cout << "=================================================" << std::endl;
+	std::cout << "receive from client: " << fileName << "(" << seq << "/ " << lastSeq << ")"
+		<< ",transferredSize = " << transferredSize << ",totolSize = " << totolSize << std::endl
+		<< ",decodedData size = " << decodedData.size() << std::endl;
+	std::cout << "data = " << data << std::endl;
+	std::cout << "=================================================" << std::endl << std::endl;*/
+
+	auto cfg = ConfigManager::getInstance();
+	std::string uploadPath = cfg["SelfServer"]["UploadPath"];
+
+	std::string fullPath = uploadPath + "/" + fileName;
+
+	std::ofstream ofs;
+	// ç¬¬ä¸€ä¸ªåŒ…ï¼Œé‚£ä¹ˆå°±éœ€è¦åˆ›å»ºæ–‡ä»¶æ¥ä¿å­˜è¿™ä¸ªæ–‡ä»¶
+	if (seq == 1) {
+		// å­˜åœ¨å°±æ¸…ç©ºï¼Œä¸å­˜åœ¨å°±åˆ›å»º
+		ofs.open(fullPath, std::ios::binary | std::ios::out);
+	}
+	else {
+		// ä»¥äºŒè¿›åˆ¶çš„å½¢å¼å¯¹æ–‡ä»¶è¿›è¡Œè¿½åŠ 
+		ofs.open(fullPath, std::ios::binary | std::ios::app);
+	}
+
+	if (!ofs.is_open()) {
+		std::cout << "æ–‡ä»¶" << fullPath << "æ‰“å¼€å¤±è´¥" << std::endl;
+		rtvalue["code"] = 1;
+		rtvalue["msg"] = "open file failed";
+		rtvalue["seq"] = seq;
+		session->Send(rtvalue.toStyledString(), ID_UPLOAD_FILE_RSP);
+		return;
+	}
+
+	ofs.write(decodedData.c_str(), decodedData.size());
+
+	if (!ofs) {
+		std::cout << "å†™å…¥" << fullPath << "å¤±è´¥" << std::endl;
+		rtvalue["code"] = 2;
+		rtvalue["message"] = "write into file failed";
+		rtvalue["seq"] = seq;
+		session->Send(rtvalue.toStyledString(), ID_UPLOAD_FILE_RSP);
+		return;
+	}
+
+	ofs.close();
+
+	std::cout << "write " << fileName << "(" << seq << "/ " << lastSeq << ")" << " into " << fullPath << " success." << std::endl;
+
+	rtvalue["seq"] = seq;
+	rtvalue["lastseq"] = lastSeq;
+	rtvalue["file"] = fileName;
+	rtvalue["md5"] = md5;
+	rtvalue["totol_size"] = totolSize;
+	rtvalue["trans_size"] = transferredSize;
+	rtvalue["type"] = type;
+
+	if (seq == lastSeq) {
+		// å°†Redisä¸­ç›¸å…³çš„ä¿¡æ¯åˆ é™¤
+		LogicSystem::getInstance()->DeleteMd5FileInfo(fileName);
+		// Grpcè°ƒç”¨ChatServerå»é€šçŸ¥Clientç«¯æœ‰æ–°çš„å›¾ç‰‡æ¶ˆæ¯
+		std::string key = USERIPPREFIX + std::to_string(session->getUserId());
+		std::string server_ip = RedisManager::getInstance()->Get(key);
+		if (server_ip == "") {
+			rtvalue["code"] = ERROE_CODR::ERROR_USER_IP_NOT_FIND;
+			rtvalue["message"] = "Can not find User_IP by uid,ImageMsg transfer failed.";
+			std::cout << "[ERROR]: Can not find User_IP by uid,ImageMsg transfer failed.\n";
+			return;
+		}
+		std::cout << "Call ChatServer to Notifu uid = " << session->getUserId() << " ImageMsg success.\n";
+		NotifyChatServerImgReq req;
+		req.set_uid(session->getUserId());
+		req.set_unique_name(fileName);
+		NotifyChatServerImgRsp rsp = ResouceServerClient::getInstance()->NotifyChatServerImg(server_ip, req);
+		if (rsp.error() != 0) {
+			std::cout << "Notify Client ChatImg failed.\n";
+		}
+	}
+	else {
+		LogicSystem::getInstance()->addMd5FileInfo(fileName,
+			std::make_shared<FileInfo>(uid,seq,fileName,totolSize,transferredSize,lastSeq, fullPath));
+	}
+}
+
+void FileWorker::postTaskToQue(std::shared_ptr<FileTask> task)
+{
+	// å°†æ–‡ä»¶ç»“ç‚¹ æ ¹æ® æ–‡ä»¶å æ”¾å…¥FileSystemçš„æŸä¸ªFileWorkerä¸­
+	std::lock_guard<std::mutex> locket(mtx_);
+	que_.push(task);
+	cond_.notify_one();
 }
