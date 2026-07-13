@@ -213,3 +213,16 @@ void CSession::handleWrite(boost::system::error_code ec,std::shared_ptr<CSession
 	}
 
 }
+// 客户端心跳检测
+void CSession::setClientHeartCheckTime(time_t tm)
+{
+	std::lock_guard<std::mutex> locker(clientTimeMtx_);
+	clientHeartCheckTime_ = tm;
+}
+
+bool CSession::isClientOverTime()
+{
+	std::lock_guard<std::mutex> locker(clientTimeMtx_);
+	time_t now = time(NULL);
+	return std::difftime(now, clientHeartCheckTime_) > HEART_CHECK_OVERTIME;
+}

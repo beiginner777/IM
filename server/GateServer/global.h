@@ -122,7 +122,8 @@
 
 #define USERUIDPREFIX "uid_"
 
-#define LOGINCOUNT "logincount_"
+#define CHATSERVERS "ChatServers"
+#define RESOURCESERVERS "ResourceServers"
 
 #define USERBASEINFO "userbaseinfo_"
 

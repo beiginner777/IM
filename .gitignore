@@ -89,3 +89,5 @@ server/MySQL/master-data/
 server/MySQL/slave-data/
 server/MySQL/master-data/
 server/MySQL/slave-data/
+
+CLAUDE.md
