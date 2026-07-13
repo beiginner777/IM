@@ -32,8 +32,6 @@ public:
 
 private:
     ChatServer getChatServer();
-
-    std::mutex mtx_;
     CServer* server_ = nullptr;  // TCP 服务端，获取活跃 sessions_ / resource_sessions_
 };
 

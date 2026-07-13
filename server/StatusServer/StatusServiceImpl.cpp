@@ -14,30 +14,34 @@ static Server_Info getLeastLoadedServer(
 StatusServiceImpl::StatusServiceImpl()
 {
 	// 不再从 config.ini 加载 ChatServer 列表
-	// ChatServer/ResourceServer 地址从 CServer::sessions_ 动态获取
+	// ChatServer/ResourceServer 地址从 CServer 动态获取
 }
 
 Status StatusServiceImpl::GetChatServer(ServerContext* context, const GetChatServerReq* request, GetChatServerRsp* reply)
 {
-	std::string prefix("Jerry StatusServer has received: ");
-
-	ChatServer chatServer = getChatServer();
-	if (chatServer.name.empty()) {
+	if (!server_)
+	{
+		std::cerr << "[GetChatServer] CServer not set" << std::endl;
 		reply->set_error(ERROR_RPC);
 		return Status::OK;
 	}
 
-	reply->set_host(chatServer.host);
-	reply->set_port(chatServer.port);
-	reply->set_token(generate_unique_string());
+	Server_Info selected =
+	        getLeastLoadedServer(server_->getSessions(), ServerType::CHAT_SERVER, CHATSERVERS);
 
-	std::cout << "select ChatServer(" << chatServer.host << ":" << chatServer.port << ") for client whose uid = " << request->uid() << ".\n";
+	if (selected.name.empty())
+	{
+		std::cerr << "[GetChatServer] No available ChatServer" << std::endl;
+		reply->set_error(ERROR_RPC);
+		return Status::OK;
+	}
 
-	// 在redis缓存中插入用户的token信息
-	RedisManager::getInstance()->Set( USERUIDPREFIX + std::to_string(request->uid()), USERTOKENPREFIX + reply->token());
+	reply->set_host(selected.host);
+	reply->set_port(selected.port);
+	reply->set_error(SUCCESS);
 
-	reply->set_error(ERROE_CODR::SUCCESS);
-
+	std::cout << "[GetChatServer] Return " << selected.name << " (" << selected.host << ":" << selected.port << ")"
+	          << " con_count=" << selected.con_count << " for " << "GateServer" << std::endl;
 	return Status::OK;
 }
 
@@ -69,32 +73,6 @@ Status StatusServiceImpl::GetResourceServer(ServerContext* context, const GetRes
 	          << " con_count=" << selected.con_count
 	          << " for " << request->chatserver_name() << std::endl;
 	return Status::OK;
-}
-
-ChatServer StatusServiceImpl::getChatServer()
-{
-	std::lock_guard<std::mutex> locker_(mtx_);
-
-	const auto& sessions = server_ ? server_->getSessions()
-	                               : std::map<std::string, std::shared_ptr<CSession>>{};
-
-	Server_Info selected = getLeastLoadedServer(sessions, ServerType::CHAT_SERVER, CHATSERVERS);
-
-	ChatServer result;
-	if (selected.name.empty()) {
-		std::cerr << "[GetChatServer] No active ChatServer" << std::endl;
-		return result;
-	}
-
-	result.host = selected.host;
-	result.port = selected.port;
-	result.name = selected.name;
-	result.con_count = selected.con_count;
-
-	std::cout << "[" << "StatusServer]: " << result.name
-	          << " (" << result.host << ":" << result.port << ")"
-	          << " con_count=" << result.con_count << std::endl;
-	return result;
 }
 
 static Server_Info getLeastLoadedServer(
