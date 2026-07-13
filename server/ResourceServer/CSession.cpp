@@ -71,7 +71,7 @@ void CSession::Send(std::string msg, short msgid)
 void CSession::AsyncReadHead(std::size_t len)
 {
 	auto self = shared_from_this();
-	AsyncReadFull(HEAD_TOTOL_LEN, [self,this](boost::system::error_code ec,std::size_t bytesTransfered) {
+	AsyncReadFull(len, [self,this,len](boost::system::error_code ec,std::size_t bytesTransfered) {
 		if (ec) {
 			std::cout << "error code: " << ec << ", error_msg: " << ec.message() << std::endl;
 			// 出现错误
@@ -102,11 +102,18 @@ void CSession::AsyncReadHead(std::size_t len)
 		}
 
 		// 获取头部的 消息长度（此时是网络字节序）
-		int msg_len_net = 0;
-		memcpy(&msg_len_net, recv_head_node_->data_ + HEAD_ID_LEN, HEAD_DATA_LEN);
-		std::cout << "msg_len_net = " << msg_len_net << std::endl;
-		// 将 消息长度 转化为 主机字节序
-		short msg_len_host = boost::asio::detail::socket_ops::network_to_host_short(msg_len_net);
+		// 4 字节头: len 是 2B short；6 字节头: len 是 4B int
+		int dataLenFieldSize = len - HEAD_ID_LEN;
+		short msg_len_host = 0;
+		if (dataLenFieldSize == 4) {
+			int msg_len_net = 0;
+			memcpy(&msg_len_net, recv_head_node_->data_ + HEAD_ID_LEN, 4);
+			msg_len_host = static_cast<short>(ntohl(msg_len_net));
+		} else {
+			short msg_len_net = 0;
+			memcpy(&msg_len_net, recv_head_node_->data_ + HEAD_ID_LEN, 2);
+			msg_len_host = boost::asio::detail::socket_ops::network_to_host_short(msg_len_net);
+		}
 		std::cout << "msg_len_host = " << msg_len_host << std::endl;
 
 		// 消息长度非法。直接断开连接
