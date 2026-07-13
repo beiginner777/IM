@@ -39,7 +39,7 @@ message GetChatServerRsp {
 }
 
 message GetResourceServerReq {
-  string uuid = 1;
+  string chatserver_name = 1;
 }
 
 message GetResourceServerRsp {

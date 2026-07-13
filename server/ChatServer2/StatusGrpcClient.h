@@ -99,8 +99,8 @@ public:
 	~StatusGrpcClient() {}
 
 	/// 从 StatusServer 获取可用的 ResourceServer 地址
-	/// @param uuid 请求标识（ChatServer 的 session uuid）
-	GetResourceServerRsp GetResourceServer(const std::string& uuid);
+	/// @param chatserver_name 请求方 ChatServer 名称
+	GetResourceServerRsp GetResourceServer(const std::string& chatserver_name);
 };
 
 #endif

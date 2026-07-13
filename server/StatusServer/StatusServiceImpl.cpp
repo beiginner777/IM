@@ -51,7 +51,7 @@ Status StatusServiceImpl::GetResourceServer(ServerContext* context, const GetRes
 		reply->set_error(SUCCESS);
 
 		std::cout << "[GetResourceServer] Return " << info.name
-		          << " (" << info.host << ":" << info.port << ") for uuid=" << request->uuid() << std::endl;
+		          << " (" << info.host << ":" << info.port << ") for name=" << request->chatserver_name() << std::endl;
 		return Status::OK;
 	}
 

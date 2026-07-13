@@ -4,7 +4,7 @@ StatusGrpcClient::StatusGrpcClient()
 {
 }
 
-GetResourceServerRsp StatusGrpcClient::GetResourceServer(const std::string& uuid)
+GetResourceServerRsp StatusGrpcClient::GetResourceServer(const std::string& chatserver_name)
 {
 	GetResourceServerRsp reply;
 	reply.set_error(ERROR_RPC);
@@ -17,7 +17,7 @@ GetResourceServerRsp StatusGrpcClient::GetResourceServer(const std::string& uuid
 
 	ClientContext context;
 	GetResourceServerReq request;
-	request.set_uuid(uuid);
+	request.set_chatserver_name(chatserver_name);
 
 	Status status = stub->GetResourceServer(&context, request, &reply);
 
