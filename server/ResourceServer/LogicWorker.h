@@ -31,7 +31,7 @@ private:
 	void imgChatContinueUpload(std::shared_ptr<CSession> session, short msgId, std::string msgData);
 	// 处理文件继续下载的请求
 	void fileContinueDownload(std::shared_ptr<CSession> session, short msgId, std::string msgData);
-t// 处理 StatusServer 注册响应
+	// 处理 StatusServer 注册响应
 	void handleRegisterRsp(std::shared_ptr<CSession> session, short msgId, std::string msgData);
 	// 处理 StatusServer 心跳响应
 	void handleHeartCheckRsp(std::shared_ptr<CSession> session, short msgId, std::string msgData);

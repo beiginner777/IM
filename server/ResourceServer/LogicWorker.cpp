@@ -3,6 +3,7 @@
 #include "LogicSystem.h"
 #include "ConfigManager.h"
 #include "CSession.h"
+#include "CServer.h"
 #include "FileSystem.h"
 #include "FileWorker.h"
 #include "DownloadWorker.h"
@@ -27,7 +28,7 @@ void LogicWorker::registerFunctionCallbacks()
 	handlers_[ID_DOWN_LOAD_FILE_REQ] = std::bind(&LogicWorker::downloadFile, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 	handlers_[ID_IMG_CHAT_CONTINUE_UPLOAD_REQ] = std::bind(&LogicWorker::imgChatContinueUpload, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 	handlers_[ID_FILE_CONTINUE_DOWNLOAD_REQ] = std::bind(&LogicWorker::fileContinueDownload, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-t// StatusServer 响应处理
+	// StatusServer 响应处理
 	handlers_[ID_REGISTER_RSP] = std::bind(&LogicWorker::handleRegisterRsp, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 	handlers_[ID_HEADT_CHECK_RSP] = std::bind(&LogicWorker::handleHeartCheckRsp, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 }

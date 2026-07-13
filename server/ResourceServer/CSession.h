@@ -24,7 +24,7 @@ public:
 	// 发送数据
 	void Send(const char* msg, int max_length, short msgid);
 	void Send(std::string msg, short msgid);
-n	// 客户端心跳检测（文件上传/下载客户端）
+	// 客户端心跳检测（文件上传/下载客户端）
 	bool isClientOverTime();
 	void setClientHeartCheckTime(time_t tm);
 

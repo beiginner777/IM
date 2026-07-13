@@ -110,7 +110,8 @@ void CServer::checkConnectionIsOverTime(boost::system::error_code ec)
 	}
 
 	std::vector<std::shared_ptr<CSession>> expiredSession;
-	for (auto& [uuid, session] : copy_sessions_) {
+	for (auto& kv : copy_sessions_) {
+		auto& session = kv.second;
 		if (session->isClientOverTime()) {
 			expiredSession.push_back(session);
 		}

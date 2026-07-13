@@ -164,6 +164,8 @@ enum REQUEST_ID
 
     ID_HEADT_CHECK_REQ, // 心跳检测的请求
     ID_HEADT_CHECK_RSP, // 心跳检测的回包
+	ID_REGISTER_REQ = 1046, // 服务注册请求
+	ID_REGISTER_RSP, // 服务注册回包
 
     ID_LOAD_CHAT_THREAD_REQ,// 加载聊天列表请求
     ID_LOAD_CHAT_THREAD_RSP, // 加载聊天列表回包
@@ -234,6 +236,25 @@ public:
 
 private:
     std::function<void()> func_;
+};
+
+enum ServerType
+{
+	None = 0,
+	CHAT_SERVER,
+	RESOURCE_SERVER
+};
+
+struct Server_Info
+{
+	Server_Info() : host(""), port(""), name(""), con_count(0), server_type(ServerType::None)
+	{
+	}
+	ServerType server_type;
+	std::string host;
+	std::string port;
+	std::string name;
+	int con_count;
 };
 
 #endif
