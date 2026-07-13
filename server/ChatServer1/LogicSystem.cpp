@@ -534,6 +534,40 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 
 	int thread_id = root["thread_id"].asInt();
 
+	// ── 限流检查 ──
+	// ① 全局 QPS 上限（ChatServer 级）
+	if (!globalBucket_.consume(1)) {
+		std::cerr << "[RateLimit] Global QPS limit reached, reject uid=" << uid << std::endl;
+		Json::Value rtvalue;
+		rtvalue["code"] = ERROR_RATE_LIMITED;
+		rtvalue["message"] = "server busy, please retry later";
+		session->Send(rtvalue.toStyledString(), ID_TEXT_CHAT_MSG_RSP);
+		return;
+	}
+	// ② 单用户限流（10 token/s, 最大突发 15）
+	auto it = userBuckets_.find(uid);
+	if (it == userBuckets_.end()) {
+		userBuckets_.emplace(uid, TokenBucket(10.0, 15.0));
+		it = userBuckets_.find(uid);
+	}
+	if (!it->second.consume(1)) {
+		std::cerr << "[RateLimit] User " << uid << " exceeded local rate limit" << std::endl;
+		Json::Value rtvalue;
+		rtvalue["code"] = ERROR_RATE_LIMITED;
+		rtvalue["message"] = "发送过于频繁，请稍后重试";
+		session->Send(rtvalue.toStyledString(), ID_TEXT_CHAT_MSG_RSP);
+		return;
+	}
+	// ③ Redis 分布式限流（多 ChatServer 统一控制，Redis 不可用自动放行）
+	if (!RedisManager::getInstance()->checkRateLimit(uid, 10)) {
+		std::cerr << "[RateLimit] User " << uid << " exceeded Redis rate limit" << std::endl;
+		Json::Value rtvalue;
+		rtvalue["code"] = ERROR_RATE_LIMITED;
+		rtvalue["message"] = "发送过于频繁，请稍后重试";
+		session->Send(rtvalue.toStyledString(), ID_TEXT_CHAT_MSG_RSP);
+		return;
+	}
+
 	const Json::Value arrays = root["text_array"];
 
 

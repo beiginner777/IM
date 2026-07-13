@@ -531,6 +531,8 @@ public:
 	std::string acqueireLock(const std::string& lockName, int lockTimeOut, int expireTime);
 
 	bool releaseLock(const std::string& lockName, const std::string& lockValue);
+	// 分布式限流：Redis Lua 固定窗口 INCR + EXPIRE
+	bool checkRateLimit(int uid, int limit = 10);
 
 
 
