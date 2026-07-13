@@ -2,7 +2,6 @@
 #include "VerifyGrpcClient.h"
 #include "RedisManager.h"
 #include "MysqlManager.h"
-#include "BloomFilter.h"
 
 #include "StatusGrpcClient.h"
 

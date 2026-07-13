@@ -1,8 +1,7 @@
 ﻿#include "MysqlDao.h"
+#include "MysqlManager.h"
 
 #include "crypto/BCryptHasher.h"
-#include "BloomFilter.h"
-#include "RedisManager.h"
 
 
 
@@ -98,11 +97,11 @@ int MysqlDao::registerUser(const std::string& name, const std::string& email, co
 
 			int uid = res->getInt("result");
 			std::cout << "注册用户 uid: " << uid << std::endl;
-			static BloomFilter bloomReg(1000000, 0.01);
-			static bool bloomRegLoaded = false;
-			if (!bloomRegLoaded) { bloomReg.loadFromRedis("bloom:user_search"); bloomRegLoaded = true; }
-			bloomReg.add((uint64_t)uid);
-			bloomReg.saveToRedis("bloom:user_search");
+			auto* bloomBf = MysqlManager::getInstance()->getBloomFilter();
+			if (bloomBf) {
+				bloomBf->add((uint64_t)uid);
+				bloomBf->saveToRedis("bloom:user_search");
+			}
 			return SUCCESS;;
 
         }
@@ -169,6 +168,11 @@ int MysqlDao::userLogin(std::string name, std::string password, std::shared_ptr<
 
 
 
+	// Bloom pre-check
+	auto* bf = MysqlManager::getInstance()->getBloomFilter();
+	if (bf && !bf->contains(name)) {
+		return ERROR_USER_NOT_EXIST;
+	}
     try {
 
         std::unique_ptr < sql::PreparedStatement > stmt(conn->con_->prepareStatement("select * from user where name = ?"));
