@@ -2,6 +2,7 @@
 #include "data.h"
 #include "MysqlManager.h"
 #include "RedisManager.h"
+#include "AlertManager.h"
 #include <json/json.h>
 BatchMessageWriter::BatchMessageWriter()
 {
@@ -119,6 +120,7 @@ void BatchMessageWriter::pushToBackupQueue(const std::vector<std::shared_ptr<Cha
 				totalFailed_++;
 				std::cerr << "[BatchWriter] msg " << batch[i]->unique_id
 				          << " exceeded max retries -> dead letter queue" << std::endl;
+								AlertManager::getInstance()->crit("[MySQL] Batch write failed " + std::to_string(MAX_RETRIES) + " times, msg " + batch[i]->unique_id + " -> dead letter queue");
 				continue;
 			}
 			obj["retry_count"] = retryCount + 1;
