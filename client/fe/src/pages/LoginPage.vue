@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, h } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Form, Input, Button, message } from 'ant-design-vue'
 import { UserOutlined, LockOutlined, ThunderboltOutlined } from '@ant-design/icons-vue'
@@ -80,11 +80,8 @@ async function handleSubmit() {
             size="large"
             placeholder="请输入用户名"
             class="auth-input"
-          >
-            <template #prefix>
-              <span><UserOutlined class="input-icon" /></span>
-            </template>
-          </Input>
+            :prefix="h(UserOutlined)"
+          />
         </Form.Item>
 
         <Form.Item name="password">
@@ -93,11 +90,8 @@ async function handleSubmit() {
             size="large"
             placeholder="请输入密码"
             class="auth-input"
-          >
-            <template #prefix>
-              <span><LockOutlined class="input-icon" /></span>
-            </template>
-          </Input.Password>
+            :prefix="h(LockOutlined)"
+          />
         </Form.Item>
 
         <Form.Item>
