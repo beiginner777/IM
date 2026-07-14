@@ -1,12 +1,10 @@
 #include "MsgNode.h"
-
 RecvNode::RecvNode(short max_len, short msg_id, std::string uuid) 
 	: MsgNode(max_len)
 	, msg_id_(msg_id) 
 	, uuid_(uuid) 
 {
 }
-
 SendNode::SendNode(const char* msg, short max_len, short msg_id, std::string uuid)
 	: MsgNode(max_len + (uuid.empty() ? HEAD_TOTOL_LEN : HEAD_TOTOL_LEN_WITH_UUID))
 	, msg_id_(msg_id)
@@ -25,4 +23,3 @@ SendNode::SendNode(const char* msg, short max_len, short msg_id, std::string uui
 		::memcpy(data_ + HEAD_TOTOL_LEN, msg, max_len);
 	}
 }
-
