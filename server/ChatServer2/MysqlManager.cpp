@@ -1,28 +1,23 @@
 #include "MysqlManager.h"
-
 // 启动时构建布隆过滤器：优先从 Redis 恢复，没有则从 MySQL 全量加载
 void MysqlManager::initBloomFilter()
 {
 	bloomFilter_ = std::make_unique<BloomFilter>(1000000, 0.01);
-
 	// ① 先尝试从 Redis BITMAP 恢复（之前存过）
 	if (bloomFilter_->loadFromRedis("bloom:user_search")) {
 		std::cout << "[BloomFilter] Restored from Redis"
 		          << " (" << bloomFilter_->count() << " bits set)" << std::endl;
 		return;
 	}
-
 	// ② Redis 没有数据 → 从 MySQL 全量加载
 	auto conn = dao_.getConn(true);
 	if (!conn) {
 		std::cerr << "[BloomFilter] Failed to get DB connection" << std::endl;
 		return;
 	}
-
 	try {
 		std::unique_ptr<sql::Statement> stmt(conn->con_->createStatement());
 		std::unique_ptr<sql::ResultSet> res(stmt->executeQuery("SELECT uid, name FROM user"));
-
 		int count = 0;
 		while (res->next()) {
 			bloomFilter_->add((uint64_t)res->getInt("uid"));
@@ -32,7 +27,6 @@ void MysqlManager::initBloomFilter()
 		std::cout << "[BloomFilter] Built from MySQL: " << count << " users"
 		          << " (" << bloomFilter_->bitSize() / 8 / 1024 << "KB, "
 		          << bloomFilter_->hashCount() << " hashes)" << std::endl;
-
 		// ③ 构建完成 → 持久化到 Redis，下次重启直接恢复
 		bloomFilter_->saveToRedis("bloom:user_search");
 	}
@@ -112,7 +106,6 @@ int MysqlManager::AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_dat
 		int shard = ShardRouter::getShardIndex(msg->thread_id);
 		shardGroups[shard].push_back(msg);
 	}
-
 	bool anyFailed = false;
 	for (auto& kv : shardGroups) {
 		int shard = kv.first;
@@ -127,7 +120,6 @@ int MysqlManager::AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_dat
 			          << " batch INSERT " << msgs.size() << " rows FAILED" << std::endl;
 		}
 	}
-
 	return anyFailed ? ERROR_SEND_MSG_FAILED : SUCCESS;
 }
 
@@ -152,7 +144,6 @@ int MysqlManager::loadChatMessage(int thread_id, int& min_message_id, int& max_m
 	int shard = ShardRouter::getShardIndex(thread_id);
 	return dao_.loadChatMessage(shard, thread_id, min_message_id, max_message_id, page_size, is_more, msgs, forceMaster);
 }
-
 //bool MysqlManager::pushOfflineMessage(int uid, std::string message)
 //{
 //	return dao_.pushOfflineMessage(uid, message);

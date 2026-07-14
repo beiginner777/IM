@@ -1,5 +1,6 @@
 #ifndef CSESSION_H
 #define CSESSION_H
+
 #include "global.h"
 #include "MsgNode.h"
 class CServer;
@@ -17,7 +18,6 @@ public:
 	void Send(const char* msg, size_t max_length, short msgid);
 	void Send(std::string msg, short msgid, std::string uuid = "");
 	void notifyOffLine(int uid);
-
 	void setHeartCheckTime(time_t tm);
 	bool isHeartOverTime();
 public:

@@ -34,29 +34,22 @@
 #include <jdbc/cppconn/resultset.h>
 #include <jdbc/cppconn/statement.h>
 #include <jdbc/cppconn/exception.h>
-
 #include "SingleTon.h"
 #include "ConfigManager.h"
-
 #define HOST "0.0.0.0"
 #define PORT 8080
-
 #define DEFAULT_GRPC_CONN_SIZE 5
 #define DEFAULT_REDIS_CONN_SIZE 8
 #define DEFAULT_MYSQL_CONN_SIZE 5
 #define DEFAULT_STATUSGRPCCLIENT_CONN_SIZE 8
 #define DEFAULT_CHATCONNPOOL_SIZE 8
-
 #define HEAD_TOTOL_LEN 4
 #define HEAD_ID_LEN 2
 #define HEAD_DATA_LEN 2
-
 #define MAX_RECV_LENGTH 1024
 #define MAX_MSG_ID 2048
 #define MAX_MSG_LEN 1024
-
 #define MAX_SENDQUEUE_SIZE 1024
-
 #define USERTOKENPREFIX  "token_"
 #define USERUIDPREFIX "uid_"
 #define CHATSERVERS "ChatServers"
@@ -64,21 +57,16 @@
 #define USERBASEINFO "userbaseinfo_"
 #define USERIPPREFIX  "uip_"
 #define LOCKPREFIX "lock_"
-
 #define LOCK_TIMEOUT 10
 #define ACQUIRE_TIMEOUT 5
-
 #define HEART_CHRCK_INTERVAL 10 // 10s检测一次
 #define HEART_CHECK_OVERTIME 30 // 超过30s没有收到心跳消息，就认为连接过期了
-
 #define MYSQL_CONN_OVERTIME 5
 #define REDIS_CONN_OVERTIME 5
-
 namespace beast = boost::beast;         // from <boost/beast.hpp>
 namespace http = boost::beast::http;           // from <boost/beast/http.hpp>
 namespace net = boost::asio;            // from <boost/asio.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
-
 enum ERROE_CODR
 {
     ERROR_JSON = -1024, // json 解析失败    
@@ -109,7 +97,6 @@ enum ERROE_CODR
     ERROR_MODIFLY_APPLY_STATUS_FAILED, // 修改好友状态失败
     SUCCESS = 0,
 };
-
 enum REQUEST_ID
 {
     ID_GET_VERIFY_CODE = 1001, //获取验证码
@@ -125,44 +112,34 @@ enum REQUEST_ID
     ID_AUTH_FRIEND_REQ,
     ID_AUTH_FRIEND_RSP,
     ID_NOTIFY_ACCESS_VERIFY,
-
     ID_TEXT_CHAT_MSG_REQ, // 发送聊天消息
     ID_TEXT_CHAT_MSG_RSP, // 回包
-
     ID_NOTIFY_TEXT_CHAT_MSG_REQ,
     // 有新的聊天消息
-
     ID_NOTIFY_OFFLINE, // 通知下线
-
     ID_HEADT_CHECK_REQ, // 心跳检测的请求
     ID_HEADT_CHECK_RSP, // 心跳检测的回包
-
 	ID_REGISTER_REQ = 1046, // 其它服务的注册请求
     ID_REGISTER_RSP // 其它服务的注册回包
 };
-
 class Defer {
 public:
     Defer(std::function<void()> func) : func_(func) {}
     ~Defer() {
         if (func_) func_();
     }
-
     // 禁止拷贝
     Defer(const Defer&) = delete;
     Defer& operator=(const Defer&) = delete;
-
 private:
     std::function<void()> func_;
 };
-
 enum ServerType
 {
     None = 0,
     CHAT_SERVER,
     RESOURCE_SERVER
 };
-
 struct Server_Info
 {
 	Server_Info() : host(""), port(""), name(""), con_count(0), server_type(ServerType::None)
@@ -174,13 +151,11 @@ struct Server_Info
     std::string name;
     int con_count;
 };
-
 struct ChatServer {
 public:
     ChatServer() :host(""), port(""), name(""), con_count(0) 
     {
     }
-
     ChatServer(const ChatServer& cs) 
         : host(cs.host)
         , port(cs.port)
@@ -189,7 +164,6 @@ public:
         , server_type(ServerType::CHAT_SERVER)
     {
     }
-
     ChatServer operator=(const ChatServer& cs) {
         if (&cs == this) {
             return *this;
@@ -200,18 +174,14 @@ public:
         con_count = cs.con_count;
         return *this;
     }
-
     void printInfo(){
         std::cout << "[" << name << "]: " << "host: " << host << " " << "port: " << port << std::endl;
     }
-
     ServerType server_type;
     std::string host;
     std::string port;
     std::string name;
     int con_count;
 };
-
 std::string generate_unique_string();
-
 #endif

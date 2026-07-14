@@ -4,7 +4,6 @@
 #include "UserManager.h"
 #include "RedisManager.h"
 #include "ConfigManager.h"
-
 CServer::CServer(boost::asio::io_context& ioc, std::string port)
 	: ioc_(ioc),
 	port_(static_cast<unsigned short>(atoi(port.c_str()))),
@@ -19,7 +18,6 @@ CServer::CServer(boost::asio::io_context& ioc, std::string port)
 		exit(-1);
 	}
 }
-
 CServer::~CServer()
 {
 	std::cout << "CServer::destructed." << std::endl;
@@ -32,7 +30,6 @@ void CServer::startReceiceConnections()
 {
 	// 定时向StatusServer发送心跳消息
 	startHeartCheckToStatusServer();
-
 	// 可以开始接受客户端的连接了
 	std::cout << "connect StatusServer success !" << std::endl;
 	std::cout << "Server starting on port: " << port_ << std::endl;
@@ -48,7 +45,6 @@ std::string CServer::getConnectionToStatusServerUuid()
 {
 	return connectionToStatusServer_->getUuid();
 }
-
 
 bool CServer::connectToStatusServer()
 {
@@ -135,16 +131,13 @@ void CServer::checkConnectionIsOverTime(boost::system::error_code ec)
 			}
 		}
 	}
-
 	if (expiredSession.size()) {
 		std::cout << "[INFO] There are " << expiredSession.size() << " connection heartCheckOverTime.\n";
 	}
-
 	for (auto session : expiredSession) {
 		std::cout << "Session(uid = " << session->getUserId() << " heartCheckOverTime, kick Connection.\n";
 		session->Close();
 	}
-
 	// 继续开启定时检测任务
 	startTimer();
 }
@@ -178,7 +171,6 @@ void CServer::startTimer()
 {
 	// 开启定时检测任务
 	timer_.expires_after(std::chrono::seconds(HEART_CHRCK_INTERVAL));
-
 	auto self = shared_from_this();
 	timer_.async_wait([self](boost::system::error_code ec) {
 		self->checkConnectionIsOverTime(ec);
@@ -196,7 +188,6 @@ void CServer::startHeartCheckToStatusServer()
 {
 	// 开启定时检测任务
 	heartCheckTimer_.expires_after(std::chrono::seconds(HEART_CHRCK_INTERVAL));
-
 	auto self = shared_from_this();
 	heartCheckTimer_.async_wait([self](boost::system::error_code ec) {
 		self->sendHeartCheckMsgToStatusServer(ec);

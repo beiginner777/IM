@@ -6,15 +6,12 @@
 #include "SingleTon.h"
 #include "ConfigManager.h"
 #include "message.grpc.pb.h"
-
 using grpc::Channel;
 using grpc::Status;
 using grpc::ClientContext;
-
 using message::GetResourceServerReq;
 using message::GetResourceServerRsp;
 using message::StatusService;
-
 /// StatusServer gRPC 连接池（ChatServer 专用，获取 ResourceServer 地址）
 class StatusConnPool : public SingleTon<StatusConnPool>
 {
@@ -27,7 +24,6 @@ public:
 		std::string port = cfg["StatusServer"]["Port"];
 		this->init(host, port);
 	}
-
 	void init(std::string host, std::string port, std::size_t conn_size = DEFAULT_STATUSGRPCCLIENT_CONN_SIZE)
 	{
 		host_ = host;
@@ -38,7 +34,6 @@ public:
 			connections_.push(StatusService::NewStub(channel));
 		}
 	}
-
 	~StatusConnPool()
 	{
 		std::lock_guard<std::mutex> locker_(mtx_);
@@ -48,7 +43,6 @@ public:
 			connections_.pop();
 		}
 	}
-
 	std::unique_ptr<StatusService::Stub> getConnection()
 	{
 		std::unique_lock<std::mutex> locker_(mtx_);
@@ -69,7 +63,6 @@ public:
 		connections_.pop();
 		return conn;
 	}
-
 	void returnConnection(std::unique_ptr<StatusService::Stub> conn)
 	{
 		std::unique_lock<std::mutex> locker_(mtx_);
@@ -80,7 +73,6 @@ public:
 		connections_.push(std::move(conn));
 		cond_.notify_all();
 	}
-
 private:
 	std::atomic_bool b_stop_;
 	size_t poolSize_;
@@ -90,17 +82,14 @@ private:
 	std::mutex mtx_;
 	std::condition_variable cond_;
 };
-
 /// StatusServer gRPC 客户端（ChatServer → StatusServer）
 class StatusGrpcClient
 {
 public:
 	StatusGrpcClient();
 	~StatusGrpcClient() {}
-
 	/// 从 StatusServer 获取可用的 ResourceServer 地址
 	/// @param chatserver_name 请求方 ChatServer 名称
 	GetResourceServerRsp GetResourceServer(const std::string& chatserver_name);
 };
-
 #endif

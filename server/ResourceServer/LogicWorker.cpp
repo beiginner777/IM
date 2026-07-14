@@ -7,14 +7,12 @@
 #include "FileSystem.h"
 #include "FileWorker.h"
 #include "DownloadWorker.h"
-
 LogicWorker::LogicWorker()
 	: b_stop_(false)
 {
 	registerFunctionCallbacks();
 	work_thread_ = std::thread(&LogicWorker::dealTask, this);
 }	
-
 LogicWorker::~LogicWorker()
 {
 	// todo ...
@@ -38,7 +36,6 @@ void LogicWorker::dealTask()
 	while (true)
 	{
 		std::unique_lock<std::mutex> locker(mtx_);
-
 		while (que_.empty() && !b_stop_)
 		{
 			std::cout << "LoginSystem is waiting for data . . ." << std::endl;
@@ -51,10 +48,8 @@ void LogicWorker::dealTask()
 			{
 				std::shared_ptr<LogicNode> node = que_.front();
 				que_.pop();
-
 				// 获取逻辑结点对应的 消息id
 				short msgId = node->recvNode_->msg_id_;
-
 				if (handlers_.count(msgId)) {
 					std::cout << "handle task whose id = " << msgId << ":" << std::endl;
 					handlers_[msgId](node->session_, msgId, std::string(node->recvNode_->data_, node->recvNode_->totol_len_));
@@ -66,16 +61,13 @@ void LogicWorker::dealTask()
 			// detail break
 			break;
 		}
-
 		// 逻辑层没有退出，那么就正常取数据
 		if (!que_.empty())
 		{
 			std::shared_ptr<LogicNode> node = que_.front();
 			que_.pop();
-
 			// 获取逻辑结点对应的 消息id
 			short msgId = node->recvNode_->msg_id_;
-
 			if (handlers_.count(msgId)) {
 				std::cout << "handle task whose id = " << msgId << ":" << std::endl;
 				handlers_[msgId](node->session_, msgId, std::string(node->recvNode_->data_, node->recvNode_->totol_len_));
@@ -90,11 +82,9 @@ void LogicWorker::dealTask()
 void LogicWorker::uploadHeadIcon(std::shared_ptr<CSession> session, short msgId, std::string msgData)
 {
 	std::cout << "upload head icon msgId = " << msgId << std::endl;
-
 	Json::Value root;
 	Json::Reader reader;
 	Json::Value rtvalue;
-
 	if (!reader.parse(msgData, root))
 	{
 		std::cout << "parse uploadFile msgData failed." << std::endl;
@@ -102,7 +92,6 @@ void LogicWorker::uploadHeadIcon(std::shared_ptr<CSession> session, short msgId,
 		rtvalue["msg"] = "parse msgData to json failed";
 		return;
 	}
-
 	std::string fileName = root["filename"].asString();
 	int seq = root["seq"].asInt();
 	int lastSeq = root["lastseq"].asInt();
@@ -110,16 +99,12 @@ void LogicWorker::uploadHeadIcon(std::shared_ptr<CSession> session, short msgId,
 	int totolSize = root["totolsize"].asInt();
 	std::string data = root["data"].asString();
 	std::string md5 = root["md5"].asString();
-
 	int uid = root["uid"].asInt();
 	std::string token = root["token"].asString();
-
 	session->setUserId(uid);
-
 	auto cfg = ConfigManager::getInstance();
 	std::string uploadPath = cfg["SelfServer"]["UploadPath"];
 	std::string fullPath = uploadPath + "/" + fileName;
-
 	if (seq == 1)
 	{
 		// 第一个包验证token是否正确 to do ...
@@ -152,9 +137,7 @@ void LogicWorker::uploadHeadIcon(std::shared_ptr<CSession> session, short msgId,
 			return;
 		}
 	}
-
 	std::shared_ptr<FileTask> task = std::make_shared<FileTask>(session, msgId, md5, fileName, seq, totolSize, transferredSize, lastSeq, data);
-
 	// 根据文件名字来决定 投递 到 哪个 FileWorker 线程
 	std::hash<std::string> hash_fn;
 	size_t hash_value = hash_fn(fileName); // 根据 文件名 生成哈希值
@@ -166,13 +149,10 @@ void LogicWorker::uploadFile(std::shared_ptr<CSession> session, short msgId, std
 {
 	// 在发送前添加点小延迟，避免快速连续发送
 	//std::this_thread::sleep_for(std::chrono::milliseconds(10)); // 10ms延迟
-
 	std::cout << "uploadFile msgId = " << msgId << std::endl;
-
 	Json::Value root;
 	Json::Reader reader;
 	Json::Value rtvalue;
-
 	if(!reader.parse(msgData, root))
 	{
 		std::cout << "parse uploadFile msgData failed." << std::endl;
@@ -180,7 +160,6 @@ void LogicWorker::uploadFile(std::shared_ptr<CSession> session, short msgId, std
 		rtvalue["msg"] = "parse msgData to json failed";
 		return;
 	}
-
 	std::string fileName = root["filename"].asString(); // unqiue_name
 	int seq = root["seq"].asInt();
 	int lastSeq = root["lastseq"].asInt();
@@ -189,14 +168,11 @@ void LogicWorker::uploadFile(std::shared_ptr<CSession> session, short msgId, std
 	std::string data = root["data"].asString();
 	std::string md5 = root["md5"].asString();
 	int type = root["type"].asInt();
-
 	int uid = root["uid"].asInt();
 	std::string token = root["token"].asString();
-
 	auto cfg = ConfigManager::getInstance();
 	std::string uploadPath = cfg["SelfServer"]["UploadPath"];
 	std::string fullPath = uploadPath + "/" + fileName;
-
 	if (seq == 1) 
 	{
 		session->setUserId(uid);
@@ -224,15 +200,12 @@ void LogicWorker::uploadFile(std::shared_ptr<CSession> session, short msgId, std
 		file_info->transfferredSize_ = transferredSize;
 		LogicSystem::getInstance()->addMd5FileInfo(fileName, file_info);
 	}
-
 	std::shared_ptr<FileTask> task = std::make_shared<FileTask>(session, msgId, md5, fileName, seq, totolSize, transferredSize, lastSeq, data, type);
-
 	// 根据文件名字来决定 投递 到 哪个 FileWorker 线程
 	std::hash<std::string> hash_fn;
 	size_t hash_value = hash_fn(fileName); // 根据 文件名 生成哈希值
 	int index = hash_value % FILEWORKER_COUNT;
 	FileSystem::getInstance()->postTaskToQue(task, index);
-
 	/*rtvalue["code"] = SUCCESS;
 	rtvalue["mesage"] = "upload file task has been posted to FileSystem";
 	rtvalue["filenname"] = fileName;
@@ -253,17 +226,14 @@ void LogicWorker::syncFile(std::shared_ptr<CSession> session, short msgId, std::
 	Defer defer([session, this, &rtvalue] {
 		session->Send(rtvalue.toStyledString(), ID_SYNC_FILE_RSP);
 		});
-
 	rtvalue["code"] = SUCCESS;
 	rtvalue["message"] = "sync file request processed successfully";
-
 	if (!reader.parse(msgData, root)) {
 		std::cout << "parse syncFile msgData failed." << std::endl;
 		rtvalue["code"] = 3;
 		rtvalue["msg"] = "parse msgData to json failed";
 		return;
 	}
-
 	std::string md5 = root["md5"].asString();
 	auto file_info = LogicSystem::getInstance()->getFileInfo(md5);
 	if (file_info == nullptr) {
@@ -271,8 +241,6 @@ void LogicWorker::syncFile(std::shared_ptr<CSession> session, short msgId, std::
 		rtvalue["message"] = "file info not found";
 		return;
 	}
-
-
 	rtvalue["lastseq"] = file_info->last_seq_;
 	rtvalue["seq"] = file_info->seq_;
 	rtvalue["transfer_size"] = file_info->transfferredSize_;
@@ -285,11 +253,9 @@ void LogicWorker::downloadFile(std::shared_ptr<CSession> session, short msgId, s
 {
 	std::cout << "Download File msgId = " << msgId << std::endl;
 	std::cout << "msgData = " << msgData << std::endl;
-
 	Json::Value root;
 	Json::Reader reader;
 	Json::Value rtvalue;
-
 	if (!reader.parse(msgData, root))
 	{
 		std::cout << "parse Download File msgData failed." << std::endl;
@@ -297,7 +263,6 @@ void LogicWorker::downloadFile(std::shared_ptr<CSession> session, short msgId, s
 		rtvalue["msg"] = "parse msgData to json failed";
 		return;
 	}
-
 	std::string download_file = root["download_file"].asString();
 	int seq = root["seq"].asInt();
 	int last_seq = root["last_seq"].asInt();
@@ -305,16 +270,11 @@ void LogicWorker::downloadFile(std::shared_ptr<CSession> session, short msgId, s
 	int total_size = root["total_size"].asInt();
 	int uid = root["uid"].asInt();
 	std::string token = root["token"].asString();
-
 	int icon_uid = root["icon_uid"].asInt();
-
 	std::string client_save_path = root["client_save_path"].asString();	
 	int download_file_type = root["download_file_type"].asInt();
-
 	session->setUserId(uid);
-
 	auto cfg = ConfigManager::getInstance();
-
 	if (seq == 1)
 	{
 		// 第一个包验证token是否正确 to do ...
@@ -329,9 +289,7 @@ void LogicWorker::downloadFile(std::shared_ptr<CSession> session, short msgId, s
 			return;
 		}
 	}
-
 	std::shared_ptr<DownloadTask> task = std::make_shared<DownloadTask>(session, download_file,seq,last_seq,trans_size,total_size, client_save_path, (Download_File_Type)download_file_type, icon_uid);
-
 	// 根据文件名字来决定 投递 到 哪个 DownloadWorker 线程
 	std::hash<std::string> hash_fn;
 	size_t hash_value = hash_fn(download_file); // 根据 文件名 生成哈希值
@@ -344,37 +302,29 @@ void LogicWorker::imgChatContinueUpload(std::shared_ptr<CSession> session, short
 	Json::Value root;
 	Json::Reader reader;
 	Json::Value rtvalue;
-
 	Defer defer([session, this, &rtvalue] {
 		session->Send(rtvalue.toStyledString(), ID_IMG_CHAT_CONTINUE_UPLOAD_RSP);
 		});
-
 	rtvalue["code"] = SUCCESS;
 	rtvalue["message"] = "sync file request processed successfully";
-
 	if (!reader.parse(msgData, root)) {
 		std::cout << "parse syncFile msgData failed." << std::endl;
 		rtvalue["code"] = 3;
 		rtvalue["msg"] = "parse msgData to json failed";
 		return;
 	}
-
 	int uid = root["uid"].asInt();
 	std::string token = root["token"].asString();
 	std::string unique_name = root["unique_name"].asString();
 	std::string md5 = root["md5"].asString();
-
 	std::cout << "uid = " << uid << " request to continue upload chat image.";
-
 	session->setUserId(uid);
-
 	auto file_info = LogicSystem::getInstance()->getFileInfo(unique_name);
 	if(file_info == nullptr) {
 		rtvalue["code"] = 4;
 		rtvalue["message"] = "file info not found";
 		return;
 	}
-
 	rtvalue["uid"] = file_info->uid_;
 	rtvalue["last_seq"] = file_info->last_seq_;
 	rtvalue["seq"] = file_info->seq_;
@@ -389,36 +339,28 @@ void LogicWorker::fileContinueDownload(std::shared_ptr<CSession> session, short 
 	Json::Value root;
 	Json::Reader reader;
 	Json::Value rtvalue;
-
 	Defer defer([session, this, &rtvalue] {
 		session->Send(rtvalue.toStyledString(), ID_FILE_CONTINUE_DOWNLOAD_RSP);
 		});
-
 	rtvalue["code"] = SUCCESS;
 	rtvalue["message"] = "sync file request processed successfully";
-
 	if (!reader.parse(msgData, root)) {
 		std::cout << "parse syncFile msgData failed." << std::endl;
 		rtvalue["code"] = 3;
 		rtvalue["msg"] = "parse msgData to json failed";
 		return;
 	}
-
 	int uid = root["uid"].asInt();
 	std::string token = root["token"].asString();
 	std::string unique_name = root["unique_name"].asString();
-
 	std::cout << "uid = " << uid << " request to continue download chat image.";
-
 	session->setUserId(uid);
-
 	std::shared_ptr<DownloadFileInfo> file_info = LogicSystem::getInstance()->GetDownloadFileInfo(unique_name);
 	if (file_info == nullptr) {
 		rtvalue["code"] = 4;
 		rtvalue["message"] = "file info not found";
 		return;
 	}
-
 	rtvalue["uid"] = file_info->uid_;
 	rtvalue["download_file"] = file_info->download_file_;
 	rtvalue["seq"] = file_info->seq_;
@@ -435,31 +377,25 @@ std::string LogicWorker::base64_decode(const std::string& in)
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 		"abcdefghijklmnopqrstuvwxyz"
 		"0123456789+/";
-
 	// 创建解码表
 	std::vector<int> decoding_table(256, -1);
 	for (int i = 0; i < 64; i++) {
 		decoding_table[base64_chars[i]] = i;
 	}
-
 	int input_length = in.size();
 	int i = 0;
 	std::string out;
 	out.reserve((input_length * 3) / 4);
-
 	while (i < input_length) {
 		// 解码4个字符为3个字节
 		int sextet_a = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
 		int sextet_b = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
 		int sextet_c = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
 		int sextet_d = in[i] == '=' ? 0 & i++ : decoding_table[static_cast<int>(in[i++])];
-
 		if (sextet_a == -1 || sextet_b == -1 || sextet_c == -1 || sextet_d == -1) {
 			throw std::runtime_error("Invalid base64 character");
 		}
-
 		int triple = (sextet_a << 3 * 6) + (sextet_b << 2 * 6) + (sextet_c << 1 * 6) + (sextet_d << 0 * 6);
-
 		if (in.length() > i - 3 && in[i - 2] == '=') {
 			// 2个填充字符，只输出1个字节
 			out.push_back(static_cast<char>((triple >> 16) & 0xFF));
@@ -476,7 +412,6 @@ std::string LogicWorker::base64_decode(const std::string& in)
 			out.push_back(static_cast<char>(triple & 0xFF));
 		}
 	}
-
 	return out;
 }
 
@@ -495,21 +430,17 @@ void LogicWorker::handleRegisterRsp(std::shared_ptr<CSession> session, short msg
 		std::cout << "[ResourceServer] handleRegisterRsp: parse json failed." << std::endl;
 		return;
 	}
-
 	int code = root["code"].asInt();
 	if (code != SUCCESS) {
 		std::cout << "[ResourceServer] Register to StatusServer failed: " << root["message"].asString() << std::endl;
 		exit(-1);
 	}
-
 	std::cout << "[ResourceServer] Registered to StatusServer successfully." << std::endl;
 	session->server_->startReceiceConnections();
 }
-
 // 处理 StatusServer 心跳响应（更新心跳时间戳）
 void LogicWorker::handleHeartCheckRsp(std::shared_ptr<CSession> session, short msgId, std::string msgData)
 {
 	// 心跳响应只需记录，无需额外操作
 	// CSession 本身不需要心跳超时检测（StatusServer 的 CSession 负责）
 }
-

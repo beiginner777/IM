@@ -1,9 +1,7 @@
 #include "MessageDeduplicator.h"
 #include "RedisManager.h"
-
 const char* MessageDeduplicator::KEY_PREFIX = "msg:dedup:";
 const int   MessageDeduplicator::DEFAULT_TTL = 300;
-
 std::string MessageDeduplicator::makeKey(const std::string& uuid)
 {
 	return std::string(KEY_PREFIX) + uuid;

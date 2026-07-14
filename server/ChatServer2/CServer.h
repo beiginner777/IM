@@ -2,10 +2,7 @@
 #define SERVER_H
 
 #include "global.h"
-
-
 class CSession;
-
 class CServer : public std::enable_shared_from_this<CServer>
 {
 public:
@@ -25,7 +22,6 @@ public:
 	std::string getConnectionToStatusServerUuid();
 	// 开启与 StatusServer 的心跳检测
 	void startHeartCheckToStatusServer();
-
 private:
 	// 连接 StatusServer
 	bool connectToStatusServer();
@@ -37,7 +33,6 @@ private:
 	void checkConnectionIsOverTime(boost::system::error_code ec);
 	// 发送心跳消息给 StatusServer
 	void sendHeartCheckMsgToStatusServer(boost::system::error_code ec);
-
 private:
 	//
 	boost::asio::io_context& ioc_;
@@ -58,5 +53,4 @@ private:
 	// 向StatusServer发送心跳的定时器
 	boost::asio::steady_timer heartCheckTimer_;
 };
-
 #endif

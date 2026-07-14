@@ -1,9 +1,7 @@
 #include "MysqlManager.h"
-
 void MysqlManager::initBloomFilter()
 {
 	bloomFilter_ = std::make_shared<BloomFilter>(1000000, 0.01);
-
 	// 优先从 Redis 恢复
 	if (bloomFilter_->loadFromRedis("bloom:user_search")) {
 		std::cout << "[BloomFilter] Restored from Redis ("
@@ -11,7 +9,6 @@ void MysqlManager::initBloomFilter()
 		          << bloomFilter_->bitSize()/8/1024 << "KB)" << std::endl;
 		return;
 	}
-
 	// Redis 无数据 → 从 MySQL 全量构建
 	// 直接从 ConfigManager 读取配置，创建 MySQL 连接
 	auto cfg = ConfigManager::getInstance();
@@ -20,7 +17,6 @@ void MysqlManager::initBloomFilter()
 	std::string user = cfg["Mysql"]["User"];
 	std::string pwd  = cfg["Mysql"]["Password"];
 	std::string schema = cfg["Mysql"]["Schema"];
-
 	sql::mysql::MySQL_Driver* driver = sql::mysql::get_mysql_driver_instance();
 	std::string url = "tcp://" + host + ":" + port;
 	std::unique_ptr<sql::Connection> conn(driver->connect(url, user, pwd));
@@ -29,7 +25,6 @@ void MysqlManager::initBloomFilter()
 		return;
 	}
 	conn->setSchema(schema);
-
 	try {
 		std::unique_ptr<sql::Statement> stmt(conn->createStatement());
 		std::unique_ptr<sql::ResultSet> res(stmt->executeQuery("SELECT uid, name FROM user"));

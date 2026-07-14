@@ -1,12 +1,10 @@
 ﻿#include "MsgNode.h"
-
 RecvNode::RecvNode(short max_len, short msg_id, std::string uuid)
 	: MsgNode(max_len)
 	, msg_id_(msg_id)
 	, uuid_(uuid)
 {
 }
-
 SendNode::SendNode(const char* msg, short max_len, short msg_id) : MsgNode(max_len + HEAD_TOTOL_LEN)
 																	, msg_id_(msg_id)
 {
@@ -19,4 +17,3 @@ SendNode::SendNode(const char* msg, short max_len, short msg_id) : MsgNode(max_l
 	// 将 消息实体 拷贝 到 缓冲区中
 	::memcpy(data_ + HEAD_TOTOL_LEN, msg, max_len);
 }
-

@@ -8,6 +8,7 @@ UserManager::~UserManager()
 	std::lock_guard<std::mutex> locker(mtx_);
 	sessions_.clear();
 }
+
 std::shared_ptr<CSession> UserManager::GetSession(int uid)
 {
 	std::lock_guard<std::mutex> locker(mtx_);
@@ -18,11 +19,13 @@ std::shared_ptr<CSession> UserManager::GetSession(int uid)
 		return nullptr;
 	}
 }
+
 void UserManager::addSession(int uid, std::shared_ptr<CSession> session)
 {
 	std::lock_guard<std::mutex> locker(mtx_);
 	sessions_[uid] = session;
 }
+
 void UserManager::removeSession(int uid, std::string uuid)
 {
 	std::shared_ptr<CSession> session = nullptr;
@@ -38,6 +41,7 @@ void UserManager::removeSession(int uid, std::string uuid)
 	}
 	sessions_.erase(uid);
 }
+
 void UserManager::printSessions()
 {
 	for (auto session : sessions_) {

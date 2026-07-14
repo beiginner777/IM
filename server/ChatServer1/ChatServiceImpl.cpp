@@ -10,6 +10,7 @@ ChatServiceImpl::ChatServiceImpl()
 ChatServiceImpl::~ChatServiceImpl()
 {
 }
+
 Status ChatServiceImpl::NotifyAddFriend(ServerContext* context, const AddFriendReq* request, AddFriendRsp* reply)
 {
     //查找用户是否在本服务器
@@ -38,6 +39,7 @@ Status ChatServiceImpl::NotifyAddFriend(ServerContext* context, const AddFriendR
     session->Send(return_str, ID_NOTIFY_ADD_FRIEND_REQ);
     return Status::OK;
 }
+
 bool ChatServiceImpl::GetBaseInfo(int uid, std::shared_ptr<UserInfo>& userinfo)
 {
     std::string base_key = USERBASEINFO + uid;
@@ -93,6 +95,7 @@ bool ChatServiceImpl::GetBaseInfo(int uid, std::shared_ptr<UserInfo>& userinfo)
     userinfo->icon_ = userInfo->icon_;
     return true;
 }
+
 Status ChatServiceImpl::NotifyAuthFriend(ServerContext* context, const AuthFriendReq* request, AuthFriendRsp* response)
 {
     //
@@ -117,6 +120,7 @@ Status ChatServiceImpl::NotifyAuthFriend(ServerContext* context, const AuthFrien
     session->Send(rtvalue.toStyledString(), ID_NOTIFY_ACCESS_VERIFY);
     return Status::OK;
 }
+
 Status ChatServiceImpl::NotifyTextChatMsg(::grpc::ServerContext* context, const TextChatMsgReq* request, TextChatMsgRsp* response)
 {
     //查找用户是否在本服务器
@@ -144,9 +148,9 @@ Status ChatServiceImpl::NotifyTextChatMsg(::grpc::ServerContext* context, const 
     rtvalue["text_array"] = text_array;
     std::string return_str = rtvalue.toStyledString();
     session->Send(return_str, ID_NOTIFY_TEXT_CHAT_MSG_REQ);
-
     return Status::OK;
 }
+
 Status ChatServiceImpl::NotifyKickUser(ServerContext* context, const KickUserReq* request, KickUserRsp* response)
 {
     std::cout << "receive GrpcClient NotifyKickUser messgae." << std::endl;
@@ -163,6 +167,7 @@ Status ChatServiceImpl::NotifyKickUser(ServerContext* context, const KickUserReq
     session->Send("", ID_NOTIFY_OFFLINE);
     return Status::OK;
 }
+
 Status ChatServiceImpl::NotifyChatServerImg(ServerContext* context, const NotifyChatServerImgReq* req, NotifyChatServerImgRsp* response)
 {
     std::cout << "recvice Resource request to notify Client ChatImgInfo." << std::endl;
@@ -175,7 +180,6 @@ Status ChatServiceImpl::NotifyChatServerImg(ServerContext* context, const Notify
         response->set_error(ERROE_CODR::ERROR_USER_NOT_EXIST_IN_CHATSERVER);
         return Status::OK;
     }
-
     // 向LogicSystem请求相应的信息，并向 Client 回包
     std::shared_ptr<ChatMessage> msg = LogicSystem::getInstance()->GetUserThreadImageMsg(unique_name);
     if (msg == nullptr) {
@@ -215,6 +219,7 @@ Status ChatServiceImpl::NotifyChatServerImg(ServerContext* context, const Notify
     response->set_error(SUCCESS);
     return Status::OK;
 }
+
 Status ChatServiceImpl::NotifyFriendIconChange(ServerContext* context, const NotifyFriendIconChangeReq* req, NotifyFriendIconChangeRsp* response)
 {
     int uid = req->uid();

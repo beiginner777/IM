@@ -1,15 +1,11 @@
 ﻿#ifndef CHATGRPCCLIENT_H
 #define CHATGRPCCLIENT_H
-
 // 是为了实现 ChatServer 之间的通讯，这个类是作为客户端
-
 #include "global.h"
 #include "message.grpc.pb.h"
 #include "UserManager.h"
-
 using namespace message;
 using namespace grpc;
-
 class ChatConnPool
 {
 public:
@@ -59,7 +55,6 @@ public:
 		std::cout << "ChatGrpcPool size = " << connections_.size() << std::endl;
 		return;
 	}
-
 private:
 	std::size_t poolSize_;
 	std::string host_;
@@ -69,7 +64,6 @@ private:
 	std::mutex mtx_;
 	std::condition_variable cond_;
 };
-
 class ChatGrpcClient : public SingleTon<ChatGrpcClient>
 {
 	friend class SingleTon<ChatGrpcClient>;
@@ -80,10 +74,8 @@ public:
 	bool GetBaseInfo(int uid, std::shared_ptr<UserInfo>& userinfo);
 	TextChatMsgRsp NotifyTextChatMsg(std::string server_ip, const TextChatMsgReq& req, const Json::Value& rtvalue);
 	KickUserRsp NotifyKickUser(std::string server_ip, const KickUserReq& req);
-
 private:
 	ChatGrpcClient();
 	std::unordered_map<std::string, std::unique_ptr<ChatConnPool>> pools_;
 };
-
 #endif

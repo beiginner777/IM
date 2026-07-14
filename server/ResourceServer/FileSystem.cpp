@@ -1,18 +1,15 @@
 #include "FileSystem.h"
-
 FileSystem::FileSystem()
 {
 	for (int i = 0; i < FILEWORKER_COUNT; ++i) {
 		std::shared_ptr<FileWorker> worker = std::make_shared<FileWorker>();
 		fileWorkers_.push_back(worker);
 	}
-
 	for (int i = 0; i < DOWNLOADWORKER_COUNT; ++i) {
 		std::shared_ptr<DownloadWorker> worker = std::make_shared<DownloadWorker>();
 		downloadWorkers_.push_back(worker);
 	}
 }
-
 FileSystem::~FileSystem()
 {
 }

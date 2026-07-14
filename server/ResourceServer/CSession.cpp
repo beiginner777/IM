@@ -1,7 +1,6 @@
 ﻿#include "CSession.h"
 #include "CServer.h"
 #include "LogicSystem.h"
-
 CSession::CSession(boost::asio::io_context& ioc, CServer* server)
 	: ioc_(ioc)
 	, socket_(ioc)
@@ -14,7 +13,6 @@ CSession::CSession(boost::asio::io_context& ioc, CServer* server)
 	uuid_ = boost::uuids::to_string(a_uuid);
 	std::cout << "Session " << uuid_ << " is constructed. " << std::endl;
 }
-
 CSession::~CSession()
 {
 	std::cout << "CSession destructed. " << std::endl;
@@ -36,28 +34,22 @@ void CSession::Close()
 void CSession::Send(const char* msg, int max_length, short msgid)
 {
 	std::lock_guard<std::mutex> locker_(mtx_);
-
 	if (que_.size() > MAX_SENDQUEUE_SIZE)
 	{
 		std::cout << "session: " << uuid_ << " send que fulled, size is " << MAX_SENDQUEUE_SIZE << std::endl;
 		return;
 	}
-
 	std::cout << "max_length = " << max_length << " " << "msg_id = " << msgid << std::endl;
-
 	que_.push(std::make_shared<SendNode>(msg, max_length, msgid));
-
 	if (que_.size() > 1)
 	{
 		// 说明当前有结点正在发送
 		return;
 	}
-
 	auto sendnode = que_.front();
 	
 	/*std::cout << "send message whose id = " << msgid << ", length = " << sendnode->totol_len_ << std::endl;
 	printHexFormatted(sendnode->data_, sendnode->totol_len_);*/
-
 	boost::asio::async_write(socket_, boost::asio::buffer(sendnode->data_, sendnode->totol_len_), 
 		std::bind(&CSession::handleWrite, this, std::placeholders::_1,shared_from_this()));
 }
@@ -80,7 +72,6 @@ void CSession::AsyncReadHead(std::size_t len)
 			server_->clearSession(uuid_);
 			return;
 		}
-
 		// 读取完成,将读取的数据放在RecvNode结点当中
 		recv_head_node_->clear();
 		memcpy(recv_head_node_->data_, data_, bytesTransfered); // 读取完成的时候，bytesTransfered 就一定等于目的消息长度
@@ -92,7 +83,6 @@ void CSession::AsyncReadHead(std::size_t len)
 		// 将 消息id 转化为 主机字节序
 		short msg_id_host = boost::asio::detail::socket_ops::network_to_host_short(msg_id_net);
 		std::cout << "msg_id_host = " << msg_id_host << std::endl;
-
 		// 消息id非法。直接断开连接
 		if (msg_id_host > MAX_MSG_ID)
 		{
@@ -100,7 +90,6 @@ void CSession::AsyncReadHead(std::size_t len)
 			server_->clearSession(uuid_);
 			return;
 		}
-
 		// 获取头部的 消息长度（此时是网络字节序）
 		// 4 字节头: len 是 2B short；6 字节头: len 是 4B int
 		int dataLenFieldSize = len - HEAD_ID_LEN;
@@ -115,7 +104,6 @@ void CSession::AsyncReadHead(std::size_t len)
 			msg_len_host = boost::asio::detail::socket_ops::network_to_host_short(msg_len_net);
 		}
 		std::cout << "msg_len_host = " << msg_len_host << std::endl;
-
 		// 消息长度非法。直接断开连接
 		if (msg_len_host > MAX_MSG_LEN)
 		{
@@ -123,9 +111,7 @@ void CSession::AsyncReadHead(std::size_t len)
 			server_->clearSession(uuid_);
 			return;
 		}
-
 		recv_msg_node_ = std::make_shared<RecvNode>(msg_len_host, msg_id_host);
-
 		// 头部读取完成，开始读取 消息主体
 		AsyncReadBody(msg_len_host);
 		});
@@ -155,7 +141,6 @@ void CSession::AsyncReadLen(std::size_t readLen, std::size_t totolLen, std::func
 			handler(ec, readLen + bytesTransfered);
 			return;
 		}
-
 		// 没有出现错误，但是还没有读取完成，则继续调用当前函数
 		self->AsyncReadLen(readLen + bytesTransfered, totolLen, handler);
 		});
@@ -174,23 +159,17 @@ void CSession::AsyncReadBody(std::size_t len)
 			server_->clearSession(uuid_);
 			return;
 		}
-
 		// 读取完成，将数据放在 RecvNode 结点当中
 		::memcpy(recv_msg_node_->data_, data_, bytesTransfered);
 		recv_msg_node_->cur_len_ += bytesTransfered;
 		recv_msg_node_->data_[recv_msg_node_->totol_len_] = '\0';
-
 		//std::cout << "RecvNode is " << recv_msg_node_->data_ << std::endl;
-
 		// 根据当前连接的 uuid 来决定要投放到 LogicSystem 的 哪个逻辑线程
 		std::shared_ptr<LogicNode> logic_node_ = std::make_shared<LogicNode>(shared_from_this(), recv_msg_node_);
-
 		std::hash<std::string> hash_fn;
 		size_t hash_value = hash_fn(this->uuid_); // 根据 uuid 生成哈希值
 		int index = hash_value % LOGICWORKER_COUNT;
-
 		LogicSystem::getInstance()->postMsgToQue(logic_node_, index);
-
 		// 继续 接收头部消息
 		AsyncReadHead(headerLen_);
 		});
@@ -203,23 +182,18 @@ void CSession::handleWrite(boost::system::error_code ec,std::shared_ptr<CSession
 		std::cout << "session: " << uuid_ << " send message failed ." << std::endl;
 		std::cout << "error code: " << ec.value() << std::endl;
 		std::cout << "error message: " << ec.message() << std::endl;
-
 		Close();
 		server_->clearSession(uuid_);
-
 		return;
 	}
-
 	std::lock_guard<std::mutex> locket(mtx_);
 	que_.pop();
-
 	if (!que_.empty())
 	{
 		auto& sendnode = que_.front();
 		boost::asio::async_write(socket_, boost::asio::buffer(sendnode->data_, sendnode->totol_len_),
 			std::bind(&CSession::handleWrite, this, std::placeholders::_1, shared_from_this()));
 	}
-
 }
 // 客户端心跳检测
 void CSession::setClientHeartCheckTime(time_t tm)

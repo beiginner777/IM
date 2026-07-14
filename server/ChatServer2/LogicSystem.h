@@ -1,5 +1,6 @@
 ﻿#ifndef LOGINSTSREM_H
 #define LOGINSTSREM_H
+
 #include "global.h"
 #include "TokenBucket.h"
 #include <unordered_map>
@@ -70,7 +71,6 @@ private:
 	// 判断字符串是否全是数字
 	bool isAllDigits(const std::string& str);
 	// void getBaseInfo(std::string& key, int uid, std::shared_ptr<UserInfo>& userInfo);
-
 	// 根据uid获取用户信息
 	bool getUserByUid(std::string uid, Json::Value& rtvalue);
 	// 根据name获取用户信息

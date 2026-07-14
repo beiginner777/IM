@@ -1,5 +1,6 @@
 #ifndef SHARDROUTER_H
 #define SHARDROUTER_H
+
 #include <string>
 /// 水平分表路由：thread_id 取模 → 分片 0~3
 ///

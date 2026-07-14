@@ -1,5 +1,6 @@
 #ifndef BATCH_MESSAGE_WRITER_H
 #define BATCH_MESSAGE_WRITER_H
+
 #include "global.h"
 #include "SingleTon.h"
 #include <vector>

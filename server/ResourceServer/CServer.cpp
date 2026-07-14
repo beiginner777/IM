@@ -2,7 +2,6 @@
 #include "AsioIOContextThreadPool.h"
 #include "CSession.h"
 #include "ConfigManager.h"
-
 CServer::CServer(boost::asio::io_context& ioc, std::string port)
 	: ioc_(ioc),
 	port_(static_cast<unsigned short>(atoi(port.c_str()))),
@@ -18,7 +17,6 @@ CServer::CServer(boost::asio::io_context& ioc, std::string port)
 		exit(-1);
 	}
 }
-
 CServer::~CServer()
 {
 	std::cout << "CServer::destructed." << std::endl;
@@ -30,7 +28,6 @@ CServer::~CServer()
 void CServer::startReceiceConnections()
 {
 	startHeartCheckToStatusServer();
-
 	std::cout << "[ResourceServer] Registered to StatusServer, start accepting..." << std::endl;
 	std::cout << "Server starting on port: " << port_ << std::endl;
 	startAccept();
@@ -47,7 +44,6 @@ bool CServer::connectToStatusServer()
 	ConfigManager cfg = ConfigManager::getInstance();
 	std::string start_server_ip = cfg["StatusServer"]["Host"];
 	short start_server_port = atoi(cfg["StatusServer"]["TCP_port"].c_str());
-
 	connectionToStatusServer_->getSocket().open(tcp::v4());
 	boost::system::error_code ec;
 	boost::asio::ip::tcp::endpoint ep(boost::asio::ip::make_address(start_server_ip, ec), start_server_port);
@@ -62,7 +58,6 @@ bool CServer::connectToStatusServer()
 	}
 	std::cout << "[ResourceServer] Connected to StatusServer." << std::endl;
 	connectionToStatusServer_->start();
-
 	// 发送注册消息（StatusServer 使用 4 字节头: 2B msgId + 2B len）
 	// ResourceServer 自身使用 6 字节头（2B + 4B），不能直接用 CSession::Send()
 	// 手动拼 4 字节头 + 数据，绕过 Send() 直接写 socket
@@ -73,15 +68,12 @@ bool CServer::connectToStatusServer()
 		root["my_port"] = cfg["SelfServer"]["Port"];
 		root["my_name"] = cfg["SelfServer"]["Name"];
 		std::string jsonStr = root.toStyledString();
-
 		short msgIdNet = boost::asio::detail::socket_ops::host_to_network_short(ID_REGISTER_REQ);
 		short lenNet = boost::asio::detail::socket_ops::host_to_network_short(static_cast<short>(jsonStr.size()));
-
 		std::vector<boost::asio::const_buffer> buffers;
 		buffers.push_back(boost::asio::buffer(&msgIdNet, 2));
 		buffers.push_back(boost::asio::buffer(&lenNet, 2));
 		buffers.push_back(boost::asio::buffer(jsonStr));
-
 		boost::asio::write(connectionToStatusServer_->getSocket(), buffers, ec);
 		if (ec) {
 			std::cout << "[ResourceServer] Send register failed: " << ec.message() << std::endl;
@@ -122,13 +114,11 @@ void CServer::checkConnectionIsOverTime(boost::system::error_code ec)
 		std::cout << "Timer was cancelled\n";
 		return;
 	}
-
 	std::map<std::string, std::shared_ptr<CSession>> copy_sessions_;
 	{
 		std::lock_guard<std::mutex> locker(mtx_);
 		copy_sessions_ = sessions_;
 	}
-
 	std::vector<std::shared_ptr<CSession>> expiredSession;
 	for (auto& kv : copy_sessions_) {
 		auto& session = kv.second;
@@ -136,15 +126,12 @@ void CServer::checkConnectionIsOverTime(boost::system::error_code ec)
 			expiredSession.push_back(session);
 		}
 	}
-
 	if (!expiredSession.empty()) {
 		std::cout << "[INFO] " << expiredSession.size() << " connection(s) overTime in ResourceServer.\n";
 	}
-
 	for (auto session : expiredSession) {
 		session->Close();
 	}
-
 	// 开启下一个定时检测任务
 	startTimer();
 }

@@ -2,7 +2,6 @@
 #define DATA_H
 
 #include "global.h"
-
 struct UserInfo {
 	UserInfo() :name_(""), pwd_(""), uid_(), email_(""), nick_(""), desc_(""), sex_(0), icon_(""), back_("")
 	{
@@ -15,7 +14,6 @@ struct UserInfo {
 		sex_(sex),nick_(nick)
 	{
 	}
-
 	std::string name_;
 	std::string pwd_;
 	int uid_;
@@ -26,21 +24,18 @@ struct UserInfo {
 	std::string icon_;
 	std::string back_;
 };
-
 struct ApplyInfo {
 	ApplyInfo(int uid, std::string name, std::string desc,
 		std::string icon, std::string nick, int sex, int status = 0)
 		:uid_(uid), name_(name), desc_(desc),
 		icon_(icon), nick_(nick), sex_(sex), status_(status) {
 	}
-
 	ApplyInfo(int id, int uid, std::string name, std::string email, std::string desc,
 		std::string icon, int sex, std::string apply_time, int status)
 		: id_(id), uid_(uid), name_(name), email_(email), desc_(desc),
 		icon_(icon), sex_(sex), apply_time_(apply_time), status_(status)
 	{
 	}
-
 	int id_;
 	int uid_;
 	std::string name_;
@@ -52,7 +47,6 @@ struct ApplyInfo {
 	std::string apply_time_;
 	int status_;
 };
-
 // 聊天线程信息
 struct ChatThreadInfo
 {
@@ -65,7 +59,6 @@ struct ChatThreadInfo
 	int user1_id_;
 	int user2_id_;
 };
-
 enum CHAT_MSG_TYPE
 {
 	TEXT_MSG, // 文本消息
@@ -73,7 +66,6 @@ enum CHAT_MSG_TYPE
 	EMOJI, //表情消息
 	FILE_MSG // 文件信息
 };
-
 // 聊天消息信息
 struct ChatMessage {
 	int message_id; // 消息id
@@ -92,12 +84,10 @@ struct ChatMessage {
     READED = 2,  // 发送成功
 	*/
 };
-
 enum MsgStatus {
 	UN_READ = 0,  // 正在发送
 	SEND_FAILED = 1,  //发送失败
 	READED = 2,  // 上传成功
 	//UN_UPLOAD = 3 // 未上传完成
 };
-
 #endif

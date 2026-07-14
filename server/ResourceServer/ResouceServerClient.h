@@ -1,10 +1,8 @@
 #include "global.h"
 #include "SingleTon.h"
 #include "message.grpc.pb.h"
-
 using namespace grpc;
 using namespace message;
-
 class ChatConnPool
 {
 public:
@@ -54,7 +52,6 @@ public:
 		std::cout << "ChatGrpcPool size = " << connections_.size() << std::endl;
 		return;
 	}
-
 private:
 	std::size_t poolSize_;
 	std::string host_;
@@ -64,18 +61,14 @@ private:
 	std::mutex mtx_;
 	std::condition_variable cond_;
 };
-
 class ResouceServerClient : public SingleTon<ResouceServerClient>
 {
 public:
 	friend class SingleTon<ResouceServerClient>;
 	~ResouceServerClient() = default;
-
 	NotifyChatServerImgRsp NotifyChatServerImg(std::string server_ip, NotifyChatServerImgReq& request);
 	NotifyFriendIconChangeRsp NotifyFriendIconChange(std::string server_ip, NotifyFriendIconChangeReq& request);
-
 private:
 	ResouceServerClient();
 	std::unordered_map<std::string, std::unique_ptr<ChatConnPool>> pools_;
 };
-

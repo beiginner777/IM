@@ -1,7 +1,6 @@
 #include "global.h"
 #include "HttpConnection.h"
 #include "LogicSystem.h"
-
 HttpConnection::HttpConnection(tcp::socket&& sock)
 	: sock_(std::move(sock))
 	, remote_ip("")
@@ -12,7 +11,6 @@ HttpConnection::HttpConnection(tcp::socket&& sock)
 	uuid_ = boost::uuids::to_string(a_uuid);
 	std::cout << "uuid = " << uuid_ << " connection builds." << std::endl;
 }
-
 HttpConnection::~HttpConnection()
 {
 	sock_.close();
@@ -67,7 +65,6 @@ void HttpConnection::read_request()
 void HttpConnection::prase_request()
 {
 	auto self = shared_from_this();
-
 	response_.version(request_.version());
 	response_.keep_alive(false);
 	if (request_.method() == http::verb::get)
@@ -82,7 +79,6 @@ void HttpConnection::prase_request()
 		/*LogicSystem::getInstance()->postTaskToQue([self, this]() {
 			LogicSystem::getInstance()->handlePostRequest(self);
 			});*/
-
 		LogicSystem::getInstance()->handlePostRequest(self);
 	}
 	else

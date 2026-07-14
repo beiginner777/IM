@@ -1,5 +1,4 @@
 ﻿#include "utils.h"
-
 std::string GetCurrentTimestamp() {
     namespace pt = boost::posix_time;
     // 取当前本地时间（精确到秒）

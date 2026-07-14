@@ -3,13 +3,10 @@
 #include "ChatServiceImpl.h"
 #include "RedisManager.h"
 #include "MysqlManager.h"
-
 ChatGrpcClient::ChatGrpcClient()
 {
 	ConfigManager cfg = ConfigManager::getInstance();
-
 	std::string servers = cfg["PeerServers"]["Servers"];
-
 	std::stringstream ss(servers);
 	std::vector<std::string> words;
 	std::string word;
@@ -26,7 +23,6 @@ ChatGrpcClient::ChatGrpcClient()
 		pools_[name] = std::make_unique<ChatConnPool>(DEFAULT_CHATCONNPOOL_SIZE, host, port);
 	}
 }
-
 ChatGrpcClient::~ChatGrpcClient()
 {
 }
@@ -40,52 +36,42 @@ AddFriendRsp ChatGrpcClient::NotifyAddFriend(std::string server_ip, const AddFri
 		// 不存在
 		return rsp;
 	}
-
 	auto& pool = it->second;
-
 	ClientContext context;
 	auto stub = pool->getConnection();
 	Status status = stub->NotifyAddFriend(&context, req, &rsp);
 	pool->returnConnection(std::move(stub));
-
 	if (!status.ok()) {
 		rsp.set_error(ERROR_RPC_VISIT_CHATSERVER);
 		return rsp;
 	}
-
 	return rsp;
 }
 
 AuthFriendRsp ChatGrpcClient::NotifyAuthFriend(std::string server_ip, const AuthFriendReq& req)
 {
 	AuthFriendRsp rsp;
-
 	// 首先找到对应在所在的连接池
 	auto it = pools_.find(server_ip);
 	if (it == pools_.end()) {
 		rsp.set_error(ERROE_CODR::ERROR_FIND_CONN_IN_RPCPOOLS);
 		return rsp;
 	}
-
 	auto& pool = it->second;
-
 	ClientContext context;
 	auto stub = pool->getConnection();
 	Status status = stub->NotifyAuthFriend(&context, req, &rsp);
 	pool->returnConnection(std::move(stub));
-
 	if (!status.ok()) {
 		rsp.set_error(ERROR_RPC_VISIT_CHATSERVER);
 		return rsp;
 	}
-
 	return rsp;
 }
 
 bool ChatGrpcClient::GetBaseInfo(int uid, std::shared_ptr<UserInfo>& userinfo)
 {
 	std::string base_key = USERBASEINFO + uid;
-
 	//优先查redis中查询用户信息
 	std::string info_str = RedisManager::getInstance()->Get(base_key);
 	if (!info_str.empty()) {
@@ -110,7 +96,6 @@ bool ChatGrpcClient::GetBaseInfo(int uid, std::shared_ptr<UserInfo>& userinfo)
 		userinfo->icon_ = icon;
 		return true;
 	}
-
 	//查询mysql数据库
 	std::shared_ptr<UserInfo> userInfo = MysqlManager::getInstance()->getUserByUid(uid);
 	if (userInfo == nullptr) {
@@ -127,11 +112,9 @@ bool ChatGrpcClient::GetBaseInfo(int uid, std::shared_ptr<UserInfo>& userinfo)
 	redis_root["desc"] = userInfo->desc_;
 	redis_root["sex"] = userInfo->sex_;
 	redis_root["icon"] = userInfo->icon_;
-
 	if (!RedisManager::getInstance()->Set(base_key, redis_root.toStyledString())) {
 		std::cout << "read user(uid) to redis failed." << std::endl;
 	}
-
 	//返回数据
 	userinfo->uid_ = userInfo->uid_;
 	userinfo->name_ = userInfo->name_;
@@ -145,7 +128,6 @@ bool ChatGrpcClient::GetBaseInfo(int uid, std::shared_ptr<UserInfo>& userinfo)
 TextChatMsgRsp ChatGrpcClient::NotifyTextChatMsg(std::string server_ip, const TextChatMsgReq& req, const Json::Value& rtvalue)
 {
 	TextChatMsgRsp rsp;
-
 	rsp.set_fromuid(req.fromuid());
 	rsp.set_touid(req.touid());
 	for (const auto& text_data : req.textmsgs()) {
@@ -153,56 +135,44 @@ TextChatMsgRsp ChatGrpcClient::NotifyTextChatMsg(std::string server_ip, const Te
 		new_msg->set_msgid(text_data.msgid());
 		new_msg->set_msgcontent(text_data.msgcontent());
 	}
-
 	auto it = pools_.find(server_ip);
 	if (it == pools_.end()) {
 		rsp.set_error(ERROE_CODR::ERROR_FIND_CONN_IN_RPCPOOLS);
 		return rsp;
 	}
-
 	std::cout << "find " << server_ip << " in pools.";
-
 	auto& pool = it->second;
-
 	ClientContext context;
 	if (pool) {
 		auto stub = std::move(pool->getConnection());
 		Status status = stub->NotifyTextChatMsg(&context, req, &rsp);
-
 		pool->returnConnection(std::move(stub));
-
 		if (!status.ok()) {
 			rsp.set_error(ERROR_RPC_VISIT_CHATSERVER);
 			return rsp;
 		}
-
 		return rsp;
 	}
 	else
 	{
 		std::cout << "Pool is nullptr." << std::endl;
 	}
-
 }
 
 KickUserRsp ChatGrpcClient::NotifyKickUser(std::string server_ip, const KickUserReq& req)
 {
 	KickUserRsp rsp;
-
 	// 首先找到对应在所在的连接池
 	auto it = pools_.find(server_ip);
 	if (it == pools_.end()) {
 		rsp.set_error(ERROE_CODR::ERROR_FIND_CONN_IN_RPCPOOLS);
 		return rsp;
 	}
-
 	auto& pool = it->second;
-
 	ClientContext context;
 	auto stub = pool->getConnection();
 	Status status = stub->NotifyKickUser(&context, req, &rsp);
 	pool->returnConnection(std::move(stub));
-
 	if (!status.ok()) {
 		rsp.set_error(ERROR_RPC_VISIT_CHATSERVER);
 		return rsp;

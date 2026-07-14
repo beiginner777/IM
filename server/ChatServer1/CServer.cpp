@@ -25,6 +25,7 @@ CServer::~CServer()
 		kv.second->Close();
 	}
 }
+
 void CServer::startReceiceConnections()
 {
 	// 定时向StatusServer发送心跳消息
@@ -39,10 +40,12 @@ void CServer::startReceiceConnections()
 	// 启动检测客户端连接的定时器
 	startTimer();
 }
+
 std::string CServer::getConnectionToStatusServerUuid()
 {
 	return connectionToStatusServer_->getUuid();
 }
+
 bool CServer::connectToStatusServer()
 {
 	// 获取StatusServer的ip和端口
@@ -77,12 +80,14 @@ bool CServer::connectToStatusServer()
 	connectionToStatusServer_->Send(root.toStyledString(), ID_REGISTER_REQ);
 	return true;
 }
+
 void CServer::startAccept()
 {
 	auto& ioc = AsioIOContextThreadPool::getInstance()->getIOContext();
 	std::shared_ptr<CSession> session = std::make_shared<CSession>(ioc, this);
 	acceptor_.async_accept(session->getSocket(), std::bind(&CServer::handleAccept,this,session,std::placeholders::_1));
 }
+
 void CServer::handleAccept(std::shared_ptr<CSession> session, const boost::system::error_code& ec)
 {
 	if (ec.value()){
@@ -96,6 +101,7 @@ void CServer::handleAccept(std::shared_ptr<CSession> session, const boost::syste
 	}
 	startAccept();
 }
+
 void CServer::checkConnectionIsOverTime(boost::system::error_code ec)
 {
 	if (ec == boost::asio::error::operation_aborted) {
@@ -125,7 +131,6 @@ void CServer::checkConnectionIsOverTime(boost::system::error_code ec)
 			}
 		}
 	}
-
 	if (expiredSession.size()) {
 		std::cout << "[INFO] There are " << expiredSession.size() << " connection heartCheckOverTime.\n";
 	}
@@ -136,6 +141,7 @@ void CServer::checkConnectionIsOverTime(boost::system::error_code ec)
 	// 继续开启定时检测任务
 	startTimer();
 }
+
 void CServer::sendHeartCheckMsgToStatusServer(boost::system::error_code ec)
 {
 	if (ec == boost::asio::error::operation_aborted) {
@@ -147,6 +153,7 @@ void CServer::sendHeartCheckMsgToStatusServer(boost::system::error_code ec)
 	// 继续定时发送心跳检测包
 	startHeartCheckToStatusServer();
 }
+
 void CServer::clearSession(std::string uuid)
 {
 	std::lock_guard<std::mutex> locker(mtx_);
@@ -159,6 +166,7 @@ void CServer::clearSession(std::string uuid)
 		std::cout << "session has been erased." << std::endl;
 	}
 }
+
 void CServer::startTimer()
 {
 	// 开启定时检测任务
@@ -168,12 +176,14 @@ void CServer::startTimer()
 		self->checkConnectionIsOverTime(ec);
 		});
 }
+
 void CServer::cancelTimer()
 {
 	// 取消定时任务,但是会立即触发回调函数
 	timer_.cancel();
 	heartCheckTimer_.cancel();
 }
+
 void CServer::startHeartCheckToStatusServer()
 {
 	// 开启定时检测任务

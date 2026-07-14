@@ -3,14 +3,12 @@
 #include "CSession.h"
 #include "RedisManager.h"
 #include "CServer.h"
-
 LogicSystem::LogicSystem() : b_stop_(false)
 {
 	registerFunctionCallbacks();
 	// 开启子线程
 	work_thread_ = std::thread(&LogicSystem::dealTask, this);
 }
-
 LogicSystem::~LogicSystem()
 {
 	std::cout << "LogicSystem is destructed." << std::endl;
@@ -41,7 +39,6 @@ void LogicSystem::dealTask()
 			{
 				std::shared_ptr<LogicNode> node = que_.front();
 				que_.pop();
-
 				// 获取逻辑结点对应的 消息id
 				short msgId = node->recvNode_->msg_id_;
 			
@@ -56,16 +53,13 @@ void LogicSystem::dealTask()
 			// detail break
 			break;
 		}
-
 		// 逻辑层没有退出，那么就正常取数据
 		if (!que_.empty())
 		{
 			std::shared_ptr<LogicNode> node = que_.front();
 			que_.pop();
-
 			// 获取逻辑结点对应的 消息id
 			short msgId = node->recvNode_->msg_id_;
-
 			if (handlers_.count(msgId)) {
 				std::cout << "handle task whose id = " << msgId << ":" << std::endl;
 				handlers_[msgId](node->session_, msgId, std::string(node->recvNode_->data_, node->recvNode_->totol_len_));
@@ -103,15 +97,12 @@ void LogicSystem::registerService(std::shared_ptr<CSession> session, short msgId
 	info.port = port;
 	info.con_count = 0;
 	session->SetServerInfo(info);
-
 	// ResourceServer 连接放在CServer当中
 	session->server_->storeInServer(session, info.server_type);
-
 	Json::Value rtvalue;
 	rtvalue["code"] = SUCCESS;
 	rtvalue["message"] = "register service success.\n";
 	session->Send(rtvalue.toStyledString(), ID_REGISTER_RSP);
-
 	// 将服务信息存储在 Redis 中（ChatServer → ChatServers, ResourceServer → ResourceServers）
 	storeServerInfoInRedis(info);
 }
@@ -124,7 +115,6 @@ void LogicSystem::storeServerInfoInRedis(const Server_Info& info)
 	json["name"] = info.name;
 	json["con_count"] = info.con_count;
 	json["server_type"] = (int)info.server_type;
-
 	std::string key = (info.server_type == CHAT_SERVER) ? CHATSERVERS : RESOURCESERVERS;
 	RedisManager::getInstance()->HSet(key, info.name, json.toStyledString());
 }
@@ -132,16 +122,12 @@ void LogicSystem::storeServerInfoInRedis(const Server_Info& info)
 void LogicSystem::heartCheck(std::shared_ptr<CSession> session, short msgId, std::string msgData)
 {
 	std::cout << "handle id = " << msgId << std::endl;
-
 	Json::Reader reader;
 	Json::Value root;
 	reader.parse(msgData, root);
-
 	std::string uuid = root["uuid"].asString();
 	std::cout << "uuid = " << uuid << " request to update heartCheckTime." << std::endl;
-
 	session->setHeartCheckTime(time(NULL));
-
 	Json::Value rtvalue;
 	rtvalue["code"] = SUCCESS;
 	rtvalue["message"] = "update HeartCheckTime In StatusServer Success.\n";

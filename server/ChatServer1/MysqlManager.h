@@ -1,5 +1,6 @@
 #ifndef MYSQLMANAGER_H
 #define MYSQLMANAGER_H
+
 #include "global.h"
 #include "MysqlDao.h"
 #include "BloomFilter.h"
