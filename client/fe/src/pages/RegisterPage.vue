@@ -78,8 +78,11 @@ async function handleSubmit() {
             v-model:value="formState.username"
             size="large"
             placeholder="用户名（3-20 个字符）"
-            :prefix="UserOutlined"
-          />
+          >
+            <template #prefix>
+              <UserOutlined />
+            </template>
+          </Input>
         </Form.Item>
 
         <Form.Item name="password">
@@ -87,8 +90,11 @@ async function handleSubmit() {
             v-model:value="formState.password"
             size="large"
             placeholder="密码（至少 6 个字符）"
-            :prefix="LockOutlined"
-          />
+          >
+            <template #prefix>
+              <LockOutlined />
+            </template>
+          </Input.Password>
         </Form.Item>
 
         <Form.Item name="confirmPassword">
@@ -96,8 +102,11 @@ async function handleSubmit() {
             v-model:value="formState.confirmPassword"
             size="large"
             placeholder="确认密码"
-            :prefix="LockOutlined"
-          />
+          >
+            <template #prefix>
+              <LockOutlined />
+            </template>
+          </Input.Password>
         </Form.Item>
 
         <Form.Item>
