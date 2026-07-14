@@ -44,6 +44,52 @@ LogicSystem::~LogicSystem()
 
 
 
+// 统一限流中间件：在 dealTask 分发到具体 handler 前调用
+// 对所有请求类型生效（文本、图片、登录、好友操作等）
+bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<CSession> session, short msgId)
+{
+	// L1: 全局 QPS（保护 ChatServer 进程，所有请求共享）
+	if (!globalBucket_.consume(1)) {
+		std::cerr << "[RateLimit] Global QPS limit reached, reject msgId=" << msgId << std::endl;
+		Json::Value rt;
+		rt["code"] = ERROR_RATE_LIMITED;
+		rt["message"] = "server busy, please retry later";
+		session->Send(rt.toStyledString(), msgId);
+		return false;
+	}
+
+	int uid = session->getUserId();
+	// 未认证用户（login 请求 / StatusServer 连接）跳过单用户限流
+	if (uid <= 0) return true;
+
+	// L2: 本地令牌桶（uid 维度，纯内存）
+	auto it = userBuckets_.find(uid);
+	if (it == userBuckets_.end()) {
+		userBuckets_.emplace(uid, TokenBucket(10.0, 15.0));
+		it = userBuckets_.find(uid);
+	}
+	if (!it->second.consume(1)) {
+		std::cerr << "[RateLimit] User " << uid << " exceeded local rate limit, msgId=" << msgId << std::endl;
+		Json::Value rt;
+		rt["code"] = ERROR_RATE_LIMITED;
+		rt["message"] = "发送过于频繁，请稍后重试";
+		session->Send(rt.toStyledString(), msgId);
+		return false;
+	}
+
+	// L3: Redis 分布式限流（跨 ChatServer 统一计数，Redis 不可用自动放行）
+	if (!RedisManager::getInstance()->checkRateLimit(uid, 10)) {
+		std::cerr << "[RateLimit] User " << uid << " exceeded Redis rate limit, msgId=" << msgId << std::endl;
+		Json::Value rt;
+		rt["code"] = ERROR_RATE_LIMITED;
+		rt["message"] = "发送过于频繁，请稍后重试";
+		session->Send(rt.toStyledString(), msgId);
+		return false;
+	}
+
+	return true;
+}
+
 void LogicSystem::dealTask()
 
 {
@@ -89,51 +135,34 @@ void LogicSystem::dealTask()
 			
 
 				if (handlers_.count(msgId)) {
-
 					std::cout << "handle task whose id = " << msgId << ":" << std::endl;
-
 					handlers_[msgId](node->session_, msgId,
-
 					                 std::string(node->recvNode_->data_, node->recvNode_->totol_len_), uuid);
-
 				}
-
 				else {
-
 					std::cout << "system error: can't find FunctinCallback: " << msgId << std::endl;
-
 				}
-
 			}
-
 			break;
-
 		}
 
 
-
 		if (!que_.empty())
-
 		{
-
 			std::shared_ptr<LogicNode> node = que_.front();
-
 			que_.pop();
 
-
-
 			short msgId = node->recvNode_->msg_id_;
-
 			std::string uuid = node->recvNode_->uuid_;
 
-
+			// ── 统一限流拦截（中间件）──
+			if (!tryAcquireRateLimit(node->session_, msgId)) {
+				continue;  // 被限流，跳过，不投递到 handler
+			}
 
 			if (handlers_.count(msgId)) {
-
 				std::cout << "handle task whose id = " << msgId << ":" << std::endl;
-
 				handlers_[msgId](node->session_, msgId, std::string(node->recvNode_->data_, node->recvNode_->totol_len_), uuid);
-
 			}
 
 			else {
@@ -533,40 +562,6 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 	int touid = root["touid"].asInt();
 
 	int thread_id = root["thread_id"].asInt();
-
-	// ── 限流检查 ──
-	// ① 全局 QPS 上限（ChatServer 级）
-	if (!globalBucket_.consume(1)) {
-		std::cerr << "[RateLimit] Global QPS limit reached, reject uid=" << uid << std::endl;
-		Json::Value rtvalue;
-		rtvalue["code"] = ERROR_RATE_LIMITED;
-		rtvalue["message"] = "server busy, please retry later";
-		session->Send(rtvalue.toStyledString(), ID_TEXT_CHAT_MSG_RSP);
-		return;
-	}
-	// ② 单用户限流（10 token/s, 最大突发 15）
-	auto it = userBuckets_.find(uid);
-	if (it == userBuckets_.end()) {
-		userBuckets_.emplace(uid, TokenBucket(10.0, 15.0));
-		it = userBuckets_.find(uid);
-	}
-	if (!it->second.consume(1)) {
-		std::cerr << "[RateLimit] User " << uid << " exceeded local rate limit" << std::endl;
-		Json::Value rtvalue;
-		rtvalue["code"] = ERROR_RATE_LIMITED;
-		rtvalue["message"] = "发送过于频繁，请稍后重试";
-		session->Send(rtvalue.toStyledString(), ID_TEXT_CHAT_MSG_RSP);
-		return;
-	}
-	// ③ Redis 分布式限流（多 ChatServer 统一控制，Redis 不可用自动放行）
-	if (!RedisManager::getInstance()->checkRateLimit(uid, 10)) {
-		std::cerr << "[RateLimit] User " << uid << " exceeded Redis rate limit" << std::endl;
-		Json::Value rtvalue;
-		rtvalue["code"] = ERROR_RATE_LIMITED;
-		rtvalue["message"] = "发送过于频繁，请稍后重试";
-		session->Send(rtvalue.toStyledString(), ID_TEXT_CHAT_MSG_RSP);
-		return;
-	}
 
 	const Json::Value arrays = root["text_array"];
 

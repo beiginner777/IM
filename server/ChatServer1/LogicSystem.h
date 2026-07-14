@@ -204,6 +204,9 @@ private:
 
 	std::map <std::string, std::shared_ptr<ChatMessage>> image_datas_;
 
+	// 统一限流入口（中间件）：在 dealTask 分发前调用
+	bool tryAcquireRateLimit(std::shared_ptr<CSession> session, short msgId);
+
 	// 限流：单用户令牌桶（uid → bucket）
 	std::unordered_map<int, TokenBucket> userBuckets_;
 	// 全局 QPS 上限（ChatServer 级）
