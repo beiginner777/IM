@@ -1,11 +1,8 @@
 ﻿#ifndef LOGICWORKER_H
 #define LOGICWORKER_H
-
 #include "global.h"
-
 class CSession;
 class LogicNode;
-
 class LogicWorker
 {
 	using functionCallback = std::function<void(std::shared_ptr<CSession>, short msgId, std::string msgData)>;
@@ -37,7 +34,6 @@ private:
 	void handleHeartCheckRsp(std::shared_ptr<CSession> session, short msgId, std::string msgData);
 	// 解密base64编码的数据
 	std::string base64_decode(const std::string& in);
-
 private:
 	std::queue<std::shared_ptr<LogicNode>> que_;
 	std::map<int, functionCallback> handlers_;
@@ -49,6 +45,4 @@ private:
 	// 是否停止工作
 	std::atomic_bool b_stop_;
 };
-
 #endif
-

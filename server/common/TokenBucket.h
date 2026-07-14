@@ -1,9 +1,7 @@
 #ifndef TOKENBUCKET_H
 #define TOKENBUCKET_H
-
 #include <chrono>
 #include <algorithm>
-
 /// 令牌桶限流器
 ///
 /// 工作原理：
@@ -27,7 +25,6 @@ public:
         , lastRefill_(std::chrono::steady_clock::now())
     {
     }
-
     /// 尝试消费 n 个 token
     /// @return true = 允许通过, false = 被限流
     bool consume(int n = 1)
@@ -39,10 +36,8 @@ public:
         }
         return false;
     }
-
     /// 当前可用 token 数（调试用）
     double available() const { return tokens_; }
-
 private:
     void refill()
     {
@@ -52,11 +47,9 @@ private:
         if (tokens_ > burst_) tokens_ = burst_;
         lastRefill_ = now;
     }
-
     double rate_;     // token/s
     double burst_;    // 最大 token 数
     double tokens_;   // 当前 token 数
     std::chrono::steady_clock::time_point lastRefill_;
 };
-
 #endif

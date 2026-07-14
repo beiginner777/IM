@@ -1,11 +1,9 @@
 #ifndef ASIOIOCONTEXTTHREAD_H
 #define ASIOIOCONTEXTTHREAD_H
-
 #include <boost/asio.hpp>
 #include <vector>
 #include <thread>
 #include "SingleTon.h"
-
 class AsioIOContextThreadPool : public SingleTon<AsioIOContextThreadPool>
 {
 	friend class SingleTon<AsioIOContextThreadPool>;
@@ -21,6 +19,4 @@ private:
 	std::vector<std::thread> threads_;
 	int iocontextIndex;
 };
-
 #endif
-
