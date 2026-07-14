@@ -212,7 +212,7 @@ void LogicSystem::registerPostHandler()
 			return;
 		}
 		// 用户的登录信息
-		std::string name = root["name"].asString();
+		std::string name = root["username"].asString();
 		std::string password = root["password"].asString();
 		std::cout << "name = " << name << std::endl;
 		std::cout << "password = " << password << std::endl;

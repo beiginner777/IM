@@ -225,7 +225,7 @@ void LoginDialog::login(QJsonObject obj)
 void LoginDialog::on_login_button_clicked()
 {
     QJsonObject obj;
-    obj["name"] = ui->user_lineedit->text();
+    obj["username"] = ui->user_lineedit->text();
     obj["password"] = ui->password_lineedit->text();
     HttpManager::GetInstance()->sendPostRequest(QUrl(Gate_Url_Prefix + loginAddr),obj,ID_LOGIN,LOGINMOD);
 }
