@@ -298,10 +298,10 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 			response.result(http::status::ok);
 			std::stringstream buffer;
 			buffer << file.rdbuf();
-			if (isSuffix(url_, ".css"))       response.set(http::field::content_type, "text/css");
-			else if (isSuffix(url_, ".js"))   response.set(http::field::content_type, "application/javascript");
-			else if (isSuffix(url_, ".svg"))  response.set(http::field::content_type, "image/svg+xml");
-			else if (isSuffix(url_, ".png"))  response.set(http::field::content_type, "image/png");
+			if (isSuffix(filePath, ".css"))       response.set(http::field::content_type, "text/css");
+			else if (isSuffix(filePath, ".js"))   response.set(http::field::content_type, "application/javascript");
+			else if (isSuffix(filePath, ".svg"))  response.set(http::field::content_type, "image/svg+xml");
+			else if (isSuffix(filePath, ".png"))  response.set(http::field::content_type, "image/png");
 			else                              response.set(http::field::content_type, "application/octet-stream");
 			beast::ostream(response.body()) << buffer.str();
 			response.content_length(response.body().size());
