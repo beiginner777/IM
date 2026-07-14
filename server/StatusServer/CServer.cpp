@@ -26,6 +26,7 @@ CServer::~CServer()
 		kv.second->Close();
 	}
 }
+
 void CServer::storeInServer(std::shared_ptr<CSession> session, ServerType server_type)
 {
 	switch (server_type)
@@ -43,12 +44,14 @@ void CServer::storeInServer(std::shared_ptr<CSession> session, ServerType server
 		break;
 	}
 }
+
 void CServer::startAccept()
 {
 	std::shared_ptr<CSession> session = std::make_shared<CSession>(ioc_, this);
 	acceptor_.async_accept(session->getSocket(),
 	                       std::bind(&CServer::handleAccept, this, session, std::placeholders::_1));
 }
+
 void CServer::handleAccept(std::shared_ptr<CSession> session, const boost::system::error_code& ec)
 {
 	if (ec.value())
@@ -63,6 +66,7 @@ void CServer::handleAccept(std::shared_ptr<CSession> session, const boost::syste
 	}
 	startAccept();
 }
+
 void CServer::checkConnectionIsOverTime(boost::system::error_code ec)
 {
 	// 定时器被取消
@@ -78,6 +82,7 @@ void CServer::checkConnectionIsOverTime(boost::system::error_code ec)
 	// 开启下一个定时检测任务
 	startTimer();
 }
+
 void CServer::checkChatServerConnIsOverTime() 
 {
 	// detail: 减小加锁的力度
@@ -108,6 +113,7 @@ void CServer::checkChatServerConnIsOverTime()
 		session->Close();
 	}
 }
+
 void CServer::checkResourceSercerConnIsOverTime() 
 {
 	// detail: 减小加锁的力度
@@ -137,6 +143,7 @@ void CServer::checkResourceSercerConnIsOverTime()
 		session->Close();
 	}
 }
+
 void CServer::clearSession(std::string uuid)
 {
 	std::lock_guard<std::mutex> locker(mtx_);
@@ -156,6 +163,7 @@ void CServer::clearSession(std::string uuid)
 		std::cout << "session has been erased." << std::endl;
 	}
 }
+
 void CServer::startTimer()
 {
 	timer_.expires_after(std::chrono::seconds(HEART_CHRCK_INTERVAL));
@@ -166,6 +174,7 @@ void CServer::startTimer()
 		        self->checkConnectionIsOverTime(ec);
 	        });
 }
+
 void CServer::cancelTimer()
 {
 	// 取消定时任务,但是会立即触发回调函数

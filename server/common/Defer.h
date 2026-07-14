@@ -1,5 +1,6 @@
 ﻿#ifndef DEFER_H
 #define DEFER_H
+
 #include <functional>
 /// RAII 延迟执行器（Go 语言的 defer 在 C++ 中的实现）
 /// 用法:

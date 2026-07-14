@@ -1,5 +1,6 @@
 #ifndef MSGNODE_H
 #define MSGNODE_H
+
 #include "global.h"
 class LogicSystem;
 class MsgNode
@@ -16,7 +17,7 @@ public:
 		std::cout << "destructe MsgNode" << std::endl;
 		delete[] data_;
 	}
-	void clear() 
+	void clear()
 	{
 		::memset(data_, 0, totol_len_);
 		cur_len_ = 0;

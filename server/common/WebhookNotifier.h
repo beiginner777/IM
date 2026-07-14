@@ -5,7 +5,6 @@
 #include <memory>
 #include <sstream>
 #include "AlertManager.h"
-
 /// 企业微信 Webhook 通知（Mock 实现）
 ///
 /// 当前为 Mock 模式：将告警消息转发到 AlertManager 日志输出
@@ -34,5 +33,4 @@ public:
 		AlertManager::getInstance()->warn(oss.str());
 	}
 };
-
 #endif

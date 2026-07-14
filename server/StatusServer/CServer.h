@@ -1,5 +1,6 @@
 ﻿#ifndef CSERVER_H
 #define SERVER_H
+
 #include "global.h"
 class CSession;
 class CServer : public std::enable_shared_from_this<CServer>

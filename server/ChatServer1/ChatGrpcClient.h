@@ -12,7 +12,7 @@ public:
 	ChatConnPool(std::size_t poolSize, std::string host, std::string port)
 		: poolSize_(poolSize),host_(host),port_(port),b_stop_(false)
 	{
-		for (std::size_t i = 0; i < poolSize; ++i) 
+		for (std::size_t i = 0; i < poolSize; ++i)
 		{
 			std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(host + ":" + port, grpc::InsecureChannelCredentials());
 			connections_.push(ChatService::NewStub(channel));

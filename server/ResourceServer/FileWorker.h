@@ -1,5 +1,6 @@
 ﻿#ifndef FILEWORKER_H
 #define FILEWORKER_H
+
 #include "global.h"
 class FileTask;
 class CSession;

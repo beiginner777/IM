@@ -1,5 +1,6 @@
 ﻿#ifndef BLOOM_FILTER_H
 #define BLOOM_FILTER_H
+
 #include <string>
 #include <vector>
 #include <boost/dynamic_bitset.hpp>

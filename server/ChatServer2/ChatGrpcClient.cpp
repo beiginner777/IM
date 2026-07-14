@@ -7,7 +7,6 @@ ChatGrpcClient::ChatGrpcClient()
 {
 	ConfigManager cfg = ConfigManager::getInstance();
 	std::string servers = cfg["PeerServers"]["Servers"];
-	
 	std::stringstream ss(servers);
 	std::vector<std::string> words;
 	std::string word;
@@ -27,6 +26,7 @@ ChatGrpcClient::ChatGrpcClient()
 ChatGrpcClient::~ChatGrpcClient()
 {
 }
+
 AddFriendRsp ChatGrpcClient::NotifyAddFriend(std::string server_ip, const AddFriendReq& req)
 {
 	AddFriendRsp rsp;
@@ -47,6 +47,7 @@ AddFriendRsp ChatGrpcClient::NotifyAddFriend(std::string server_ip, const AddFri
 	}
 	return rsp;
 }
+
 AuthFriendRsp ChatGrpcClient::NotifyAuthFriend(std::string server_ip, const AuthFriendReq& req)
 {
 	AuthFriendRsp rsp;
@@ -67,6 +68,7 @@ AuthFriendRsp ChatGrpcClient::NotifyAuthFriend(std::string server_ip, const Auth
 	}
 	return rsp;
 }
+
 bool ChatGrpcClient::GetBaseInfo(int uid, std::shared_ptr<UserInfo>& userinfo)
 {
 	std::string base_key = USERBASEINFO + uid;
@@ -122,10 +124,10 @@ bool ChatGrpcClient::GetBaseInfo(int uid, std::shared_ptr<UserInfo>& userinfo)
 	userinfo->icon_ = userInfo->icon_;
 	return true;
 }
+
 TextChatMsgRsp ChatGrpcClient::NotifyTextChatMsg(std::string server_ip, const TextChatMsgReq& req, const Json::Value& rtvalue)
 {
 	TextChatMsgRsp rsp;
-	
 	rsp.set_fromuid(req.fromuid());
 	rsp.set_touid(req.touid());
 	for (const auto& text_data : req.textmsgs()) {
@@ -155,8 +157,8 @@ TextChatMsgRsp ChatGrpcClient::NotifyTextChatMsg(std::string server_ip, const Te
 	{
 		std::cout << "Pool is nullptr." << std::endl;
 	}
-	
 }
+
 KickUserRsp ChatGrpcClient::NotifyKickUser(std::string server_ip, const KickUserReq& req)
 {
 	KickUserRsp rsp;

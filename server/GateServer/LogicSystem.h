@@ -1,5 +1,6 @@
 ﻿#ifndef LOGINCSYSTEM_H
 #define LOGINCSYSTEM_H
+
 #include "global.h"
 #include "SingleTon.h"
 #include "HttpConnection.h"

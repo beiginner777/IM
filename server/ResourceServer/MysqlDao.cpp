@@ -7,6 +7,7 @@ MysqlDao::MysqlDao()
 MysqlDao::~MysqlDao()
 {
 }
+
 std::shared_ptr<UserInfo> MysqlDao::getUserByUid(int uid)
 {
     auto con = pool_->getConnection();
@@ -45,6 +46,7 @@ std::shared_ptr<UserInfo> MysqlDao::getUserByUid(int uid)
         return nullptr;
     }
 }
+
 int MysqlDao::updateUserIcon(int uid, const std::string& icon)
 {
     auto con = pool_->getConnection();
@@ -79,6 +81,7 @@ int MysqlDao::updateUserIcon(int uid, const std::string& icon)
         return ERROR_UPDATE_HEAD_ICON;
     }
 }
+
 bool MysqlDao::GetFriendList(int uid, std::vector<int>& friend_list)
 {
     auto con = pool_->getConnection();

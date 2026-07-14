@@ -39,14 +39,17 @@ AlertManager::~AlertManager()
 	}
 	spdlog::shutdown();
 }
+
 void AlertManager::info(const std::string& msg)
 {
 	if (logger_) logger_->info(msg);
 }
+
 void AlertManager::warn(const std::string& msg)
 {
 	if (logger_) logger_->warn(msg);
 }
+
 void AlertManager::crit(const std::string& msg)
 {
 	if (logger_) logger_->critical(msg);

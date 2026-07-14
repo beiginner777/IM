@@ -29,6 +29,7 @@ std::string RedisManager::Get(const std::string& key, bool forceMaster)
 	std::cout << "Succeed to execute command [ GET " << key << " ]" << std::endl;
 	return value;
 }
+
 bool RedisManager::MGet(const std::vector<std::string>& keys, std::unordered_map<std::string, std::string>& values, bool forceMaster)
 {
 	if (keys.empty()) {
@@ -69,6 +70,7 @@ bool RedisManager::MGet(const std::vector<std::string>& keys, std::unordered_map
 	std::cout << "Succeed to execute command [ MGET ]" << std::endl;
 	return true;
 }
+
 bool RedisManager::Set(const std::string& key, const std::string& value)
 {
 	auto connect_ = getConn(true);
@@ -95,6 +97,7 @@ bool RedisManager::Set(const std::string& key, const std::string& value)
 	std::cout << "Execut command [ SET " << key << "  " << value << " ] success ! " << std::endl;
 	return true;
 }
+
 bool RedisManager::SetExp(const std::string& key, const std::string& value, int expire_seconds) 
 {
 	auto connect_ = getConn(true);
@@ -125,6 +128,7 @@ bool RedisManager::SetExp(const std::string& key, const std::string& value, int 
 		<< " " << value << " ] success ! " << std::endl;
 	return true;
 }
+
 bool RedisManager::Auth(const std::string& password)
 {
 	auto connect_ = getConn(true);
@@ -146,6 +150,7 @@ bool RedisManager::Auth(const std::string& password)
 	std::cout << "AUTH Success: password: " << password << std::endl;
 	return true;
 }
+
 bool RedisManager::LPush(const std::string& key, const std::string& value)
 {
 	auto connect_ = getConn(true);
@@ -172,6 +177,7 @@ bool RedisManager::LPush(const std::string& key, const std::string& value)
 	freeReplyObject(reply_);
 	return true;
 }
+
 std::string RedisManager::LPop(const std::string& key) 
 {
 	auto connect_ = getConn(true);
@@ -193,6 +199,7 @@ std::string RedisManager::LPop(const std::string& key)
 	freeReplyObject(reply_);
 	return value;
 }
+
 bool RedisManager::RPush(const std::string& key, const std::string& value) 
 {
 	auto connect_ = getConn(true);
@@ -219,6 +226,7 @@ bool RedisManager::RPush(const std::string& key, const std::string& value)
 	freeReplyObject(reply_);
 	return true;
 }
+
 std::string RedisManager::RPop(const std::string& key) 
 {
 	auto connect_ = getConn(true);
@@ -240,6 +248,7 @@ std::string RedisManager::RPop(const std::string& key)
 	freeReplyObject(reply_);
 	return value;
 }
+
 bool RedisManager::HSet(const std::string& key, const std::string& hkey, const std::string& value) 
 {
 	auto connect_ = getConn(true);
@@ -311,6 +320,7 @@ std::string RedisManager::HGet(const std::string& key, const std::string& hkey, 
 	std::cout << "Execut command [ HGet " << key << " " << hkey << " ] success ! " << std::endl;
 	return value;
 }
+
 bool RedisManager::Del(const std::string& key)
 {
 	auto connect_ = getConn(true);
@@ -331,6 +341,7 @@ bool RedisManager::Del(const std::string& key)
 	freeReplyObject(reply_);
 	return true;
 }
+
 bool RedisManager::ExistsKey(const std::string& key, bool forceMaster)
 {
 	auto connect_ = getConn(forceMaster);
@@ -351,6 +362,7 @@ bool RedisManager::ExistsKey(const std::string& key, bool forceMaster)
 	freeReplyObject(reply_);
 	return true;
 }
+
 std::string RedisManager::acqueireLock(const std::string& lockName, int lockTimeOut, int expireTime)
 {
 	auto connect_ = getConn(true);
@@ -363,6 +375,7 @@ std::string RedisManager::acqueireLock(const std::string& lockName, int lockTime
 		});
 	return RedisLocker::GetInstance()->acquireLock(connect_, lockName, lockTimeOut, expireTime);
 }
+
 bool RedisManager::releaseLock(const std::string& lockName, const std::string& lockValue)
 {
 	auto connect_ = getConn(true);
@@ -375,6 +388,7 @@ bool RedisManager::releaseLock(const std::string& lockName, const std::string& l
 		});
 	return RedisLocker::GetInstance()->releaseLock(connect_, lockName, lockValue);
 }
+
 bool RedisManager::pushOfflineMessage(int uid, const std::string& message)
 {
 	// �� Redis���б� notify_message:uid ��������Ϣ message
@@ -400,6 +414,7 @@ bool RedisManager::pushOfflineMessage(int uid, const std::string& message)
 	}
 	return true;
 }
+
 std::vector<std::string> RedisManager::popOfflineMessages(int uid)
 {
 	// �� Redis���б� notify_message:uid �л�ȡ���е���Ϣ
@@ -594,6 +609,7 @@ redisContext* RedisManager::getConn(bool forceMaster)
 	tlsPoolIdx = (int)i;
 	return conn;
 }
+
 void RedisManager::returnConn(redisContext* conn)
 {
 	if (conn == nullptr) return;
@@ -619,6 +635,7 @@ void RedisManager::startSentinelPoll()
 	sentinelPollThread_ = std::thread(&RedisManager::sentinelPollWorker, this);
 	std::cout << "[SentinelPoll] Started (interval=5s)" << std::endl;
 }
+
 void RedisManager::stopSentinelPoll()
 {
 	sentinelPollStop_ = true;
@@ -626,6 +643,7 @@ void RedisManager::stopSentinelPoll()
 		sentinelPollThread_.join();
 	}
 }
+
 void RedisManager::sentinelPollWorker()
 {
 	auto cfg = ConfigManager::getInstance();
@@ -655,6 +673,7 @@ void RedisManager::sentinelPollWorker()
 		}
 	}
 }
+
 bool RedisManager::SetBit(const std::string& key, size_t offset, int value)
 {
 	auto connect_ = getConn(true);
@@ -674,6 +693,7 @@ bool RedisManager::SetBit(const std::string& key, size_t offset, int value)
 	freeReplyObject(reply);
 	return true;
 }
+
 int RedisManager::GetBit(const std::string& key, size_t offset)
 {
 	auto connect_ = getConn();

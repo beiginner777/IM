@@ -1,5 +1,6 @@
 ﻿#ifndef GLOBAL_H
 #define GLOBAL_H
+
 #include <iostream>
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>

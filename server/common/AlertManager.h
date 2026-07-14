@@ -1,5 +1,6 @@
 ﻿#ifndef ALERT_MANAGER_H
 #define ALERT_MANAGER_H
+
 #include "SingleTon.h"
 #include <memory>
 #include <string>

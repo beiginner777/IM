@@ -1,5 +1,6 @@
 #ifndef CSESSION_H
 #define CSESSION_H
+
 #include "global.h"
 #include "MsgNode.h"
 class CServer;
@@ -18,7 +19,6 @@ public:
 	void Send(const char* msg, size_t max_length, short msgid, std::string uuid = "");
 	void Send(std::string msg, short msgid, std::string uuid = "");
 	void notifyOffLine(int uid);
-	
 	void setHeartCheckTime(time_t tm);
 	bool isHeartOverTime();
 public:
@@ -32,10 +32,10 @@ private:
 	void handleNotifyOffLine(boost::system::error_code ec, std::shared_ptr<CSession> session);
 private:
 	bool b_close_;
-	boost::asio::io_context& ioc_; 
-	boost::asio::ip::tcp::socket socket_; 
-	std::string uuid_; 
-	int userId_; 
+	boost::asio::io_context& ioc_;
+	boost::asio::ip::tcp::socket socket_;
+	std::string uuid_;
+	int userId_;
 	char data_[MAX_RECV_LENGTH];
 	std::queue<std::shared_ptr<SendNode>> que_;
 	std::mutex send_mtx_;

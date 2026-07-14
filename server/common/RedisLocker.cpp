@@ -9,6 +9,7 @@ RedisLocker::RedisLocker()
 RedisLocker::~RedisLocker()
 {
 }
+
 std::string RedisLocker::acquireLock(redisContext* context, const std::string& lockName, int lockTimeOut, int expireTime)
 {
 	/*
@@ -33,6 +34,7 @@ std::string RedisLocker::acquireLock(redisContext* context, const std::string& l
 	}
 	return ""; // ��ȡ��ʧ�ܣ����ؿ��ַ���
 }
+
 bool RedisLocker::releaseLock(redisContext* context, const std::string& lockName, const std::string& lockValue)
 {	
 	const char* luaScript =

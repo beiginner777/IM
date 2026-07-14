@@ -1,5 +1,6 @@
 ﻿#ifndef DOWNLOADWORKER_H
 #define DOWNLOADWORKER_H
+
 #include "global.h"
 class CSession;
 class DownloadTask

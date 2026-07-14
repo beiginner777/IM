@@ -1,5 +1,6 @@
 ﻿#ifndef CONFIGMANAGER_H
 #define CONFIGMANAGER_H
+
 #include <string>
 #include <map>
 #include "SingleTon.h"

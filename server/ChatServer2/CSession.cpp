@@ -113,7 +113,6 @@ void CSession::AsyncReadHead(std::size_t len)
 		std::string msg_uuid(recv_head_node_->data_, HEAD_UUID_LEN);
 		msg_uuid.erase(msg_uuid.find('\0'));
 		std::cout << "msg_uuid = " << msg_uuid << std::endl;
-		
 		short msg_id_net = 0;
 		memcpy(&msg_id_net, recv_head_node_->data_ + HEAD_UUID_LEN, HEAD_ID_LEN);
 		std::cout << "msg_id_net = " << msg_id_net << std::endl;
@@ -152,7 +151,6 @@ void CSession::AsyncReadLen(std::size_t readLen, std::size_t totolLen, std::func
 			handler(ec, readLen + bytesTransfered);
 			return;
 		}
-		
 		if (readLen + bytesTransfered >= totolLen)
 		{
 			handler(ec, readLen + bytesTransfered);

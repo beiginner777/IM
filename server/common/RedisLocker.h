@@ -1,5 +1,6 @@
 ﻿#ifndef REDISLOCKER_H
 #define REDISLOCKER_H
+
 #include <string>
 #include <hiredis/hiredis.h>
 class RedisLocker

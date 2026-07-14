@@ -20,6 +20,7 @@ ResouceServerClient::ResouceServerClient()
 		pools_[name] = std::make_unique<ChatConnPool>(DEFAULT_CHATCONNPOOL_SIZE, host, port);
 	}
 }
+
 NotifyChatServerImgRsp ResouceServerClient::NotifyChatServerImg(std::string server_ip, NotifyChatServerImgReq& request)
 {
 	NotifyChatServerImgRsp rsp;
@@ -42,6 +43,7 @@ NotifyChatServerImgRsp ResouceServerClient::NotifyChatServerImg(std::string serv
 	}
 	return rsp;
 }
+
 NotifyFriendIconChangeRsp ResouceServerClient::NotifyFriendIconChange(std::string server_ip, NotifyFriendIconChangeReq& request)
 {
 	NotifyFriendIconChangeRsp rsp;

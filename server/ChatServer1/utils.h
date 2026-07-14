@@ -1,5 +1,6 @@
 ﻿#ifndef UTILS_H
 #define UTILS_H
+
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <sstream>
 #include <string>

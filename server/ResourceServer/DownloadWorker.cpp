@@ -9,6 +9,7 @@ DownloadWorker::DownloadWorker()
 DownloadWorker::~DownloadWorker()
 {
 }
+
 void DownloadWorker::dealTask()
 {
 	while (true)
@@ -40,6 +41,7 @@ void DownloadWorker::dealTask()
 		}
 	}
 }
+
 void DownloadWorker::taskHandler(std::shared_ptr<DownloadTask> task)
 {
 	//std::this_thread::sleep_for(std::chrono::milliseconds(5));
@@ -160,6 +162,7 @@ void DownloadWorker::taskHandler(std::shared_ptr<DownloadTask> task)
 		LogicSystem::getInstance()->addDownloadFileInfo(download_file, file_info);
 	}
 }
+
 std::string DownloadWorker::base64_encode(const std::string& data)
 {
 	// 计算编码后所需空间
@@ -174,6 +177,7 @@ std::string DownloadWorker::base64_encode(const std::string& data)
 	out.resize(len);
 	return out;
 }
+
 void DownloadWorker::postTaskToQue(std::shared_ptr<DownloadTask> task)
 {
 	// 将文件结点 根据 文件名 放入FileSystem的某个FileWorker中

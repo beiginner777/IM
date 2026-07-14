@@ -10,6 +10,7 @@ GateServer::~GateServer()
 {
 	acceptor_.close();  // 停止接受新连接
 }
+
 void GateServer::start()
 {
     boost::asio::io_context& ioc = AsioIOContextThreadPool::getInstance()->getIOContext();

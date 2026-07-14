@@ -59,12 +59,12 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<CSession> session, short m
 	}
 	return true;
 }
+
 void LogicSystem::dealTask()
 {
 	while (true)
 	{
 		std::unique_lock<std::mutex> locker(mtx_);
-		
 		while (que_.empty() && !b_stop_)
 		{
 			std::cout << "LoginSystem is waiting for data . . ." << std::endl;
@@ -78,7 +78,6 @@ void LogicSystem::dealTask()
 				que_.pop();
 				short msgId = node->recvNode_->msg_id_;
 				std::string uuid = node->recvNode_->uuid_;
-			
 				if (handlers_.count(msgId)) {
 					std::cout << "handle task whose id = " << msgId << ":" << std::endl;
 					handlers_[msgId](node->session_, msgId,
@@ -105,6 +104,7 @@ void LogicSystem::dealTask()
 		}
 	}
 }
+
 void LogicSystem::registerFunctionCallbacks()
 {
 	handlers_[ID_REGISTER_REQ] = std::bind(&LogicSystem::registerToStatusServer, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
@@ -122,6 +122,7 @@ void LogicSystem::registerFunctionCallbacks()
 	handlers_[ID_REGISTER_RSP] = std::bind(&LogicSystem::registerToStatusServer, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 	handlers_[ID_HEADT_CHECK_RSP] = std::bind(&LogicSystem::heartCheckWithStatusServer, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 }
+
 void LogicSystem::registerToStatusServer(std::shared_ptr<CSession> session, short msgId, std::string msgData,
                                          std::string uuid)
 {
@@ -142,10 +143,12 @@ void LogicSystem::registerToStatusServer(std::shared_ptr<CSession> session, shor
 		session->server_->startReceiceConnections();
 	}
 }
+
 bool LogicSystem::isAllDigits(const std::string& str)
 {
 	return !str.empty() && std::all_of(str.begin(), str.end(), ::isdigit);
 }
+
 bool LogicSystem::getUserByUid(std::string uid, Json::Value& rtvalue)
 {
 	rtvalue["code"] = ERROE_CODR::SUCCESS;
@@ -202,6 +205,7 @@ bool LogicSystem::getUserByUid(std::string uid, Json::Value& rtvalue)
 	rtvalue["icon"] = userInfo->icon_;
 	return true;
 }
+
 bool LogicSystem::getUserByName(std::string name, Json::Value& rtvalue)
 {
 	rtvalue["code"] = ERROE_CODR::SUCCESS;
@@ -246,7 +250,6 @@ bool LogicSystem::getUserByName(std::string name, Json::Value& rtvalue)
 	if (!RedisManager::getInstance()->Set(base_key, redis_root.toStyledString())) {
 		std::cout << "set user(uid) to redis failed." << std::endl;
 	}
-	
 	rtvalue["uid"] = userInfo->uid_;
 	rtvalue["name"] = userInfo->name_;
 	rtvalue["nick"] = userInfo->nick_;
@@ -255,6 +258,7 @@ bool LogicSystem::getUserByName(std::string name, Json::Value& rtvalue)
 	rtvalue["icon"] = userInfo->icon_;
 	return true;
 }
+
 void LogicSystem::postMsgToQue(std::shared_ptr<LogicNode> logicNode)
 {
 	// ── 统一限流拦截（入队前）──
@@ -268,6 +272,7 @@ void LogicSystem::postMsgToQue(std::shared_ptr<LogicNode> logicNode)
 	que_.push(logicNode);
 	cond_.notify_all();
 }
+
 void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
@@ -360,6 +365,7 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 	}
 	ChatGrpcClient::getInstance()->NotifyTextChatMsg(peerIP, text_msg_req, rtvalue);
 }
+
 void LogicSystem::receiveFriendApply(std::shared_ptr<CSession> session, short msgId, std::string msgData,
                                      std::string uuid)
 {
@@ -384,15 +390,14 @@ void LogicSystem::receiveFriendApply(std::shared_ptr<CSession> session, short ms
 		std::cout << "notify Apply to uid = " << session->getUserId() << " failed." << std::endl;
 		return;
 	}
-	
 	session->Send(rtvalue.toStyledString(), ID_NOTIFY_ADD_FRIEND_REQ, uuid);
 }
+
 void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
 	Json::Value root;
 	Json::Reader reader;
-	
 	if (!reader.parse(msgData, root))
 	{
 		Json::Value value;
@@ -401,12 +406,10 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 		session->Send(value.toStyledString(), msgId, uuid);
 		return;
 	}
-	
 	int uid = root["uid"].asInt();
 	std::string token = root["token"].asString();
 	std::cout << "uid = " << uid << " request login ChatServer,token = " << token << std::endl;
 	Json::Value value;
-	
 	std::string TokenValue = RedisManager::getInstance()->Get(USERUIDPREFIX + std::to_string(uid));
 	if (TokenValue == "")
 	{
@@ -424,7 +427,6 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 	}
 	std::string lock_key = LOCKPREFIX + std::to_string(uid);
 	std::string identifier = RedisManager::getInstance()->acqueireLock(lock_key, LOCK_TIMEOUT, ACQUIRE_TIMEOUT);
-	
 	std::string ip = RedisManager::getInstance()->Get(USERIPPREFIX + std::to_string(uid));
 	auto cfg = ConfigManager::getInstance();
 	if (ip == "") {
@@ -488,12 +490,12 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 	UserManager::getInstance()->printSessions();
 	RedisManager::getInstance()->releaseLock(lock_key, identifier);
 }
+
 void LogicSystem::authAccess(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
 	Json::Value root;
 	Json::Reader reader;
-	
 	Json::Value rtvalue;
 	if (!reader.parse(msgData, root))
 	{
@@ -521,7 +523,6 @@ void LogicSystem::authAccess(std::shared_ptr<CSession> session, short msgId, std
 		rtvalue["code"] = ERROE_CODR::ERROR_AUTH_APPLY;
 		rtvalue["message"] = "verify friendApply failed.";
 	}
-	
 	int thread_id1 = 0;
 	int thread_id2 = 0;
 	int friend_id1 = 0;
@@ -564,10 +565,8 @@ void LogicSystem::authAccess(std::shared_ptr<CSession> session, short msgId, std
 			notify["messgae"] = "your friendApply is accepted.";
 			notify["friend_id"] = friend_id1;
 			notify["thread_id"] = thread_id2;
-			
 			session->Send(notify.toStyledString(), ID_NOTIFY_ACCESS_VERIFY, uuid);
 		}
-		
 		return;
 	}
 	std::cout << "Need to call rpc Service.???????????????????" << std::endl;
@@ -576,6 +575,7 @@ void LogicSystem::authAccess(std::shared_ptr<CSession> session, short msgId, std
 	req.set_touid(touid);
 	ChatGrpcClient::getInstance()->NotifyAuthFriend(peerIP, req);
 }
+
 void LogicSystem::searchHandle(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
@@ -598,7 +598,7 @@ void LogicSystem::searchHandle(std::shared_ptr<CSession> session, short msgId, s
 		std::cout << "Client wants to search User( uid = " << uid << " )." << std::endl;
 		searchRes = getUserByUid(uid,value);
 	}
-	else 
+	else
 	{
 		std::cout << "Client wants to search User( name = " << uid << " )." << std::endl;
 		searchRes = getUserByName(uid, value);
@@ -609,6 +609,7 @@ void LogicSystem::searchHandle(std::shared_ptr<CSession> session, short msgId, s
 	}
 	session->Send(value.toStyledString(), ID_SEARCH_USER_RSP, uuid);
 }
+
 void LogicSystem::applyHandle(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
@@ -622,7 +623,6 @@ void LogicSystem::applyHandle(std::shared_ptr<CSession> session, short msgId, st
 	int status = root["status"].asInt();
 	std::cout << "uid =   " << fromuid << " reuquest to apply friend," << " applyname  is " << applyname << " bakname is " << bakname << " touid is " << touid << " status = " << status << std::endl;
 	Json::Value  rtvalue;
-	
 	int current_id = -1;
 	std::string apply_time;
 	int ret = MysqlManager::getInstance()->addFriendApply(fromuid, touid,current_id, apply_time);
@@ -695,8 +695,8 @@ void LogicSystem::applyHandle(std::shared_ptr<CSession> session, short msgId, st
 }
 	*/
 	AddFriendReq add_req;
-	if (searchRes) 
-	{	
+	if (searchRes)
+	{
 		add_req.set_applyuid(fromuid);
 		add_req.set_touid(touid);
 		add_req.set_name(applyname);
@@ -707,22 +707,22 @@ void LogicSystem::applyHandle(std::shared_ptr<CSession> session, short msgId, st
 	}
 	ChatGrpcClient::getInstance()->NotifyAddFriend(peerIP, add_req);
 }
+
 void LogicSystem::heartCheck(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
 	Json::Reader reader;
 	Json::Value root;
 	reader.parse(msgData, root);
-	
 	int uid = root["uid"].asInt();
 	std::cout << "uid = " << session->getUserId() << " request to update heartCheckTime." << std::endl;
 	session->setHeartCheckTime(time(NULL));
-	
 	Json::Value  rtvalue;
 	rtvalue["code"] = SUCCESS;
 	rtvalue["message"] = "update HeartCheckTime Success.\n";
 	session->Send(rtvalue.toStyledString(), ID_HEADT_CHECK_RSP, uuid);
 }
+
 void LogicSystem::heartCheckWithStatusServer(std::shared_ptr<CSession> session, short msgId, std::string msgData,
                                              std::string uuid)
 {
@@ -740,6 +740,7 @@ void LogicSystem::heartCheckWithStatusServer(std::shared_ptr<CSession> session, 
 		std::cout << "heart check with status server success, uuid = " << heartUuid << std::endl;
 	}
 }
+
 void LogicSystem::loadChatList(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
@@ -791,10 +792,12 @@ void LogicSystem::loadChatList(std::shared_ptr<CSession> session, short msgId, s
 		rtvalue["threads"].append(obj);
 	}
 }
+
 int LogicSystem::GetUserThreadInfos(int uid, int last_thread_id, int page_size, std::vector<std::shared_ptr<ChatThreadInfo>>& infos, bool& load_more, int& max_thread_id)
 {
 	return MysqlManager::getInstance()->GetUserThreadInfos(uid, last_thread_id, page_size, infos, load_more, max_thread_id);
 }
+
 bool LogicSystem::AddUserThreadImageMsg(std::string unique_name, std::shared_ptr<ChatMessage> image_data)
 {
 	if(image_datas_.count(unique_name)) {
@@ -805,6 +808,7 @@ bool LogicSystem::AddUserThreadImageMsg(std::string unique_name, std::shared_ptr
 	std::cout << "Add image msg, unique_name = " << unique_name << " success.";
 	return true;
 }
+
 bool LogicSystem::RemoveUserThreadImageMsg(std::string unique_name)
 {
 	if (image_datas_.count(unique_name) == 0) {
@@ -815,6 +819,7 @@ bool LogicSystem::RemoveUserThreadImageMsg(std::string unique_name)
 	std::cout << "Remove image msg, unique_name = " << unique_name << " success.";
 	return true;
 }
+
 void LogicSystem::createPrivateThread(std::shared_ptr<CSession> session, short msgId, std::string msgData,
                                       std::string uuid)
 {
@@ -851,6 +856,7 @@ void LogicSystem::createPrivateThread(std::shared_ptr<CSession> session, short m
 	rtvalue["create_uid"] = user1_id;
 	rtvalue["peer_uid"] = user2_id;
 }
+
 void LogicSystem::loadConnList(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	std::cout << "handle id = " << msgId << std::endl;
@@ -882,7 +888,6 @@ void LogicSystem::loadConnList(std::shared_ptr<CSession> session, short msgId, s
 		rtvalue["max_friend_id"] = last_friend_id;
 		return;
 	}
-	
 	Json::Value friendsArray;
 	int max_id = last_friend_id;
 	for (auto fr : friendList) {
@@ -901,6 +906,7 @@ void LogicSystem::loadConnList(std::shared_ptr<CSession> session, short msgId, s
 	rtvalue["friends"] = friendsArray;
 	rtvalue["max_friend_id"] = max_id;
 }
+
 void LogicSystem::dealImageChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData,
                                    std::string uuid)
 {
@@ -957,6 +963,7 @@ void LogicSystem::dealImageChatMsg(std::shared_ptr<CSession> session, short msgI
 	rtvalue["message"] = "send new image message success.";
 	rtvalue["type"] = type;
 }
+
 void LogicSystem::loadFriendApplyList(std::shared_ptr<CSession> session, short msgId, std::string msgData,
                                       std::string uuid)
 {
@@ -964,12 +971,11 @@ void LogicSystem::loadFriendApplyList(std::shared_ptr<CSession> session, short m
 	Json::Value root;
 	Json::Reader reader;
 	Json::Value rtvalue;
-	
 	rtvalue["code"] = SUCCESS;
 	rtvalue["message"] = "load friendApply list Success.";
 	Defer defer([session,this,&rtvalue,uuid]() {
 			session->Send(rtvalue.toStyledString(), ID_LOAD_FRIEND_APPLY_RSP, uuid);
-		});	
+		});
 	if (!reader.parse(msgData, root)) {
 		rtvalue["code"] = ERROE_CODR::ERROR_JSON;
 		rtvalue["message"] = "prase json failed.";
@@ -988,10 +994,8 @@ void LogicSystem::loadFriendApplyList(std::shared_ptr<CSession> session, short m
 		rtvalue["message"] = "Get Friend Apply List failed.";
 		return;
 	}
-	
 	rtvalue["is_load_more"] = is_load_more;
 	rtvalue["last_friend_apply_id"] = max_friend_apply_id;
-	
 	for (auto& apply : applyList) {
 		Json::Value value;
 		value["id"] = apply->id_;
@@ -1006,6 +1010,7 @@ void LogicSystem::loadFriendApplyList(std::shared_ptr<CSession> session, short m
 		rtvalue["apply_friend_list"].append(value);
 	}
 }
+
 void LogicSystem::loadChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
 	Json::Value root;
@@ -1027,11 +1032,10 @@ void LogicSystem::loadChatMsg(std::shared_ptr<CSession> session, short msgId, st
 	int page_size = root["page_size"].asInt();
 	int min_message_id = root["min_message_id"].asInt();
 	int max_message_id = root["max_message_id"].asInt();
-	
 	if (thread_id == 1) {
 		std::cout << "thread_id = 1 . . . . . . . . . . . . . .. . ";
 	}
-	std::cout << "uid = " << uid << " thread_id = " << thread_id << " request to load chatmessage.(min_message_id = " 
+	std::cout << "uid = " << uid << " thread_id = " << thread_id << " request to load chatmessage.(min_message_id = "
 		<< min_message_id << ",max_message_id = " << max_message_id << ").\n";
 	bool is_load_more = true;
 	std::vector<ChatMessage> msgs;
@@ -1042,7 +1046,6 @@ void LogicSystem::loadChatMsg(std::shared_ptr<CSession> session, short msgId, st
 		rtvalue["message"] = "Get ChatMessage failed.";
 		return;
 	}
-	
 	for (auto& msg : msgs) {
 		Json::Value value;
 		value["message_id"] = msg.message_id;
@@ -1062,6 +1065,7 @@ void LogicSystem::loadChatMsg(std::shared_ptr<CSession> session, short msgId, st
 	rtvalue["max_message_id"] = max_message_id;
 	rtvalue["thread_id"] = thread_id;
 }
+
 std::shared_ptr<ChatMessage> LogicSystem::GetUserThreadImageMsg(std::string unique_name)
 {
 	if (image_datas_.count(unique_name) != 0) {

@@ -15,11 +15,13 @@ FileWorker::~FileWorker()
 {
 	// todo ...
 }
+
 void FileWorker::registerHandlers()
 {
 	handlers_[ID_UPLOAD_HEAD_ICON_REQ] = std::bind(&FileWorker::handleUploadHeadIcon, this, std::placeholders::_1);
 	handlers_[ID_IMAGE_CHAT_MSG_REQ] = std::bind(&FileWorker::handleUploadFile, this, std::placeholders::_1);
 }
+
 void FileWorker::dealTask()
 {
 	while (true)
@@ -51,6 +53,7 @@ void FileWorker::dealTask()
 		}
 	}
 }
+
 std::string FileWorker::base64_decode(const std::string& in)
 {
 	const std::string base64_chars =
@@ -94,6 +97,7 @@ std::string FileWorker::base64_decode(const std::string& in)
 	}
 	return out;
 }
+
 void FileWorker::taskHandler(std::shared_ptr<FileTask> task)
 {
 	if(handlers_.count(task->req_id_) != 0){
@@ -102,6 +106,7 @@ void FileWorker::taskHandler(std::shared_ptr<FileTask> task)
 	}
 	std::cout << "system error: can't find FunctinCallback: " << task->req_id_ << std::endl;
 }
+
 void FileWorker::notifyFriendNewHeadIcon(int self_id, std::string fileName)
 {
 	// 1 MysqlManager去查找self_id的好友列表
@@ -178,6 +183,7 @@ void FileWorker::notifyFriendNewHeadIcon(int self_id, std::string fileName)
 		RedisManager::getInstance()->pushOfflineMessage(offline_friend_id, offlineMsg.toStyledString());
 	}
 }
+
 void FileWorker::handleUploadHeadIcon(std::shared_ptr<FileTask> task)
 {
 	std::shared_ptr<CSession> session = task->session_;
@@ -265,6 +271,7 @@ void FileWorker::handleUploadHeadIcon(std::shared_ptr<FileTask> task)
 			std::make_shared<FileInfo>(uid, seq, fileName, totolSize, transferredSize, lastSeq, fullPath));
 	}
 }
+
 void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 {
 	std::shared_ptr<CSession> session = task->session_;
@@ -357,6 +364,7 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 			std::make_shared<FileInfo>(uid,seq,fileName,totolSize,transferredSize,lastSeq, fullPath));
 	}
 }
+
 void FileWorker::postTaskToQue(std::shared_ptr<FileTask> task)
 {
 	// 将文件结点 根据 文件名 放入FileSystem的某个FileWorker中

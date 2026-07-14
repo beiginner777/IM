@@ -1,5 +1,6 @@
 ﻿#ifndef LOGINSTSREM_H
 #define LOGINSTSREM_H
+
 #include "global.h"
 #include "SingleTon.h"
 class RecvNode;

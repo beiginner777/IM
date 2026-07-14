@@ -2,6 +2,7 @@
 StatusGrpcClient::StatusGrpcClient()
 {
 }
+
 GetChatServerRsp StatusGrpcClient::GetChatServer(int uid)
 {
     ClientContext context;

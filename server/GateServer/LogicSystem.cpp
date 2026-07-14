@@ -41,6 +41,7 @@ LogicSystem::~LogicSystem()
 {
     std::cout << "LogicSystem destructed." << std::endl;
 }
+
 void LogicSystem::registerGetHandler()
 {
     getHandles_["/"] = [this](std::shared_ptr<HttpConnection> conn) {
@@ -66,6 +67,7 @@ void LogicSystem::registerGetHandler()
 		response.content_length(response.body().size());
 	};
 }
+
 void LogicSystem::registerPostHandler()
 {
 	// 注册 获取验证码 的回调函数
@@ -261,6 +263,7 @@ void LogicSystem::registerPostHandler()
 		//std::cout << "return message1 = " << boost::beast::buffers_to_string(response.body().data()) << std::endl;
 	};
 }
+
 void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 {
 	std::string target = conn->request_.target();
@@ -278,6 +281,7 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 		std::cout << "Can' not find GetHandler of " << url_ << std::endl;
 	}
 }
+
 void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn)
 {
 	std::string target = conn->request_.target();
@@ -304,6 +308,7 @@ unsigned char LogicSystem::toHex(unsigned char ch)
 	if(ch > 9) return ch  + 55;
 	else return ch + 48;
 }
+
 unsigned char LogicSystem::fromHex(unsigned char ch)
 {
 	if(ch >= 'A' && ch <= 'Z') return ch - 'A' + 10;
@@ -346,6 +351,7 @@ std::string LogicSystem::urlDecode(std::string url)
 	}
 	return result;
 }
+
 void LogicSystem::prase_get_request(std::string& url)
 {
 	std::cout << "prase get request ... " << std::endl;

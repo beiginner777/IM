@@ -8,6 +8,7 @@ MysqlDao::MysqlDao()
 MysqlDao::~MysqlDao()
 {
 }
+
 int MysqlDao::registerUser(const std::string& name, const std::string& email, const std::string& password)
 {
 	std::unique_ptr<SqlConnection> conn = pool_->getConnection();
@@ -63,6 +64,7 @@ int MysqlDao::registerUser(const std::string& name, const std::string& email, co
 		return ERROR_REGISTER;
 	}
 }
+
 int MysqlDao::userLogin(std::string name, std::string password, std::shared_ptr<UserInfo> userInfo)
 {
     std::unique_ptr<SqlConnection> conn = pool_->getConnection();

@@ -1,5 +1,6 @@
 ﻿#ifndef SINGLETON_H
 #define SINGLETON_H
+
 #include <memory>
 #include <mutex>
 #include <iostream>

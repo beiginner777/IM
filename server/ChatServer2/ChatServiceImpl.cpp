@@ -95,7 +95,7 @@ bool ChatServiceImpl::GetBaseInfo(int uid, std::shared_ptr<UserInfo>& userinfo)
 }
 Status ChatServiceImpl::NotifyAuthFriend(ServerContext* context, const AuthFriendReq* request, AuthFriendRsp* response)
 {
-    // 
+    //
     int fromuid = request->fromuid();
     int touid = request->touid();
     auto session = UserManager::getInstance()->GetSession(fromuid);
@@ -144,7 +144,6 @@ Status ChatServiceImpl::NotifyTextChatMsg(::grpc::ServerContext* context, const 
     rtvalue["text_array"] = text_array;
     std::string return_str = rtvalue.toStyledString();
     session->Send(return_str, ID_NOTIFY_TEXT_CHAT_MSG_REQ);
-    
     return Status::OK;
 }
 Status ChatServiceImpl::NotifyKickUser(ServerContext* context, const KickUserReq* request, KickUserRsp* response)
@@ -175,7 +174,6 @@ Status ChatServiceImpl::NotifyChatServerImg(ServerContext* context, const Notify
         response->set_error(ERROE_CODR::ERROR_USER_NOT_EXIST_IN_CHATSERVER);
         return Status::OK;
     }
-    
     // 向LogicSystem请求相应的信息，并向 Client 回包
     std::shared_ptr<ChatMessage> msg = LogicSystem::getInstance()->GetUserThreadImageMsg(unique_name);
     if (msg == nullptr) {

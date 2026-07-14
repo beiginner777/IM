@@ -17,10 +17,12 @@ LogicSystem::~LogicSystem()
 {
 	std::cout << "LogicSystem is destructed." << std::endl;
 }
+
 void LogicSystem::postMsgToQue(std::shared_ptr<LogicNode> logicNode, int index)
 {
 	logicWorkers_[index]->postMsgToQue(logicNode);
 }
+
 bool LogicSystem::addMd5FileInfo(std::string name, std::shared_ptr<FileInfo> fileInfo)
 {
 	// 将文件上传进度的消息保存在 redis中
@@ -37,6 +39,7 @@ bool LogicSystem::addMd5FileInfo(std::string name, std::shared_ptr<FileInfo> fil
 	auto redis_key = FILEUPLOADFREFIX + name;
 	return RedisManager::getInstance()->SetExp(redis_key, file_info_str, FILEINFOEXISTTIME);
 }
+
 std::shared_ptr<FileInfo> LogicSystem::getFileInfo(std::string name)
 {
 	// 从 redis 中获取文件上传进度的信息
@@ -62,11 +65,13 @@ std::shared_ptr<FileInfo> LogicSystem::getFileInfo(std::string name)
 	file_info->transfferredSize_ = root["trans_size"].asInt();
 	return file_info;
 }
+
 bool LogicSystem::DeleteMd5FileInfo(const std::string& name)
 {
 	// 删除 redis 中保存的文件上传进度的信息
 	return RedisManager::getInstance()->Del(FILEUPLOADFREFIX + name);
 }
+
 bool LogicSystem::addDownloadFileInfo(std::string name, std::shared_ptr<DownloadFileInfo> fileInfo)
 {
 	// 将文件上传进度的消息保存在 redis中
@@ -84,6 +89,7 @@ bool LogicSystem::addDownloadFileInfo(std::string name, std::shared_ptr<Download
 	auto redis_key = FILEDOWNLOADFREFIX + name;
 	return RedisManager::getInstance()->SetExp(redis_key, file_info_str, DOWNLOADFILEEXISTTIME);
 }
+
 std::shared_ptr<DownloadFileInfo> LogicSystem::GetDownloadFileInfo(std::string name)
 {
 	// 从 redis 中获取文件上传进度的信息
@@ -110,6 +116,7 @@ std::shared_ptr<DownloadFileInfo> LogicSystem::GetDownloadFileInfo(std::string n
 	file_info->download_file_type_ = root["download_file_type"].asInt();
 	return file_info;
 }
+
 bool LogicSystem::DeleteDownloadFileInfo(const std::string& name)
 {
 	// 删除 redis 中保存的文件上传进度的信息

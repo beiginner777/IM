@@ -1,5 +1,6 @@
 ﻿#ifndef MSGNODE_H
 #define MSGNODE_H
+
 #include "global.h"
 class LogicSystem;
 class CSession;

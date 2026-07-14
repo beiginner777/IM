@@ -1,8 +1,8 @@
 ﻿#include "MsgNode.h"
-RecvNode::RecvNode(short max_len, short msg_id, std::string uuid) 
+RecvNode::RecvNode(short max_len, short msg_id, std::string uuid)
 	: MsgNode(max_len)
-	, msg_id_(msg_id) 
-	, uuid_(uuid) 
+	, msg_id_(msg_id)
+	, uuid_(uuid)
 {
 }
 SendNode::SendNode(const char* msg, short max_len, short msg_id) : MsgNode(max_len + HEAD_TOTOL_LEN)

@@ -1,5 +1,6 @@
 ﻿#ifndef MYSQLDAO_H
 #define MYSQLDAO_H
+
 #include "global.h"
 #include "SingleTon.h"
 #include "ConfigManager.h"

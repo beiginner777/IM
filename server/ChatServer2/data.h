@@ -1,8 +1,9 @@
 ﻿#ifndef DATA_H
 #define DATA_H
+
 #include "global.h"
 struct UserInfo {
-	UserInfo() :name_(""), pwd_(""), uid_(), email_(""), nick_(""), desc_(""), sex_(0), icon_(""), back_("") 
+	UserInfo() :name_(""), pwd_(""), uid_(), email_(""), nick_(""), desc_(""), sex_(0), icon_(""), back_("")
 	{
 	}
 	UserInfo(int uid,std::string name, std::string email,
@@ -50,7 +51,7 @@ struct ApplyInfo {
 struct ChatThreadInfo
 {
 	ChatThreadInfo() {}
-	ChatThreadInfo(int threadId, int type,int user1_id,int user2_id) 
+	ChatThreadInfo(int threadId, int type,int user1_id,int user2_id)
 		: threadId_(threadId), threadType_(type), user1_id_(user1_id), user2_id_(user2_id){
 	}
 	int threadId_;
@@ -77,7 +78,7 @@ struct ChatMessage {
 	int status; // 消息状态（0 1 2）
 	CHAT_MSG_TYPE type; // 消息类型（文本，图片等）
 	/*
-	status : 
+	status :
 	UN_READ = 0,  // 正在发送
     SEND_FAILED = 1,  //发送失败
     READED = 2,  // 发送成功
