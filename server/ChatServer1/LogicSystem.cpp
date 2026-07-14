@@ -73,7 +73,7 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<CSession> session, short m
 		Json::Value rt;
 		rt["code"] = ERROR_RATE_LIMITED;
 		rt["message"] = "发送过于频繁，请稍后重试";
-		session->Send(rt.toStyledString(), msgId + 1);
+		session->Send(rt.toStyledString(), getRspMsgId(msgId));
 		return false;
 	}
 
@@ -83,7 +83,7 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<CSession> session, short m
 		Json::Value rt;
 		rt["code"] = ERROR_RATE_LIMITED;
 		rt["message"] = "发送过于频繁，请稍后重试";
-		session->Send(rt.toStyledString(), msgId + 1);
+		session->Send(rt.toStyledString(), getRspMsgId(msgId));
 		return false;
 	}
 
