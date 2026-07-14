@@ -13,3 +13,19 @@ body {
 #app {
   min-height: 100vh;
 }
+
+/* 登录/注册页输入框暗色主题（全局覆盖 Ant Design） */
+.auth-input .ant-input,
+.auth-input .ant-input-affix-wrapper {
+  color: #fff !important;
+  caret-color: #fff;
+}
+.auth-input .ant-input::placeholder,
+.auth-input .ant-input-affix-wrapper .ant-input::placeholder {
+  color: rgba(255, 255, 255, 0.35) !important;
+}
+.auth-input .ant-input-affix-wrapper .ant-input {
+  color: #fff !important;
+  caret-color: #fff;
+  background: transparent !important;
+}
