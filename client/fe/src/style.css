@@ -14,6 +14,12 @@ body {
   min-height: 100vh;
 }
 
+/* 暗色主题输入框修复 */
+.auth-input .ant-input-affix-wrapper input {
+  color: #fff !important;
+  caret-color: #fff !important;
+}
+
 /* 登录/注册页输入框暗色主题（全局覆盖 Ant Design） */
 .auth-input .ant-input,
 .auth-input .ant-input-affix-wrapper {
