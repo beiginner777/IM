@@ -96,7 +96,7 @@
         $(UmLibDir);
 		$(RedisLibDir);
 		$(MysqlLibDir);
-        %(AdditionalLibraryDirectories)
+        E:/File/vcpkg/vcpkg/installed/x64-windows/lib;E:/File/vcpkg/vcpkg/installed/x64-windows/debug/lib;%(AdditionalLibraryDirectories)
       </AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
