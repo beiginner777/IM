@@ -44,28 +44,34 @@ LogicSystem::~LogicSystem()
 
 void LogicSystem::registerGetHandler()
 {
-    getHandles_["/"] = [this](std::shared_ptr<HttpConnection> conn) {
+	// 前端静态文件目录（相对 GateServer 项目目录: server/GateServer/）
+	static const std::string kFeDist = "../../client/fe/dist";
+
+	// 响应 index.html 的通用 lambda
+	auto serveFeApp = [this](std::shared_ptr<HttpConnection> conn) {
 		auto& response = conn->response_;
-		std::ifstream file("index.html");
-		if (file.is_open())
-		{
+		std::ifstream file(kFeDist + "/index.html", std::ios::binary);
+		if (file.is_open()) {
 			response.result(http::status::ok);
 			std::stringstream buffer;
-			buffer << file.rdbuf(); 
+			buffer << file.rdbuf();
 			response.set(http::field::content_type, "text/html");
 			beast::ostream(response.body()) << buffer.str();
-			// for(auto p : getPrama_){
-			// 	std::cout << p.first << " " << p.second << std::endl;
-			// }
-		}
-		else
-		{
+			response.content_length(response.body().size());
+		} else {
 			response.result(http::status::not_found);
 			response.set(http::field::content_type, "text/plain");
 			beast::ostream(response.body()) << "index.html not found\n";
 		}
-		response.content_length(response.body().size());
 	};
+
+	// SPA 路由 —— 所有前端路由都返回 index.html
+	getHandles_["/"]            = serveFeApp;
+	getHandles_["/login"]       = serveFeApp;
+	getHandles_["/register"]    = serveFeApp;
+	getHandles_["/products"]    = serveFeApp;
+	getHandles_["/orders"]      = serveFeApp;
+	getHandles_["/rank"]        = serveFeApp;
 }
 
 void LogicSystem::registerPostHandler()
@@ -278,13 +284,59 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 	}
 	else
 	{
-		std::cout << "Can' not find GetHandler of " << url_ << std::endl;
+		// 无匹配路由 → 尝试作为静态文件返回
+		static const std::string kFeDist = "../../client/fe/dist";
+		std::string filePath = kFeDist + url_;
+		std::ifstream file(filePath, std::ios::binary);
+		auto& response = conn->response_;
+
+		auto isSuffix = [](const std::string& s, const std::string& sfx) {
+			return s.size() >= sfx.size() && s.rfind(sfx) == s.size() - sfx.size();
+		};
+
+		if (file.is_open()) {
+			response.result(http::status::ok);
+			std::stringstream buffer;
+			buffer << file.rdbuf();
+			if (isSuffix(url_, ".css"))       response.set(http::field::content_type, "text/css");
+			else if (isSuffix(url_, ".js"))   response.set(http::field::content_type, "application/javascript");
+			else if (isSuffix(url_, ".svg"))  response.set(http::field::content_type, "image/svg+xml");
+			else if (isSuffix(url_, ".png"))  response.set(http::field::content_type, "image/png");
+			else                              response.set(http::field::content_type, "application/octet-stream");
+			beast::ostream(response.body()) << buffer.str();
+			response.content_length(response.body().size());
+		} else {
+			// 静态文件也不存在 → SPA 回退
+			std::ifstream idx(kFeDist + "/index.html");
+			if (idx.is_open()) {
+				response.result(http::status::ok);
+				std::stringstream buf;
+				buf << idx.rdbuf();
+				response.set(http::field::content_type, "text/html");
+				beast::ostream(response.body()) << buf.str();
+				response.content_length(response.body().size());
+			} else {
+				response.result(http::status::not_found);
+				response.set(http::field::content_type, "text/plain");
+				beast::ostream(response.body()) << "404 not found\n";
+			}
+		}
+		url_ = "";
+		getPrama_.clear();
 	}
 }
 
 void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn)
 {
 	std::string target = conn->request_.target();
+
+	// /api/* 路由映射到 GateServer 内部 handler
+	if (target.find("/api/") == 0) {
+		if (target == "/api/login")    target = "/loginAddr";
+		if (target == "/api/register") target = "/registerUserAddr";
+		if (target == "/api/verify")   target = "/getVerifyCode";
+	}
+
 	std::cout << "prase url = " << target << std::endl;
 	if (postHandles_.count(target))
 	{
