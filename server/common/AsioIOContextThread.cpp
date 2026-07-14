@@ -22,7 +22,6 @@ AsioIOContextThreadPool::~AsioIOContextThreadPool()
 	stop();
 	std::cout << "AsioIOContextThreadPool stop. " << std::endl;
 }
-
 boost::asio::io_context& AsioIOContextThreadPool::getIOContext()
 {
 	boost::asio::io_context& ioc = io_contexts_[iocontextIndex++];
@@ -32,7 +31,6 @@ boost::asio::io_context& AsioIOContextThreadPool::getIOContext()
 	}
 	return ioc;
 }
-
 void AsioIOContextThreadPool::stop()
 {
 	for (auto& work : workers_)

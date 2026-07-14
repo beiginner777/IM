@@ -13,12 +13,10 @@ FileSystem::FileSystem()
 FileSystem::~FileSystem()
 {
 }
-
 void FileSystem::postTaskToQue(std::shared_ptr<FileTask> task, int index)
 {
 	fileWorkers_[index]->postTaskToQue(task);
 }
-
 void FileSystem::PostDownloadTaskToQue(std::shared_ptr<DownloadTask> msg, int index)
 {
 	downloadWorkers_[index]->postTaskToQue(msg);

@@ -1,6 +1,5 @@
 #ifndef CHATSERVICEIMPL_H
 #define CHATSERVICEIMPL_H
-
 #include "global.h"
 #include "message.grpc.pb.h"
 using namespace grpc;

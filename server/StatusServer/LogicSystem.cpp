@@ -13,14 +13,12 @@ LogicSystem::~LogicSystem()
 {
 	std::cout << "LogicSystem is destructed." << std::endl;
 }
-
 void LogicSystem::postMsgToQue(std::shared_ptr<LogicNode> logicNode)
 {
 	std::lock_guard<std::mutex> locker(mtx_);
 	que_.push(logicNode);
 	cond_.notify_all();
 }
-
 void LogicSystem::dealTask()
 {
 	while (true)
@@ -70,7 +68,6 @@ void LogicSystem::dealTask()
 		}
 	}
 }
-
 void LogicSystem::registerFunctionCallbacks()
 {
 	// 心跳检测 -- 更新Session的时间戳
@@ -78,7 +75,6 @@ void LogicSystem::registerFunctionCallbacks()
 	// 其它服务的注册
 	handlers_[ID_REGISTER_REQ] = std::bind(&LogicSystem::registerService, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);	
 }
-
 void LogicSystem::registerService(std::shared_ptr<CSession> session, short msgId, std::string msgData)
 {
 	std::cout << "handle id = " << msgId << std::endl;
@@ -106,7 +102,6 @@ void LogicSystem::registerService(std::shared_ptr<CSession> session, short msgId
 	// 将服务信息存储在 Redis 中（ChatServer → ChatServers, ResourceServer → ResourceServers）
 	storeServerInfoInRedis(info);
 }
-
 void LogicSystem::storeServerInfoInRedis(const Server_Info& info)
 {
 	Json::Value json;
@@ -118,7 +113,6 @@ void LogicSystem::storeServerInfoInRedis(const Server_Info& info)
 	std::string key = (info.server_type == CHAT_SERVER) ? CHATSERVERS : RESOURCESERVERS;
 	RedisManager::getInstance()->HSet(key, info.name, json.toStyledString());
 }
-
 void LogicSystem::heartCheck(std::shared_ptr<CSession> session, short msgId, std::string msgData)
 {
 	std::cout << "handle id = " << msgId << std::endl;

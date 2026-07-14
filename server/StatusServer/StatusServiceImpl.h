@@ -1,6 +1,5 @@
 #ifndef STATUSSERVICEIMPL_H
 #define STATUSSERVICEIMPL_H
-
 #include <grpcpp/grpcpp.h>
 #include "global.h"
 #include "message.grpc.pb.h"

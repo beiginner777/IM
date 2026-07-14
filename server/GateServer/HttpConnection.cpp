@@ -16,7 +16,6 @@ HttpConnection::~HttpConnection()
 	sock_.close();
 	std::cout << "uuid = " << uuid_ << " connection destructed." << std::endl;
 }
-
 void HttpConnection::check_deadline()
 {
 	auto self = shared_from_this();
@@ -32,13 +31,11 @@ void HttpConnection::check_deadline()
 		self->deadline_.cancel();
 		});
 }
-
 void HttpConnection::start()
 {
 	read_request();
 	check_deadline();
 }
-
 void HttpConnection::read_request()
 {
 	auto self = shared_from_this();
@@ -61,7 +58,6 @@ void HttpConnection::read_request()
 			}
 		});
 }
-
 void HttpConnection::prase_request()
 {
 	auto self = shared_from_this();
@@ -86,7 +82,6 @@ void HttpConnection::prase_request()
 		std::cout << "Unknowed request method: " << request_.method() << std::endl;
 	}
 }
-
 void HttpConnection::send_response()
 {
 	auto self = shared_from_this();
@@ -108,7 +103,6 @@ void HttpConnection::send_response()
 			}
 		});
 }
-
 void HttpConnection::clear()
 {
 	buffer_.consume(buffer_.size());

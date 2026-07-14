@@ -1,6 +1,5 @@
 ﻿#ifndef CSESSION_H
 #define CSESSION_H
-
 #include "global.h"
 #include "MsgNode.h"
 class CServer;

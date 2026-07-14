@@ -37,14 +37,12 @@ std::vector<size_t> BloomFilter::hashPositions(const std::string& key) const
 	}
 	return positions;
 }
-
 void BloomFilter::add(const std::string& key)
 {
 	for (size_t pos : hashPositions(key)) {
 		bits_.set(pos);
 	}
 }
-
 void BloomFilter::add(uint64_t uid)
 {
 	add(std::to_string(uid));
@@ -79,7 +77,6 @@ bool BloomFilter::contains(const std::string& key) const
 	}
 	return false;
 }
-
 bool BloomFilter::contains(uint64_t uid) const
 {
 	return contains(std::to_string(uid));

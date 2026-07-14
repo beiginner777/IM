@@ -1,6 +1,5 @@
 ﻿#ifndef LOGICWORKER_H
 #define LOGICWORKER_H
-
 #include "global.h"
 class CSession;
 class LogicNode;

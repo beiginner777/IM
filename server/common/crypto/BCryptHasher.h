@@ -1,6 +1,5 @@
 #ifndef BCRYPT_HASHER_H
 #define BCRYPT_HASHER_H
-
 #include <string>
 /// bcrypt password hasher backed by OpenBSD reference implementation
 class BCryptHasher

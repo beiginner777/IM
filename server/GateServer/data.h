@@ -1,6 +1,5 @@
 #ifndef DATA_H
 #define DATA_H
-
 #include "global.h"
 struct UserInfo {
 	UserInfo() :name_(""), pwd_(""), uid_(0), email_(""), nick_(""), desc_(""), sex_(0), icon_(""), back_("") {}

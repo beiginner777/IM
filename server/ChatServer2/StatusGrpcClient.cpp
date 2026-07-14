@@ -2,7 +2,6 @@
 StatusGrpcClient::StatusGrpcClient()
 {
 }
-
 GetResourceServerRsp StatusGrpcClient::GetResourceServer(const std::string& chatserver_name)
 {
 	GetResourceServerRsp reply;

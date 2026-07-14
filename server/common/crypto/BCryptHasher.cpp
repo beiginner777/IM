@@ -21,7 +21,6 @@ std::string BCryptHasher::generateSalt(unsigned int cost)
     if (costStr.length() < 2) costStr = "0" + costStr;
     return "$2b$" + costStr + "$" + std::string(encoded, 22);
 }
-
 std::string BCryptHasher::generateHash(const std::string& password, unsigned int cost)
 {
     if (password.empty() || cost < 4 || cost > 31) return "";
@@ -67,7 +66,6 @@ std::string BCryptHasher::generateHash(const std::string& password, unsigned int
     if (costStr.length() < 2) costStr = "0" + costStr;
     return "$2b$" + costStr + "$" + saltOnly + std::string(hashEncoded, 31);
 }
-
 bool BCryptHasher::verifyPassword(const std::string& password, const std::string& hash)
 {
     std::cout << "===========================================================================" << std::endl;

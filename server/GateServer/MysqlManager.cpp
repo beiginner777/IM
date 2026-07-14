@@ -45,7 +45,6 @@ void MysqlManager::initBloomFilter()
 		std::cerr << "[BloomFilter] MySQL error: " << e.what() << std::endl;
 	}
 }
-
 int MysqlManager::registerUser(const std::string& name, const std::string& email, const std::string& password)
 {
 	// Bloom pre-check
@@ -56,7 +55,6 @@ int MysqlManager::registerUser(const std::string& name, const std::string& email
 	}
 	return dao_.registerUser(name, email, password);
 }
-
 int MysqlManager::userLogin(std::string name, std::string password, std::shared_ptr<UserInfo> userInfo)
 {
 	// Bloom pre-check

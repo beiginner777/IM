@@ -1,6 +1,5 @@
 #ifndef GATESERVER_H
 #define GATESERVER_H
-
 #include "global.h"
 #include "AsioIOContextThreadPool.h"
 class GateServer : public std::enable_shared_from_this<GateServer>

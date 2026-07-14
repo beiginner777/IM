@@ -24,7 +24,6 @@ CServer::~CServer()
 		kv.second->Close();
 	}
 }
-
 void CServer::startReceiceConnections()
 {
 	startHeartCheckToStatusServer();
@@ -33,12 +32,10 @@ void CServer::startReceiceConnections()
 	startAccept();
 	//startTimer();
 }
-
 std::string CServer::getConnectionToStatusServerUuid()
 {
 	return connectionToStatusServer_->getUuid();
 }
-
 bool CServer::connectToStatusServer()
 {
 	ConfigManager cfg = ConfigManager::getInstance();
@@ -83,14 +80,12 @@ bool CServer::connectToStatusServer()
 	}
 	return true;
 }
-
 void CServer::startAccept()
 {
 	auto& ioc = AsioIOContextThreadPool::getInstance()->getIOContext();
 	std::shared_ptr<CSession> session = std::make_shared<CSession>(ioc, this);
 	acceptor_.async_accept(session->getSocket(), std::bind(&CServer::handleAccept, this, session, std::placeholders::_1));
 }
-
 void CServer::handleAccept(std::shared_ptr<CSession> session, const boost::system::error_code& ec)
 {
 	if (ec.value())
@@ -107,7 +102,6 @@ void CServer::handleAccept(std::shared_ptr<CSession> session, const boost::syste
 	}
 	startAccept();
 }
-
 void CServer::checkConnectionIsOverTime(boost::system::error_code ec)
 {
 	if (ec == boost::asio::error::operation_aborted) {
@@ -135,13 +129,11 @@ void CServer::checkConnectionIsOverTime(boost::system::error_code ec)
 	// 开启下一个定时检测任务
 	startTimer();
 }
-
 void CServer::startHeartCheckToStatusServer()
 {
 	heartCheckTimer_.expires_after(std::chrono::seconds(HEART_CHRCK_INTERVAL));
 	heartCheckTimer_.async_wait(std::bind(&CServer::sendHeartCheckMsgToStatusServer, this, std::placeholders::_1));
 }
-
 void CServer::sendHeartCheckMsgToStatusServer(boost::system::error_code ec)
 {
 	// 使用 4 字节头发送心跳（StatusServer 用 4B 头，ResourceServer 默认 6B）
@@ -154,7 +146,6 @@ void CServer::sendHeartCheckMsgToStatusServer(boost::system::error_code ec)
 	boost::asio::write(connectionToStatusServer_->getSocket(), buffers, ignored);
 	startHeartCheckToStatusServer();
 }
-
 void CServer::clearSession(std::string uuid)
 {
 	std::lock_guard<std::mutex> locker(mtx_);
@@ -168,7 +159,6 @@ void CServer::clearSession(std::string uuid)
 		std::cout << "session has been erased." << std::endl;
 	}
 }
-
 void CServer::startTimer()
 {
 	timer_.expires_after(std::chrono::seconds(HEART_CHRCK_INTERVAL));
@@ -177,7 +167,6 @@ void CServer::startTimer()
 		self->checkConnectionIsOverTime(ec);
 		});
 }
-
 void CServer::cancelTimer()
 {
 	timer_.cancel();

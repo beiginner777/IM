@@ -14,7 +14,6 @@ StatusServiceImpl::StatusServiceImpl()
 	// 不再从 config.ini 加载 ChatServer 列表
 	// ChatServer/ResourceServer 地址从 CServer 动态获取
 }
-
 Status StatusServiceImpl::GetChatServer(ServerContext* context, const GetChatServerReq* request, GetChatServerRsp* reply)
 {
 	if (!server_)
@@ -38,7 +37,6 @@ Status StatusServiceImpl::GetChatServer(ServerContext* context, const GetChatSer
 	          << " con_count=" << selected.con_count << " for " << "GateServer" << std::endl;
 	return Status::OK;
 }
-
 Status StatusServiceImpl::GetResourceServer(ServerContext* context, const GetResourceServerReq* request, GetResourceServerRsp* reply)
 {
 	if (!server_) {

@@ -1,6 +1,5 @@
 #ifndef MESSAGE_DEDUPLICATOR_H
 #define MESSAGE_DEDUPLICATOR_H
-
 #include "SingleTon.h"
 #include <string>
 class MessageDeduplicator : public SingleTon<MessageDeduplicator>

@@ -1,6 +1,5 @@
 #ifndef ASIOIOCONTEXTTHREAD_H
 #define ASIOIOCONTEXTTHREAD_H
-
 #include <boost/asio.hpp>
 #include <vector>
 #include <thread>

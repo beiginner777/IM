@@ -19,14 +19,12 @@ CSession::~CSession()
 {
 	std::cout << "CSession(uid = " << userId_ << ") is destructed. " << std::endl;
 }
-
 void CSession::start()
 {
 	std::cout << "session: " << uuid_ << " is started ." << std::endl;
 	heartCheckTime_ = time(NULL);
 	AsyncReadHead(HEAD_TOTOL_LEN_WITH_UUID);
 }
-
 void CSession::Close()
 {
 	if(this->uuid_ == server_->getConnectionToStatusServerUuid()) {
@@ -59,7 +57,6 @@ void CSession::Close()
 	std::cout << "Clear Session(uid = "<< this->getUserId() << " )Information in redis & Server & UserManager" << std::endl;
 	return;
 }
-
 void CSession::Send(const char* msg, size_t max_length, short msgid)
 {
 	std::lock_guard<std::mutex> locker_(mtx_);
@@ -76,7 +73,6 @@ void CSession::Send(const char* msg, size_t max_length, short msgid)
 	boost::asio::async_write(socket_, boost::asio::buffer(sendnode->data_, sendnode->totol_len_),
 		std::bind(&CSession::handleWrite, this, std::placeholders::_1, shared_from_this()));
 }
-
 void CSession::Send(std::string msg, short msgid, std::string uuid)
 {
 	std::cout << "To session(" << this->getUuid() << ") return id = " << msgid << " return message = " << msg << std::endl;
@@ -86,18 +82,15 @@ void CSession::Send(std::string msg, short msgid, std::string uuid)
 		dedup->cacheResult(uuid, msg);
 	}
 }
-
 void CSession::notifyOffLine(int uid)
 {
 	this->Send("", ID_NOTIFY_OFFLINE);
 }
-
 void CSession::setHeartCheckTime(time_t tm)
 {
 	std::lock_guard<std::mutex> locker(timeMtx_);
 	heartCheckTime_ = tm;
 }
-
 bool CSession::isHeartOverTime()
 {
 	std::lock_guard<std::mutex> locker(timeMtx_);
@@ -105,7 +98,6 @@ bool CSession::isHeartOverTime()
 	double t = std::difftime(now, heartCheckTime_);
 	return t > HEART_CHECK_OVERTIME;
 }
-
 void CSession::AsyncReadHead(std::size_t len)
 {
 	auto self = shared_from_this();
@@ -146,13 +138,11 @@ void CSession::AsyncReadHead(std::size_t len)
 		AsyncReadBody(msg_len_host);
 		});
 }
-
 void CSession::AsyncReadFull(std::size_t maxLength, std::function<void(const boost::system::error_code, std::size_t)> handler)
 {
 	::memset(data_, 0, maxLength);
 	AsyncReadLen(0, maxLength, handler);
 }
-
 void CSession::AsyncReadLen(std::size_t readLen, std::size_t totolLen, std::function<void(const boost::system::error_code, std::size_t)> handler)
 {
 	auto self = shared_from_this();
@@ -169,7 +159,6 @@ void CSession::AsyncReadLen(std::size_t readLen, std::size_t totolLen, std::func
 		self->AsyncReadLen(readLen + bytesTransfered, totolLen, handler);
 		});
 }
-
 void CSession::AsyncReadBody(std::size_t len)
 {
 	auto self = shared_from_this();
@@ -198,7 +187,6 @@ void CSession::AsyncReadBody(std::size_t len)
 		AsyncReadHead(HEAD_TOTOL_LEN_WITH_UUID);
 		});
 }
-
 void CSession::handleWrite(boost::system::error_code ec,std::shared_ptr<CSession> session)
 {
 	if (ec) {
@@ -213,7 +201,6 @@ void CSession::handleWrite(boost::system::error_code ec,std::shared_ptr<CSession
 			std::bind(&CSession::handleWrite, this, std::placeholders::_1, shared_from_this()));
 	}
 }
-
 void CSession::handleNotifyOffLine(boost::system::error_code ec, std::shared_ptr<CSession> session)
 {
 	session->Close();

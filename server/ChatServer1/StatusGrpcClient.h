@@ -1,6 +1,5 @@
 #ifndef STATUSGRPCCLIENT_H
 #define STATUSGRPCCLIENT_H
-
 #include <grpc++/grpc++.h>
 #include "global.h"
 #include "SingleTon.h"

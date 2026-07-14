@@ -17,7 +17,6 @@ LogicWorker::~LogicWorker()
 {
 	// todo ...
 }
-
 void LogicWorker::registerFunctionCallbacks()
 {
 	handlers_[ID_UPLOAD_HEAD_ICON_REQ] = std::bind(&LogicWorker::uploadHeadIcon, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
@@ -30,7 +29,6 @@ void LogicWorker::registerFunctionCallbacks()
 	handlers_[ID_REGISTER_RSP] = std::bind(&LogicWorker::handleRegisterRsp, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 	handlers_[ID_HEADT_CHECK_RSP] = std::bind(&LogicWorker::handleHeartCheckRsp, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 }
-
 void LogicWorker::dealTask()
 {
 	while (true)
@@ -78,7 +76,6 @@ void LogicWorker::dealTask()
 		}
 	}
 }
-
 void LogicWorker::uploadHeadIcon(std::shared_ptr<CSession> session, short msgId, std::string msgData)
 {
 	std::cout << "upload head icon msgId = " << msgId << std::endl;
@@ -144,7 +141,6 @@ void LogicWorker::uploadHeadIcon(std::shared_ptr<CSession> session, short msgId,
 	int index = hash_value % FILEWORKER_COUNT;
 	FileSystem::getInstance()->postTaskToQue(task, index);
 }
-
 void LogicWorker::uploadFile(std::shared_ptr<CSession> session, short msgId, std::string msgData)
 {
 	// 在发送前添加点小延迟，避免快速连续发送
@@ -216,7 +212,6 @@ void LogicWorker::uploadFile(std::shared_ptr<CSession> session, short msgId, std
 	rtvalue["md5"] = md5;
 	rtvalue["uid"] = uid;*/
 }
-
 void LogicWorker::syncFile(std::shared_ptr<CSession> session, short msgId, std::string msgData)
 {
 	Json::Value root;
@@ -248,7 +243,6 @@ void LogicWorker::syncFile(std::shared_ptr<CSession> session, short msgId, std::
 	rtvalue["md5"] = md5;
 	rtvalue["file_name"] = file_info->name_;
 }
-
 void LogicWorker::downloadFile(std::shared_ptr<CSession> session, short msgId, std::string msgData)
 {
 	std::cout << "Download File msgId = " << msgId << std::endl;
@@ -296,7 +290,6 @@ void LogicWorker::downloadFile(std::shared_ptr<CSession> session, short msgId, s
 	int index = hash_value % FILEWORKER_COUNT;
 	FileSystem::getInstance()->PostDownloadTaskToQue(task, index);
 }
-
 void LogicWorker::imgChatContinueUpload(std::shared_ptr<CSession> session, short msgId, std::string msgData)
 {
 	Json::Value root;
@@ -333,7 +326,6 @@ void LogicWorker::imgChatContinueUpload(std::shared_ptr<CSession> session, short
 	rtvalue["md5"] = md5;
 	rtvalue["unique_name"] = file_info->name_;
 }
-
 void LogicWorker::fileContinueDownload(std::shared_ptr<CSession> session, short msgId, std::string msgData)
 {
 	Json::Value root;
@@ -370,7 +362,6 @@ void LogicWorker::fileContinueDownload(std::shared_ptr<CSession> session, short 
 	rtvalue["client_save_path"] = file_info->client_save_path_;
 	rtvalue["download_file_type"] = file_info->download_file_type_;
 }
-
 std::string LogicWorker::base64_decode(const std::string& in)
 {
 	const std::string base64_chars =
@@ -414,7 +405,6 @@ std::string LogicWorker::base64_decode(const std::string& in)
 	}
 	return out;
 }
-
 void LogicWorker::postMsgToQue(std::shared_ptr<LogicNode> logicNode)
 {
 	std::lock_guard<std::mutex> locker(mtx_);

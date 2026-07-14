@@ -11,7 +11,6 @@ BatchMessageWriter::~BatchMessageWriter()
 {
 	stop();
 }
-
 void BatchMessageWriter::start()
 {
 	bStop_ = false;
@@ -19,7 +18,6 @@ void BatchMessageWriter::start()
 	recoveryThread_  = std::thread(&BatchMessageWriter::recoveryWorker, this);
 	std::cout << "[BatchWriter] Started (shared queues, maxRetries=" << MAX_RETRIES << ")" << std::endl;
 }
-
 void BatchMessageWriter::stop()
 {
 	bStop_ = true;
@@ -28,7 +26,6 @@ void BatchMessageWriter::stop()
 	std::cout << "[BatchWriter] Stopped. Written=" << totalWritten_.load()
 	          << " Failed=" << totalFailed_.load() << std::endl;
 }
-
 void BatchMessageWriter::enqueue(std::shared_ptr<ChatMessage> msg)
 {
 	std::string json = serialize(*msg);
@@ -132,7 +129,6 @@ void BatchMessageWriter::pushToBackupQueue(const std::vector<std::shared_ptr<Cha
 		}
 	}
 }
-
 std::vector<std::shared_ptr<ChatMessage>> BatchMessageWriter::popBackupQueue()
 {
 	std::vector<std::shared_ptr<ChatMessage>> result;
@@ -162,7 +158,6 @@ std::string BatchMessageWriter::serialize(const ChatMessage& msg) const
 	Json::FastWriter writer;
 	return writer.write(obj);
 }
-
 std::shared_ptr<ChatMessage> BatchMessageWriter::deserialize(const std::string& json) const
 {
 	Json::Reader reader;

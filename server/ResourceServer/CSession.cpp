@@ -17,20 +17,17 @@ CSession::~CSession()
 {
 	std::cout << "CSession destructed. " << std::endl;
 }
-
 void CSession::start()
 {
 	std::cout << "session: " << uuid_ << " is started ." << std::endl;
 	AsyncReadHead(headerLen_);
 }
-
 void CSession::Close()
 {
 	std::lock_guard<std::mutex> locker_(mtx_);
 	socket_.close();
 	b_close_ = true;
 }
-
 void CSession::Send(const char* msg, int max_length, short msgid)
 {
 	std::lock_guard<std::mutex> locker_(mtx_);
@@ -53,13 +50,11 @@ void CSession::Send(const char* msg, int max_length, short msgid)
 	boost::asio::async_write(socket_, boost::asio::buffer(sendnode->data_, sendnode->totol_len_), 
 		std::bind(&CSession::handleWrite, this, std::placeholders::_1,shared_from_this()));
 }
-
 void CSession::Send(std::string msg, short msgid)
 {
 	std::cout << "send message = " << msg << std::endl;
 	Send(msg.c_str(), msg.length(), msgid);
 }
-
 void CSession::AsyncReadHead(std::size_t len)
 {
 	auto self = shared_from_this();
@@ -116,14 +111,12 @@ void CSession::AsyncReadHead(std::size_t len)
 		AsyncReadBody(msg_len_host);
 		});
 }
-
 void CSession::AsyncReadFull(std::size_t maxLength, std::function<void(const boost::system::error_code, std::size_t)> handler)
 {
 	// 清空对应的缓冲区
 	::memset(data_, 0, maxLength);
 	AsyncReadLen(0, maxLength, handler);
 }
-
 void CSession::AsyncReadLen(std::size_t readLen, std::size_t totolLen, std::function<void(const boost::system::error_code, std::size_t)> handler)
 {
 	auto self = shared_from_this();
@@ -145,7 +138,6 @@ void CSession::AsyncReadLen(std::size_t readLen, std::size_t totolLen, std::func
 		self->AsyncReadLen(readLen + bytesTransfered, totolLen, handler);
 		});
 }
-
 void CSession::AsyncReadBody(std::size_t len)
 {
 	auto self = shared_from_this();
@@ -174,7 +166,6 @@ void CSession::AsyncReadBody(std::size_t len)
 		AsyncReadHead(headerLen_);
 		});
 }
-
 void CSession::handleWrite(boost::system::error_code ec,std::shared_ptr<CSession> session)
 {
 	if (ec)
@@ -201,7 +192,6 @@ void CSession::setClientHeartCheckTime(time_t tm)
 	std::lock_guard<std::mutex> locker(clientTimeMtx_);
 	clientHeartCheckTime_ = tm;
 }
-
 bool CSession::isClientOverTime()
 {
 	std::lock_guard<std::mutex> locker(clientTimeMtx_);
