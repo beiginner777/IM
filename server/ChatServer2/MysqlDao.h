@@ -1,18 +1,14 @@
 ﻿#ifndef MYSQLDAO_H
 #define MYSQLDAO_H
-
 #include "global.h"
-
 class UserInfo;
 class ApplyInfo;
-
 class SqlConnection {
 public:
 	SqlConnection(sql::Connection* con, int64_t lastTime) :con_(con), lastOperationTime_(lastTime) {}
 	std::unique_ptr<sql::Connection> con_;
 	int64_t lastOperationTime_;
 };
-
 class MysqlConnPool : public SingleTon<MysqlConnPool>
 {
 	friend class SingleTon<MysqlConnPool>;
@@ -26,9 +22,7 @@ public:
 		user_ = cfg["Mysql"]["User"];
 		password_ = cfg["Mysql"]["Password"];
 		schema_ = cfg["Mysql"]["Schema"];
-
 		this->init(host_, user_, port_, password_, schema_);
-
 		checkThread_ = std::thread([this]() {
 			int count = 0;
 			while (!b_stop_) {
@@ -40,11 +34,8 @@ public:
 				count++;
 			}
 			});
-
 		checkThread_.detach();
 	}
-
-
 	// Parameterized constructor for Slave pool
 	MysqlConnPool(const std::string& host, const std::string& user,
 	              const std::string& port, const std::string& pwd, const std::string& schema)
@@ -52,7 +43,6 @@ public:
 	{
 		this->init(host_, user_, port_, password_, schema_);
 	}
-
 	~MysqlConnPool()
 	{
 		b_stop_ = true;
@@ -64,7 +54,6 @@ public:
 		}
 		std::cout << "MysqlConnPool destructed ." << std::endl;
 	}
-
 	std::unique_ptr<SqlConnection> getConnection()
 	{
 		std::unique_lock<std::mutex> locker_(mtx_);
@@ -88,7 +77,6 @@ public:
 		std::cout << "Get MysqlConnection success.\n";
 		return conn;
 	}
-
 	void returnConnection(std::unique_ptr<SqlConnection> conn)
 	{
 		if (b_stop_)
@@ -99,10 +87,8 @@ public:
 		std::unique_lock<std::mutex> locker_(mtx_);
 		connections_.push(std::move(conn));
 		cond_.notify_all();
-
 		//std::cout << "return mysqlConn success, mysqlPool.size() = " << connections_.size() << std::endl;
 	}
-
 	void checkConnectionPro()
 	{
 		std::size_t targetCount = 0;
@@ -111,10 +97,8 @@ public:
 			targetCount = connections_.size();
 		}
 		std::size_t processdCount = 0;
-
 		auto now = std::chrono::system_clock::now().time_since_epoch();
 		long long timeStamp = std::chrono::duration_cast<std::chrono::seconds>(now).count();
-
 		while (!b_stop_ && processdCount < targetCount)
 		{
 			std::unique_ptr<SqlConnection> conn;
@@ -140,7 +124,6 @@ public:
 					failedCount_++;
 				}
 			}
-
 			if (healthy) {
 				returnConnection(std::move(conn));
 			}
@@ -149,9 +132,7 @@ public:
 			}
 			++processdCount;
 		}
-
 		//std::cout << " === totol failedCount: " << failedCount_ << std::endl;
-
 		while (failedCount_ > 0)
 		{
 			if (reconnection(timeStamp)) {
@@ -164,7 +145,6 @@ public:
 			}
 		}
 	}
-
 	bool reconnection(long long timeStamp)
 	{
 		try {
@@ -184,7 +164,6 @@ public:
 			return false;
 		}
 	}
-
 private:
 	void init(std::string host, std::string user, std::string port, std::string passwd, std::string schema, std::size_t conn_size = DEFAULT_MYSQL_CONN_SIZE)
 	{
@@ -197,10 +176,8 @@ private:
 				auto conn = driver->connect(hostName, user, passwd);
 				conn->setSchema(schema);
 				std::cout << "Mysql Connect success.";
-
 				auto currentTime = std::chrono::system_clock::now().time_since_epoch();
 				long long timeStamp = std::chrono::duration_cast<std::chrono::seconds>(currentTime).count();
-
 				connections_.push(std::make_unique<SqlConnection>(conn, timeStamp));
 			}
 		}
@@ -210,7 +187,6 @@ private:
 			std::cout << "mysql error message: " << e.what() << std::endl;
 		}
 	}
-
 private:
 	std::atomic_bool b_stop_;
 	size_t pool_size_;
@@ -223,14 +199,12 @@ private:
 	std::mutex mtx_;
 	std::condition_variable cond_;
 	std::atomic_int failedCount_;
-
 	std::thread checkThread_;
 };
-
 class MysqlDao
 {
 	friend class MysqlManager;
-public: 
+public:
 	MysqlDao();
 	~MysqlDao();
 	int registerUser(const std::string& name, const std::string& email, const std::string& password);
@@ -248,14 +222,11 @@ public:
 	int getUserFriendApplyByLastId(int uid, int last_friend_id, int page_size, std::vector<std::shared_ptr<ApplyInfo>>& applyList, bool& load_more, int& max_friend_apply_id, bool forceMaster = false);
 	int updateChatMsgStatus(int shardIndex, int thread_id, int message_id, MsgStatus status);
 	int loadChatMessage(int shardIndex, int thread_id, int& min_message_id, int& max_message_id, int page_size, bool& is_more, std::vector<ChatMessage>& msgs, bool forceMaster = false);
-
 private:
 	// Read/write split helpers
 	std::unique_ptr<SqlConnection> getConn(bool forceMaster = false);
 	void returnConn(std::unique_ptr<SqlConnection> conn);
-
 	std::unique_ptr<MysqlConnPool> masterPool_;
 	std::unique_ptr<MysqlConnPool> slavePool_;
 };
-
 #endif
