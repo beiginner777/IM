@@ -54,7 +54,7 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<CSession> session, short m
 		Json::Value rt;
 		rt["code"] = ERROR_RATE_LIMITED;
 		rt["message"] = "server busy, please retry later";
-		session->Send(rt.toStyledString(), msgId);
+		session->Send(rt.toStyledString(), msgId + 1);  // 回包用 RSP ID (= REQ + 1)
 		return false;
 	}
 
@@ -73,7 +73,7 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<CSession> session, short m
 		Json::Value rt;
 		rt["code"] = ERROR_RATE_LIMITED;
 		rt["message"] = "发送过于频繁，请稍后重试";
-		session->Send(rt.toStyledString(), msgId);
+		session->Send(rt.toStyledString(), msgId + 1);
 		return false;
 	}
 
@@ -83,7 +83,7 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<CSession> session, short m
 		Json::Value rt;
 		rt["code"] = ERROR_RATE_LIMITED;
 		rt["message"] = "发送过于频繁，请稍后重试";
-		session->Send(rt.toStyledString(), msgId);
+		session->Send(rt.toStyledString(), msgId + 1);
 		return false;
 	}
 
@@ -155,13 +155,7 @@ void LogicSystem::dealTask()
 			short msgId = node->recvNode_->msg_id_;
 			std::string uuid = node->recvNode_->uuid_;
 
-			// ── 统一限流拦截（中间件）──
-			if (!tryAcquireRateLimit(node->session_, msgId)) {
-				continue;  // 被限流，跳过，不投递到 handler
-			}
-
 			if (handlers_.count(msgId)) {
-				std::cout << "handle task whose id = " << msgId << ":" << std::endl;
 				handlers_[msgId](node->session_, msgId, std::string(node->recvNode_->data_, node->recvNode_->totol_len_), uuid);
 			}
 
@@ -530,6 +524,13 @@ bool LogicSystem::getUserByName(std::string name, Json::Value& rtvalue)
 void LogicSystem::postMsgToQue(std::shared_ptr<LogicNode> logicNode)
 
 {
+	// ── 统一限流拦截（入队前）──
+	// 对所有客户端请求生效，StatusServer 内部消息（uid==0）自动跳过
+	short reqId = logicNode->recvNode_->msg_id_;
+	if (!tryAcquireRateLimit(logicNode->session_, reqId)) {
+		// 被限流，不入队，已在 tryAcquireRateLimit 中回包
+		return;
+	}
 
 	std::lock_guard<std::mutex> locker(mtx_);
 
