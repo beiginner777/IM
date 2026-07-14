@@ -1509,3 +1509,41 @@ RedisManager::~RedisManager()
 	stopSentinelPoll();
 
 }
+// 分布式限流：原子 INCR + EXPIRE（Lua 保证原子性）
+// Redis key: ratelimit:{uid}, TTL: 1s
+bool RedisManager::checkRateLimit(int uid, int limit)
+{
+	redisContext* conn = getConn(true);
+	if (!conn) {
+		// Redis 不可用时放行（降级：仅靠本地 TokenBucket）
+		return true;
+	}
+
+	const char* luaScript =
+		"local key = KEYS[1]"
+		" local limit = tonumber(ARGV[1])"
+		" local current = redis.call(\"INCR\", key)"
+		" if current == 1 then"
+		"     redis.call(\"EXPIRE\", key, 1)"
+		" end"
+		" if current > limit then"
+		"     return 0"
+		" end"
+		" return 1";
+
+	std::string key = "ratelimit:" + std::to_string(uid);
+	redisReply* reply = (redisReply*)redisCommand(conn,
+		"EVAL %s 1 %s %d", luaScript, key.c_str(), limit);
+
+	bool allowed = false;
+	if (reply && reply->type == REDIS_REPLY_INTEGER) {
+		allowed = (reply->integer == 1);
+	} else {
+		// Redis 异常时放行
+		allowed = true;
+	}
+
+	if (reply) freeReplyObject(reply);
+	returnConn(conn);
+	return allowed;
+}
