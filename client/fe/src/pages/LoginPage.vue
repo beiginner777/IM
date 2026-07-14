@@ -82,7 +82,7 @@ async function handleSubmit() {
             class="auth-input"
           >
             <template #prefix>
-              <UserOutlined class="input-icon" />
+              <span><UserOutlined class="input-icon" /></span>
             </template>
           </Input>
         </Form.Item>
@@ -95,7 +95,7 @@ async function handleSubmit() {
             class="auth-input"
           >
             <template #prefix>
-              <LockOutlined class="input-icon" />
+              <span><LockOutlined class="input-icon" /></span>
             </template>
           </Input.Password>
         </Form.Item>
