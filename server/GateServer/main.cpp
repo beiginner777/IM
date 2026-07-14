@@ -3,13 +3,11 @@
 #include "ConfigManager.h"
 #include "RedisManager.h"
 #include "MysqlManager.h"
-
 int main()
 {
     try {
         // 加载布隆过滤器（从 Redis 恢复）
         MysqlManager::getInstance()->initBloomFilter();
-
         net::io_context ioc{ 1 };
         net::signal_set signals(ioc, SIGINT, SIGTERM);
         signals.async_wait([&ioc](const boost::system::error_code& ec, int) { ioc.stop(); });

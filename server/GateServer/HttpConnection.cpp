@@ -1,7 +1,6 @@
 #include "global.h"
 #include "HttpConnection.h"
 #include "LogicSystem.h"
-
 HttpConnection::HttpConnection(tcp::socket&& sock)
 	: sock_(std::move(sock))
 	, remote_ip("")
@@ -12,13 +11,11 @@ HttpConnection::HttpConnection(tcp::socket&& sock)
 	uuid_ = boost::uuids::to_string(a_uuid);
 	std::cout << "uuid = " << uuid_ << " connection builds." << std::endl;
 }
-
 HttpConnection::~HttpConnection()
 {
 	sock_.close();
 	std::cout << "uuid = " << uuid_ << " connection destructed." << std::endl;
 }
-
 void HttpConnection::check_deadline()
 {
 	auto self = shared_from_this();
@@ -34,13 +31,11 @@ void HttpConnection::check_deadline()
 		self->deadline_.cancel();
 		});
 }
-
 void HttpConnection::start()
 {
 	read_request();
 	check_deadline();
 }
-
 void HttpConnection::read_request()
 {
 	auto self = shared_from_this();
@@ -63,11 +58,9 @@ void HttpConnection::read_request()
 			}
 		});
 }
-
 void HttpConnection::prase_request()
 {
 	auto self = shared_from_this();
-
 	response_.version(request_.version());
 	response_.keep_alive(false);
 	if (request_.method() == http::verb::get)
@@ -82,7 +75,6 @@ void HttpConnection::prase_request()
 		/*LogicSystem::getInstance()->postTaskToQue([self, this]() {
 			LogicSystem::getInstance()->handlePostRequest(self);
 			});*/
-
 		LogicSystem::getInstance()->handlePostRequest(self);
 	}
 	else
@@ -90,7 +82,6 @@ void HttpConnection::prase_request()
 		std::cout << "Unknowed request method: " << request_.method() << std::endl;
 	}
 }
-
 void HttpConnection::send_response()
 {
 	auto self = shared_from_this();
@@ -112,7 +103,6 @@ void HttpConnection::send_response()
 			}
 		});
 }
-
 void HttpConnection::clear()
 {
 	buffer_.consume(buffer_.size());

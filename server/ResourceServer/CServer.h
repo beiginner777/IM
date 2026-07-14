@@ -1,16 +1,12 @@
 #ifndef CSERVER_H
 #define SERVER_H
-
 #include "global.h"
-
 class CSession;
-
 class CServer : public std::enable_shared_from_this<CServer>
 {
 public:
 	CServer(boost::asio::io_context& ioc, std::string port);
 	~CServer();
-
 	// 清除 key值为 uuid 的连接
 	void clearSession(std::string uuid);
 	// 开启定时器
@@ -21,7 +17,6 @@ public:
 	void startReceiceConnections();
 	// 获取与 StatusServer 的连接的uuid
 	std::string getConnectionToStatusServerUuid();
-
 private:
 	// 连接 StatusServer
 	bool connectToStatusServer();
@@ -35,19 +30,14 @@ private:
 	void startHeartCheckToStatusServer();
 	// 发送心跳消息给 StatusServer
 	void sendHeartCheckMsgToStatusServer(boost::system::error_code ec);
-
 private:
 	boost::asio::io_context& ioc_;
-
 	// 需要放在 acceptor 前初始化
 	unsigned short port_;
-
 	tcp::acceptor acceptor_;
-
 	// 存放客户端连接
 	std::map<std::string, std::shared_ptr<CSession>> sessions_;
 	std::mutex mtx_;
-
 	// 定时器
 	boost::asio::steady_timer timer_;
 	// 维护与 StatusServer 的连接
@@ -55,5 +45,4 @@ private:
 	// 向 StatusServer 发送心跳的定时器
 	boost::asio::steady_timer heartCheckTimer_;
 };
-
 #endif

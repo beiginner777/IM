@@ -1,8 +1,6 @@
 #ifndef DATA_H
 #define DATA_H
-
 #include <string>
-
 struct UserInfo {
 	UserInfo() :name_(""), pwd_(""), uid_(), email_(""), nick_(""), desc_(""), sex_(0), icon_(""), back_("")
 	{
@@ -15,7 +13,6 @@ struct UserInfo {
 		sex_(sex), nick_(nick)
 	{
 	}
-
 	std::string name_;
 	std::string pwd_;
 	int uid_;
@@ -26,6 +23,4 @@ struct UserInfo {
 	std::string icon_;
 	std::string back_;
 };
-
-
 #endif

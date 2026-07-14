@@ -1,18 +1,14 @@
 ﻿#include "MysqlDao.h"
 #include "data.h"
 #include "crypto/BCryptHasher.h"
-
 #include "ShardRouter.h"
-
 MysqlDao::MysqlDao()
 {
     auto cfg = ConfigManager::getInstance();
-
     // Master pool: default constructor reads config.ini [Mysql] section
     masterPool_ = std::make_unique<MysqlConnPool>();
     std::cout << "[MysqlDao] Master pool: " << cfg["Mysql"]["Host"]
               << ":" << cfg["Mysql"]["Port"] << std::endl;
-
     // Slave pool (optional): parameterized constructor uses same user/pwd/schema
     std::string slaveHost = cfg["Mysql"]["SlaveHost"];
     std::string slavePort = cfg["Mysql"]["SlavePort"];
@@ -23,9 +19,7 @@ MysqlDao::MysqlDao()
         std::cout << "[MysqlDao] Slave pool: " << slaveHost << ":" << slavePort << std::endl;
     }
 }
-
 static thread_local int tlsMysqlPoolIdx = 0;  // 0=master, 1=slave
-
 std::unique_ptr<SqlConnection> MysqlDao::getConn(bool forceMaster)
 {
 	if (forceMaster || !slavePool_) {
@@ -40,7 +34,6 @@ std::unique_ptr<SqlConnection> MysqlDao::getConn(bool forceMaster)
 	tlsMysqlPoolIdx = 1;
 	return conn;
 }
-
 void MysqlDao::returnConn(std::unique_ptr<SqlConnection> conn)
 {
 	if (!conn) return;
@@ -50,40 +43,30 @@ void MysqlDao::returnConn(std::unique_ptr<SqlConnection> conn)
 		masterPool_->returnConnection(std::move(conn));
 	}
 }
-
 MysqlDao::~MysqlDao()
 {
 }
-
 int MysqlDao::registerUser(const std::string& name, const std::string& email, const std::string& password)
 {
 	std::unique_ptr<SqlConnection> conn = getConn(true);
-
     if (conn == nullptr) {
         std::cout << "mysqlConn is nullptr, register failed.\n";
         return ERROR_REGISTER;
     }
-
     Defer defer([this, &conn]() {
         returnConn(std::move(conn));
         });
-
 	try {
 		std::unique_ptr < sql::PreparedStatement > stmt(conn->con_->prepareStatement("CALL reg_user(?,?,?,@result)"));
-
 		stmt->setString(1, name);
 		stmt->setString(2, email);
 		// bcrypt 哈希后再存储
 		std::string hashedPwd = BCryptHasher::generateHash(password, 10);
 		stmt->setString(3, hashedPwd);
-
 		stmt->execute();
-
 		std::unique_ptr<sql::Statement> stmtResult(conn->con_->createStatement());
 		std::unique_ptr<sql::ResultSet> res(stmtResult->executeQuery("SELECT @result AS result"));
-
         int result = res->next();
-
 		if (result > 0) {
 			int result = res->getInt("result");
 			std::cout << "注册用户 uid: " << result << std::endl;
@@ -107,21 +90,17 @@ int MysqlDao::registerUser(const std::string& name, const std::string& email, co
 		return ERROR_REGISTER;
 	}
 }
-
 int MysqlDao::addFriendApply(int fromuid, int touid, int& current_id, std::string& apply_time)
 {
     auto con = getConn(true);
     if (con == nullptr) {
         return ERROR_FRIEND_APPLY;
     }
-
     Defer defer([this, &con]() {
         returnConn(std::move(con));
         });
-
     try {
 		con->con_->setAutoCommit(false);
-
         std::unique_ptr<sql::PreparedStatement> checkStmt(
             con->con_->prepareStatement(
                 "SELECT id FROM friendapply WHERE fromuid = ? AND touid = ? AND status = 0 LIMIT 1"
@@ -129,14 +108,12 @@ int MysqlDao::addFriendApply(int fromuid, int touid, int& current_id, std::strin
         );
         checkStmt->setInt(1, fromuid);
         checkStmt->setInt(2, touid);
-
         std::unique_ptr<sql::ResultSet> checkRes(checkStmt->executeQuery());
         if (checkRes->next()) {
             std::cout << "Friend apply already exists fromuid = " << fromuid
                 << " to touid = " << touid << std::endl;
             return ERROR_MULTIPLE_FRIEND_APPLY;
         }
-
         std::unique_ptr<sql::PreparedStatement> insertStmt(
             con->con_->prepareStatement(
                 "INSERT INTO friendapply (fromuid, touid, status, apply_time) "
@@ -145,13 +122,11 @@ int MysqlDao::addFriendApply(int fromuid, int touid, int& current_id, std::strin
         );
         insertStmt->setInt(1, fromuid);
         insertStmt->setInt(2, touid);
-
         int rowAffected = insertStmt->executeUpdate();
         if (rowAffected <= 0) {
             std::cerr << "Failed to insert friend apply, rowAffected = " << rowAffected << std::endl;
             return ERROR_FRIEND_APPLY;
         }
-
         std::unique_ptr<sql::PreparedStatement> getKeyStmt(
             con->con_->prepareStatement(
                 "SELECT LAST_INSERT_ID() AS id, "
@@ -159,11 +134,9 @@ int MysqlDao::addFriendApply(int fromuid, int touid, int& current_id, std::strin
             )
         );
         std::unique_ptr<sql::ResultSet> res(getKeyStmt->executeQuery());
-
         if (res->next()) {
             current_id = res->getInt("id");
             std::string apply_time = res->getString("apply_time");
-
             std::cout << "Inserted friend apply with ID: " << current_id
                 << ", apply_time: " << apply_time << std::endl;
         }
@@ -171,18 +144,14 @@ int MysqlDao::addFriendApply(int fromuid, int touid, int& current_id, std::strin
             std::cerr << "Failed to get last insert ID" << std::endl;
             return ERROR_FRIEND_APPLY;
         }
-
 		con->con_->commit();
-
         return SUCCESS;
     }
     catch (sql::SQLException& e) {
 		con->con_->rollback();
-
         std::cerr << "SQLException in addFriendApply: " << e.what();
         std::cerr << " (MySQL error code: " << e.getErrorCode();
         std::cerr << ", SQLState: " << e.getSQLState() << " )" << std::endl;
-
         if (e.getErrorCode() == 1062) { // ER_DUP_ENTRY
             return ERROR_MULTIPLE_FRIEND_APPLY;
         }
@@ -194,24 +163,18 @@ int MysqlDao::addFriendApply(int fromuid, int touid, int& current_id, std::strin
         return ERROR_FRIEND_APPLY;
     }
 }
-
 int MysqlDao::getUserFriendApply(int uid, std::vector<std::shared_ptr<ApplyInfo>>& applyList, bool forceMaster)
 {
     auto con = getConn(forceMaster);
     if (con == nullptr) {
         return ERROR_GET_FRIEND_APPLY_LIST;
     }
-
     Defer defer([this, &con]() {
         returnConn(std::move(con));
         });
-
-
     try {
         std::unique_ptr<sql::PreparedStatement> pstmt(con->con_->prepareStatement("SELECT u.uid,u.name,u.email,u.desc,u.icon, u.sex,u.nick,f.fromuid FROM friendapply f JOIN user u ON f.fromuid = u.uid WHERE f.touid = ?;"));
-
         pstmt->setInt(1, uid);
-
         std::unique_ptr<sql::ResultSet> res(pstmt->executeQuery());
         while (res->next()) {
             auto name = res->getString("name");
@@ -230,24 +193,18 @@ int MysqlDao::getUserFriendApply(int uid, std::vector<std::shared_ptr<ApplyInfo>
         return ERROR_GET_FRIEND_APPLY_LIST;
     }
 }
-
 int MysqlDao::getUserFriendList(int uid, std::vector<std::shared_ptr<UserInfo>>& friendList, bool forceMaster)
 {
     auto con = getConn(forceMaster);
     if (con == nullptr) {
         return false;
     }
-
     Defer defer([this, &con]() {
         returnConn(std::move(con));
         });
-
-
     try {
         std::unique_ptr<sql::PreparedStatement> pstmt(con->con_->prepareStatement("select * from friend where self_id = ? "));
-
         pstmt->setInt(1, uid);
-
         std::unique_ptr<sql::ResultSet> res(pstmt->executeQuery());
         while (res->next()) {
             auto friend_id = res->getInt("friend_id");
@@ -267,30 +224,24 @@ int MysqlDao::getUserFriendList(int uid, std::vector<std::shared_ptr<UserInfo>>&
         std::cerr << ", SQLState: " << e.getSQLState() << " )" << std::endl;
         return ERROR_GET_FRIEND_LIST;
     }
-
     return true;
 }
-
 int MysqlDao::addFriendRelation(int fromuid, int touid, int& thread_id1, int& thread_id2, int& friend_id1, int& friend_id2)
 {
     auto conn = getConn(true);
     if (conn == nullptr) {
         return ERROR_ADD_FRIEND_RELATION;
     }
-
     Defer defer([this, &conn]() {
         returnConn(std::move(conn));
         });
-
     try {
         conn->con_->setAutoCommit(false);
-
         std::unique_ptr<sql::PreparedStatement> pstmt(conn->con_->prepareStatement("INSERT IGNORE INTO friend(self_id, friend_id) "
             "VALUES (?, ?) "
         ));
         pstmt->setInt(1, fromuid); // from id
         pstmt->setInt(2, touid); // to uid
-
         int rowAffected = pstmt->executeUpdate();
         if (rowAffected < 0) {
 			std::cout << "addfriend insert friend failed, uid1 = " << fromuid << ", uid2 = " << touid << std::endl;
@@ -312,13 +263,11 @@ int MysqlDao::addFriendRelation(int fromuid, int touid, int& thread_id1, int& th
                 return ERROR_FRIEND_APPLY;
             }
         }
-
         std::unique_ptr<sql::PreparedStatement> pstmt2(conn->con_->prepareStatement("INSERT IGNORE INTO friend(self_id, friend_id) "
             "VALUES (?, ?) "
         ));
         pstmt2->setInt(1, touid);
         pstmt2->setInt(2, fromuid);
-
         int rowAffected2 = pstmt2->executeUpdate();
         if (rowAffected2 <= 0) {
 			std::cout << "addfriend insert friend failed, uid1 = " << touid << ", uid2 = " << fromuid << std::endl;
@@ -340,7 +289,6 @@ int MysqlDao::addFriendRelation(int fromuid, int touid, int& thread_id1, int& th
                 return ERROR_FRIEND_APPLY;
             }
         }
-
 		int ret = createPrivateThread(fromuid, touid, thread_id1);
         if(ret != SUCCESS) {
             conn->con_->rollback();
@@ -349,7 +297,6 @@ int MysqlDao::addFriendRelation(int fromuid, int touid, int& thread_id1, int& th
 		thread_id2 = thread_id1;
         conn->con_->commit();
         std::cout << "addfriend insert friends success" << std::endl;
-
         return SUCCESS;
     }
     catch (sql::SQLException& e) {
@@ -362,23 +309,18 @@ int MysqlDao::addFriendRelation(int fromuid, int touid, int& thread_id1, int& th
         return ERROR_ADD_FRIEND_RELATION;
     }
 }
-
 std::shared_ptr<UserInfo> MysqlDao::getUserByUid(int uid, bool forceMaster)
 {
     auto con = forceMaster ? getConn(true) : getConn();
     if (con == nullptr) {
         return nullptr;
     }
-
     Defer defer([this, &con]() {
         returnConn(std::move(con));
         });
-
     try {
         std::unique_ptr<sql::PreparedStatement> pstmt(con->con_->prepareStatement("SELECT * FROM user WHERE uid = ?"));
-
         pstmt->setInt(1, uid);
-
         std::unique_ptr<sql::ResultSet> res(pstmt->executeQuery());
         std::shared_ptr<UserInfo> user_ptr = nullptr;
         while (res->next()) {
@@ -402,22 +344,18 @@ std::shared_ptr<UserInfo> MysqlDao::getUserByUid(int uid, bool forceMaster)
         return nullptr;
     }
 }
-
 std::shared_ptr<UserInfo> MysqlDao::getUserByName(std::string name, bool forceMaster)
 {
     auto con = forceMaster ? getConn(true) : forceMaster ? getConn(true) : getConn();
     if (con == nullptr) {
         return nullptr;
     }
-
     Defer defer([this, &con]() {
         returnConn(std::move(con));
         });
-
     try {
         std::unique_ptr<sql::PreparedStatement> pstmt(con->con_->prepareStatement("SELECT * FROM user WHERE name = ?"));
         pstmt->setString(1, name);
-
         std::unique_ptr<sql::ResultSet> res(pstmt->executeQuery());
         std::shared_ptr<UserInfo> user_ptr = nullptr;
         while (res->next()) {
@@ -441,7 +379,6 @@ std::shared_ptr<UserInfo> MysqlDao::getUserByName(std::string name, bool forceMa
         return nullptr;
     }
 }
-
 int MysqlDao::setFriendApplyStatus(int fromuid, int touid, int status)
 {
     auto conn = getConn(true);
@@ -449,27 +386,21 @@ int MysqlDao::setFriendApplyStatus(int fromuid, int touid, int status)
         std::cout << "setFriendApplyStatus failed: fromuid=" << fromuid << " touid=" << touid << std::endl;
         return ERROR_MODIFLY_APPLY_STATUS_FAILED;
     }
-
     Defer defer([this, &conn]() {
         returnConn(std::move(conn));
         });
-
     try {
         conn->con_->setAutoCommit(false);
-
         std::unique_ptr<sql::PreparedStatement> pstmt(conn->con_->prepareStatement("UPDATE friendapply SET status = ? WHERE fromuid = ? AND touid = ? ;"));
         pstmt->setInt(1, status);
         pstmt->setInt(2, fromuid);
         pstmt->setInt(3, touid);
-
         int rowAffected = pstmt->executeUpdate();
         if (rowAffected < 0) {
             conn->con_->rollback();
             return ERROR_MODIFLY_APPLY_STATUS_FAILED;
         }
-
         conn->con_->commit();
-
         return SUCCESS;
     }
     catch (sql::SQLException& e) {
@@ -480,13 +411,10 @@ int MysqlDao::setFriendApplyStatus(int fromuid, int touid, int status)
         return ERROR_MODIFLY_APPLY_STATUS_FAILED;
     }
 }
-
 int MysqlDao::GetUserThreadInfos(int uid, int last_thread_id, int page_size, std::vector<std::shared_ptr<ChatThreadInfo>>& infos, bool& load_more, int& max_thread_id, bool forceMaster)
 {
     auto conn = forceMaster ? getConn(true) : getConn();
-
 	max_thread_id = last_thread_id;
-
     if (!conn) {
         std::cout << "uid = " << uid << "GetUserThreadInfos failed, mysqlConn is nullptr.\n";
         return ERROR_LOAD_CHAT_THREAD;
@@ -494,7 +422,6 @@ int MysqlDao::GetUserThreadInfos(int uid, int last_thread_id, int page_size, std
     Defer defer([this, &conn]() {
         returnConn(std::move(conn));
         });
-
     try
     {
         if (conn->con_ == nullptr) {
@@ -517,7 +444,6 @@ int MysqlDao::GetUserThreadInfos(int uid, int last_thread_id, int page_size, std
             " ORDER BY thread_id "
             " LIMIT ?;"
         ));
-
         int idx = 1;
         pstmt->setInt64(idx++, uid);              // private.user1_id
 		pstmt->setInt64(idx++, uid);              // private.user2_id
@@ -525,9 +451,7 @@ int MysqlDao::GetUserThreadInfos(int uid, int last_thread_id, int page_size, std
         pstmt->setInt64(idx++, uid);              // group.user_id
         pstmt->setInt64(idx++, last_thread_id);              // group.thread_id > lastId
         pstmt->setInt(idx++, page_size + 1);          // LIMIT pageSize+1
-
 		std::unique_ptr < sql::ResultSet > res(pstmt->executeQuery());
-
         std::vector<std::shared_ptr<ChatThreadInfo>> tmp;
         while (res->next()) {
             auto cti = std::make_shared<ChatThreadInfo>();
@@ -537,7 +461,6 @@ int MysqlDao::GetUserThreadInfos(int uid, int last_thread_id, int page_size, std
             cti->user2_id_ = res->getInt("user2_id");
             tmp.push_back(cti);
         }
-
         if ((int)tmp.size() > page_size) {
             load_more = true;
             tmp.pop_back();
@@ -546,11 +469,9 @@ int MysqlDao::GetUserThreadInfos(int uid, int last_thread_id, int page_size, std
 			load_more = false;
         }
         infos = std::move(tmp);
-
         if (!infos.empty()) {
             max_thread_id = infos.back()->threadId_;
         }
-
     }catch (sql::SQLException& e) {
         std::cerr << "SQLException: " << e.what();
         std::cerr << " (MySQL error code: " << e.getErrorCode();
@@ -559,7 +480,6 @@ int MysqlDao::GetUserThreadInfos(int uid, int last_thread_id, int page_size, std
 	}
     return SUCCESS;
 }
-
 int MysqlDao::createPrivateThread(int user1_id, int user2_id, int& thread_id)
 {
     auto conn = getConn(true);
@@ -570,47 +490,37 @@ int MysqlDao::createPrivateThread(int user1_id, int user2_id, int& thread_id)
     Defer defer([this, &conn]() {
         returnConn(std::move(conn));
         });
-
     try {
 		conn->con_->setAutoCommit(false);
-
 		// 2. 获取新的 thread_id
 		std::unique_ptr<sql::PreparedStatement> pstmt1(conn->con_->prepareStatement
         ("INSERT INTO chatthread(type, created_at) VALUES ('private',NOW());"));
 		pstmt1->executeUpdate();
-
         std::unique_ptr<sql::PreparedStatement> pstmt2(conn->con_->prepareStatement
 		("SELECT LAST_INSERT_ID() AS thread_id;"));
 		std::unique_ptr<sql::ResultSet> res(pstmt2->executeQuery());
         res->next();
 		thread_id = res->getInt("thread_id");
-
         int minn = std::min(user1_id, user2_id);
 		int maxx = std::max(user1_id, user2_id);
-
 		std::string insert_sql = "INSERT INTO privatechat(thread_id, user1_id, user2_id) VALUES (?,?,?);";
 		std::unique_ptr<sql::PreparedStatement> pstmt3(conn->con_->prepareStatement(insert_sql));
         pstmt3->setInt(1, thread_id);
 		pstmt3->setInt(2, minn);
 		pstmt3->setInt(3, maxx);
 		pstmt3->executeUpdate();
-
 		conn->con_->commit();
-
 		return SUCCESS;
     }
     catch (sql::SQLException& e) {
         std::cerr << "SQLException: " << e.what();
         std::cerr << " (MySQL error code: " << e.getErrorCode();
         std::cerr << ", SQLState: " << e.getSQLState() << " )" << std::endl;
-
 		std::cout << "Create private thread failed for users " << user1_id << " and " << user2_id << std::endl;
 		conn->con_->rollback();
-
         return ERROR_MODIFLY_APPLY_STATUS_FAILED;
     }
 }
-
 int MysqlDao::AddChatMsg(int shardIndex, std::vector<std::shared_ptr<ChatMessage>>& chat_datas)
 {
     auto conn = getConn(true);
@@ -621,16 +531,12 @@ int MysqlDao::AddChatMsg(int shardIndex, std::vector<std::shared_ptr<ChatMessage
     Defer defer([this, &conn]() {
         returnConn(std::move(conn));
         });
-
-
     size_t n = chat_datas.size();
     if (n == 0) {
         return SUCCESS;
     }
-
     try {
         conn->con_->setAutoCommit(false);
-
         // 单条 SQL + 多行 VALUES：INSERT INTO ... VALUES (r1), (r2), ... (rN)
         // N 条消息只发一次 MySQL 请求，减少 N-1 次网络往返
         std::string insertSql = "INSERT IGNORE INTO " + ShardRouter::getTableName(shardIndex) + " "
@@ -640,9 +546,7 @@ int MysqlDao::AddChatMsg(int shardIndex, std::vector<std::shared_ptr<ChatMessage
             if (i > 0) insertSql += ", ";
             insertSql += "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         }
-
         auto pstmt = conn->con_->prepareStatement(insertSql);
-
         int idx = 1;
         for (auto& msg : chat_datas) {
             pstmt->setInt(idx++, msg->message_id);
@@ -657,11 +561,9 @@ int MysqlDao::AddChatMsg(int shardIndex, std::vector<std::shared_ptr<ChatMessage
             pstmt->setString(idx++, msg->unique_id);
         }
         pstmt->executeUpdate();
-
         std::cout << "[MysqlDao] Batch INSERT to shard  " << n << " rows OK" << std::endl;
         conn->con_->commit();
         return SUCCESS;
-
     }
     catch (sql::SQLException& e)
     {
@@ -676,7 +578,6 @@ int MysqlDao::AddChatMsg(int shardIndex, std::vector<std::shared_ptr<ChatMessage
         return ERROR_SEND_MSG_FAILED;
     }
 }
-
 int MysqlDao::getUserFriendListByLastId(int uid, int last_friend_id, std::map<int, std::shared_ptr<UserInfo>>& friend_list, bool forceMaster)
 {
     auto conn = getConn(forceMaster);
@@ -687,30 +588,22 @@ int MysqlDao::getUserFriendListByLastId(int uid, int last_friend_id, std::map<in
     Defer defer([this, &conn]() {
         returnConn(std::move(conn));
         });
-
     try {
         conn->con_->setAutoCommit(false);
-
         std::unique_ptr<sql::PreparedStatement> pstmt(
             conn->con_->prepareStatement("SELECT id, friend_id FROM friend WHERE id > ? AND self_id = ?")
         );
-
         std::cout << "SELECT id, friend_id FROM friend WHERE id > " << last_friend_id << " AND self_id = " << uid << std::endl;
-
         pstmt->setInt(1, last_friend_id);
         pstmt->setInt(2, uid);
-
         std::unique_ptr<sql::ResultSet> res(pstmt->executeQuery());
-
         while (res->next()) {
             int friendId = res->getInt("friend_id");
             std::unique_ptr<sql::PreparedStatement> userStmt(
                 conn->con_->prepareStatement("SELECT uid, name, email, password, nick, icon, sex, `desc` FROM user WHERE uid = ?")
             );
             userStmt->setInt(1, friendId);
-
             std::unique_ptr<sql::ResultSet> userRes(userStmt->executeQuery());
-
             if (userRes->next()) {
                 int uid = userRes->getInt("uid");
                 std::string name = userRes->getString("name");
@@ -720,28 +613,22 @@ int MysqlDao::getUserFriendListByLastId(int uid, int last_friend_id, std::map<in
                 std::string icon = userRes->getString("icon");
                 int sex = userRes->getInt("sex");
                 std::string desc = userRes->getString("desc");
-
                 std::shared_ptr<UserInfo> userInfo = std::make_shared<UserInfo>(uid, name, email, password, nick, icon, sex, desc);
-
                 int friendRecordId = res->getInt("id");
                 friend_list[friendRecordId] = userInfo;
             }
         }
         conn->con_->commit();
         return SUCCESS;
-
     }
     catch (sql::SQLException& e) {
         std::cerr << "SQLException: " << e.what();
         std::cerr << " (MySQL error code: " << e.getErrorCode();
         std::cerr << ", SQLState: " << e.getSQLState() << " )" << std::endl;
-
         conn->con_->rollback();
-
         return ERROR_LOAD_MORE_FRIEND;
     }
 }
-
 int MysqlDao::getUserFriendApplyByLastId(int uid, int last_friend_id, int page_size, std::vector<std::shared_ptr<ApplyInfo>>& applyList, bool& load_more, int& max_friend_apply_id, bool forceMaster)
 {
     auto conn = getConn(forceMaster);
@@ -752,48 +639,37 @@ int MysqlDao::getUserFriendApplyByLastId(int uid, int last_friend_id, int page_s
     Defer defer([this, &conn]() {
         returnConn(std::move(conn));
         });
-
     try {
         conn->con_->setAutoCommit(false);
-
         std::string query = R"(
             SELECT id, fromuid, apply_time, status
             FROM friendapply
             WHERE touid = ? AND id > ?
             ORDER BY id ASC
             LIMIT ?)";
-
         std::unique_ptr<sql::PreparedStatement> pstmt(conn->con_->prepareStatement(query));
         pstmt->setInt(1, uid);
         pstmt->setInt(2, last_friend_id);
         pstmt->setInt(3, page_size + 1);
-
         std::unique_ptr<sql::ResultSet> res(pstmt->executeQuery());
-
         int record_count = 0;
         max_friend_apply_id = last_friend_id;
-
         while (res->next()) {
             record_count++;
             if (record_count > page_size) {
                 break;
             }
-
             int apply_id = res->getInt("id");
             int fromuid = res->getInt("fromuid");
             std::string apply_time = res->getString("apply_time");
             int status = res->getInt("status");
-
             std::string user_query = R"(
                 SELECT name, email, `desc`, icon, sex, uid
                 FROM user
                 WHERE uid = ?)";
-
             std::unique_ptr<sql::PreparedStatement> user_pstmt(conn->con_->prepareStatement(user_query));
             user_pstmt->setInt(1, fromuid);
-
             std::unique_ptr<sql::ResultSet> user_res(user_pstmt->executeQuery());
-
             if (user_res->next()) {
                 std::shared_ptr<ApplyInfo> apply_info = std::make_shared<ApplyInfo>(
                     apply_id,
@@ -806,19 +682,16 @@ int MysqlDao::getUserFriendApplyByLastId(int uid, int last_friend_id, int page_s
                     apply_time,
                     status
                 );
-
                 applyList.push_back(apply_info);
                 max_friend_apply_id = apply_id;
             }
         }
-
         if (record_count > page_size) {
             load_more = true;
         }
         else {
             load_more = false;
         }
-
         conn->con_->commit();
         return SUCCESS;
     }
@@ -826,12 +699,10 @@ int MysqlDao::getUserFriendApplyByLastId(int uid, int last_friend_id, int page_s
         std::cerr << "SQLException: " << e.what();
         std::cerr << " (MySQL error code: " << e.getErrorCode();
         std::cerr << ", SQLState: " << e.getSQLState() << " )" << std::endl;
-
         conn->con_->rollback();
         return ERROR_LOAD_FRIEND_APPLY;
     }
 }
-
 int MysqlDao::updateChatMsgStatus(int shardIndex, int thread_id, int message_id, MsgStatus status)
 {
     auto conn = getConn(true);
@@ -842,20 +713,16 @@ int MysqlDao::updateChatMsgStatus(int shardIndex, int thread_id, int message_id,
     Defer defer([this, &conn]() {
         returnConn(std::move(conn));
         });
-
     try {
         conn->con_->setAutoCommit(false);
-
         std::string query = R"(
             UPDATE " + ShardRouter::getTableName(shardIndex) + "
             SET status = ?
             WHERE thread_id = ? AND message_id = ? )";
-
         std::unique_ptr<sql::PreparedStatement> pstmt(conn->con_->prepareStatement(query));
         pstmt->setInt(1, (int)status);
         pstmt->setInt(2, thread_id);
         pstmt->setInt(3, message_id);
-
         int rowAffected = pstmt->executeUpdate();
         if (rowAffected <= 0) {
             conn->con_->rollback();
@@ -873,7 +740,6 @@ int MysqlDao::updateChatMsgStatus(int shardIndex, int thread_id, int message_id,
         return ERROR_MODIFY_MSG_STATUS;
     }
 }
-
 int MysqlDao::loadChatMessage(int shardIndex, int thread_id, int& min_message_id, int& max_message_id, int page_size, bool& is_more, std::vector<ChatMessage>& msgs, bool forceMaster)
 {
     auto conn = getConn(forceMaster);
@@ -884,23 +750,18 @@ int MysqlDao::loadChatMessage(int shardIndex, int thread_id, int& min_message_id
     Defer defer([this, &conn]() {
         returnConn(std::move(conn));
         });
-
     try {
         conn->con_->setAutoCommit(false);
-
         std::string query = "SELECT message_id, sender_id, recv_id, content, created_at, updated_at, status, message_type "
             "FROM " + ShardRouter::getTableName(shardIndex) + " "
             "WHERE thread_id = ? AND message_id > ? AND message_id <= ? "
             "ORDER BY message_id ASC LIMIT ?";
-
         std::unique_ptr<sql::PreparedStatement> stmt(conn->con_->prepareStatement(query));
         stmt->setInt(1, thread_id);
         stmt->setInt(2, min_message_id);
         stmt->setInt(3, max_message_id);
         stmt->setInt(4, page_size + 1);
-
         std::unique_ptr<sql::ResultSet> res(stmt->executeQuery());
-
         msgs.clear();
         bool has_more = false;
         int count = 0;
@@ -919,13 +780,11 @@ int MysqlDao::loadChatMessage(int shardIndex, int thread_id, int& min_message_id
             msg.chat_time = res->getString("created_at");
             msg.status = res->getInt("status");
             msg.type = static_cast<CHAT_MSG_TYPE>(res->getInt("message_type"));
-
             msgs.push_back(msg);
             min_message_id = msg.message_id ;
         }
         is_more = has_more;
         conn->con_->commit();
-
         return SUCCESS;
     }
     catch (sql::SQLException& e) {
