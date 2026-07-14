@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { ref, reactive, h } from 'vue'
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { Form, Input, Button, message } from 'ant-design-vue'
-import { UserOutlined, LockOutlined, UserAddOutlined } from '@ant-design/icons-vue'
 import { register } from '../api'
 import { useAuthStore } from '../store/auth'
 
@@ -76,7 +75,7 @@ async function handleSubmit() {
       <!-- 品牌区 -->
       <div class="brand">
         <div class="brand-icon">
-          <UserAddOutlined />
+          👤
         </div>
         <h1 class="brand-name">创建账号</h1>
         <p class="brand-desc">注册 IM 账号，开始秒杀之旅</p>
@@ -95,7 +94,6 @@ async function handleSubmit() {
             size="large"
             placeholder="请输入用户名（3-20 个字符）"
             class="auth-input"
-            :prefix="h(UserOutlined)"
           />
         </Form.Item>
 
@@ -105,7 +103,6 @@ async function handleSubmit() {
             size="large"
             placeholder="请输入密码（至少 6 个字符）"
             class="auth-input"
-            :prefix="h(LockOutlined)"
           />
         </Form.Item>
 
@@ -115,7 +112,6 @@ async function handleSubmit() {
             size="large"
             placeholder="请再次输入密码"
             class="auth-input"
-            :prefix="h(LockOutlined)"
           />
         </Form.Item>
 
