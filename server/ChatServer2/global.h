@@ -302,6 +302,36 @@ enum REQUEST_ID
 	ID_REGISTER_RSP
 };
 
+// 请求 msgId → 回包 msgId 显式映射表
+// 不再依赖枚举顺序 REQ+1=RSP 的隐式约定
+inline short getRspMsgId(short reqId)
+{
+	switch (reqId) {
+	case ID_GET_VERIFY_CODE:        return ID_GET_VERIFY_CODE;        // 无单独 RSP
+	case ID_REG_USER:                return ID_REG_USER;               // 无单独 RSP
+	case ID_CHAT_LOGIN:              return ID_CHAT_LOGIN_RSP;
+	case ID_SEARCH_USER_REQ:         return ID_SEARCH_USER_RSP;
+	case ID_APPLY_FRIEND_REQ:        return ID_APPLY_FRIEND_RSP;
+	case ID_AUTH_FRIEND_REQ:         return ID_AUTH_FRIEND_RSP;
+	case ID_TEXT_CHAT_MSG_REQ:       return ID_TEXT_CHAT_MSG_RSP;
+	case ID_LOAD_CHAT_THREAD_REQ:    return ID_LOAD_CHAT_THREAD_RSP;
+	case ID_CREATE_PRIVATE_CHAT_THREAD_REQ: return ID_CREATE_PRIVATE_CHAT_THREAD_RSP;
+	case ID_LOAD_MORE_FRIEND_REQ:    return ID_LOAD_MORE_FRIEND_RSP;
+	case ID_UPLOAD_HEAD_ICON_REQ:    return ID_UPLOAD_HEAD_ICON_RSP;
+	case ID_UPLOAD_FILE_REQ:         return ID_UPLOAD_FILE_RSP;
+	case ID_SYNC_FILE_REQ:           return ID_SYNC_FILE_RSP;
+	case ID_GET_NOTIFY_MESSAGE_REQ:  return ID_GET_NOTIFY_MESSAGE_RSP;
+	case ID_IMAGE_CHAT_MSG_REQ:      return ID_IMAGE_CHAT_MSG_RSP;
+	case ID_DOWN_LOAD_FILE_REQ:      return ID_DOWN_LOAD_FILE_RSP;
+	case ID_LOAD_FRIEND_APPLY_REQ:   return ID_LOAD_FRIEND_APPLY_RSP;
+	case ID_IMG_CHAT_CONTINUE_UPLOAD_REQ: return ID_IMG_CHAT_CONTINUE_UPLOAD_RSP;
+	case ID_LOAD_CHAT_MSG_REQ:       return ID_LOAD_CHAT_MSG_RSP;
+	case ID_REGISTER_REQ:            return ID_REGISTER_RSP;
+	case ID_HEADT_CHECK_REQ:         return ID_HEADT_CHECK_RSP;
+	default:                         return reqId;  // 通知类消息不需要回包，返回自身
+	}
+}
+
 
 
 enum REDIS_ID

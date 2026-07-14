@@ -54,7 +54,7 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<CSession> session, short m
 		Json::Value rt;
 		rt["code"] = ERROR_RATE_LIMITED;
 		rt["message"] = "server busy, please retry later";
-		session->Send(rt.toStyledString(), msgId + 1);  // 回包用 RSP ID (= REQ + 1)
+		session->Send(rt.toStyledString(), getRspMsgId(msgId));
 		return false;
 	}
 
