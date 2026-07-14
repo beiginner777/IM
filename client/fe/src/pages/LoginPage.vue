@@ -83,8 +83,9 @@ async function handleSubmit() {
         </Form.Item>
 
         <Form.Item name="password">
-          <Input.Password
+          <Input
             v-model:value="formState.password"
+            type="password"
             size="large"
             placeholder="请输入密码"
             class="auth-input"

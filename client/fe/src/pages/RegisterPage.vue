@@ -98,7 +98,8 @@ async function handleSubmit() {
         </Form.Item>
 
         <Form.Item name="password">
-          <Input.Password
+          <Input
+            type="password"
             v-model:value="formState.password"
             size="large"
             placeholder="请输入密码（至少 6 个字符）"
