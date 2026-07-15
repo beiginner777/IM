@@ -338,6 +338,21 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 	rtvalue["totol_size"] = totolSize;
 	rtvalue["trans_size"] = transferredSize;
 	rtvalue["type"] = type;
+
+		// 更新 Redis FileInfo → 计算连续确认的 last_acked
+		{
+			auto fi = LogicSystem::getInstance()->getFileInfo(fileName);
+			if (fi) {
+				fi->seq_ = seq;
+				fi->transfferredSize_ = transferredSize;
+				if (seq == fi->last_acked_seq_ + 1)
+					fi->last_acked_seq_ = seq;
+				LogicSystem::getInstance()->addMd5FileInfo(fileName, fi);
+				rtvalue["last_acked"] = fi->last_acked_seq_;
+			} else {
+				rtvalue["last_acked"] = seq;
+			}
+		}
 	if (seq == lastSeq) {
 		// 将Redis中相关的信息删除
 		LogicSystem::getInstance()->DeleteMd5FileInfo(fileName);

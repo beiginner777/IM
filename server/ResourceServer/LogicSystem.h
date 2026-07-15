@@ -11,7 +11,7 @@ public:
 	FileInfo(int uid = 0, int seq = 0, std::string name = "", int total_size = 0,
 		int trans_size = 0, int last_seq = 0, std::string file_path_str = "")
 		:uid_(uid), seq_(seq), name_(name), totolSize_(total_size),
-		transfferredSize_(trans_size), last_seq_(last_seq), filePath_(file_path_str) 
+		transfferredSize_(trans_size), last_seq_(last_seq), last_acked_seq_(0), filePath_(file_path_str) 
 	{
 	}
 	// 
@@ -28,6 +28,8 @@ public:
 	std::string filePath_;
 	// 文件最后一个包的序号
 	int last_seq_;
+	// 连续确认的最大 seq（滑动窗口: 0~last_acked_seq_ 已完整接收）
+	int last_acked_seq_;
 };
 class DownloadFileInfo 
 {

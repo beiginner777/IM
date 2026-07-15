@@ -242,6 +242,7 @@ void LogicWorker::syncFile(std::shared_ptr<CSession> session, short msgId, std::
 	rtvalue["total_size"] = file_info->totolSize_;
 	rtvalue["md5"] = md5;
 	rtvalue["file_name"] = file_info->name_;
+	rtvalue["last_acked"] = file_info->last_acked_seq_;
 }
 void LogicWorker::downloadFile(std::shared_ptr<CSession> session, short msgId, std::string msgData)
 {
