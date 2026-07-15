@@ -381,6 +381,15 @@ struct MsgInfo
     QString md5_;         // 文件md5
     TRANSFER_TYPE _type; // 上传 or 下载
     TRANSFER_STATE _state; // 传输状态
+	// 滑动窗口字段
+
+	int window_base_;
+
+	QSet<int> acked_set_;
+
+	QSet<int> in_flight_;
+
+	QHash<int, QByteArray> chunk_cache_;
 };
 Q_DECLARE_METATYPE(MsgInfo);
 

@@ -21,6 +21,11 @@ FileUploadMsg::FileUploadMsg()
 {
     // 注册回调函数
     registerFunctionCallbacks();
+
+    // 滑动窗口定时器（500ms 扫描窗口内缺失分片）
+    timer_ = new QTimer(this);
+    connect(timer_, &QTimer::timeout, this, &FileUploadMsg::scanWindow);
+    timer_->start(500);
     // 续传逻辑
     connect(this,&FileUploadMsg::signalContinueUploadFile,this,&FileUploadMsg::slotContinueUploadFile);
     // 继续下载逻辑
@@ -148,53 +153,38 @@ void FileUploadMsg::upload_file(REQUEST_ID req_id, int msg_length, QByteArray da
         return;
     }
     //更新已经传输的文件大小
-    file_info->seq_ = seq;
-    file_info->current_size_ = (file_info->seq_) * MAX_FILE_LEN;
-    // 传输完成
-    if(seq == last_seq) {
-        qDebug() << "file_name = " << file_name << " chat image upload success.\n";
+    // ── 滑动窗口 ACK 处理 ──
+    int last_acked = obj["last_acked"].toInt();
+
+    file_info->acked_set_.insert(seq);
+    file_info->in_flight_.remove(seq);
+    file_info->current_size_ = qMax(file_info->current_size_, (qint64)seq * MAX_FILE_LEN);
+
+    // 累积滑动
+    int slide = 0;
+    while (file_info->acked_set_.contains(file_info->window_base_ + slide))
+        slide++;
+    if (slide > 0) {
+        file_info->window_base_ += slide;
+        for (int s = file_info->window_base_ - slide; s < file_info->window_base_; s++) {
+            file_info->acked_set_.remove(s);
+            file_info->chunk_cache_.remove(s);
+        }
+    }
+
+    if (file_info->window_base_ > file_info->last_seq_) {
+        qDebug() << "file_name = " << file_name << " chat image upload success.
+";
         file_info->_state = TRANSFER_STATE::Upload_Finish;
-        // 通知界面去更新数据
         emit signalUpdateUploadProgress(file_name);
         return;
     }
-    // 通知界面去更新数据
-    emit signalUpdateUploadProgress(file_name);
 
-    // 如果不处于传输状态
-    if(file_info->_state != Uploading){
-        qDebug() << "[DEBUG]: file: " << file_name << " is not uploading.";
-        return;
-    }
-    //qDebug() << "继续上传。";
-    //打开
-    QFile file(file_info->text_or_url_);
-    if (!file.open(QIODevice::ReadOnly)) {
-        qWarning() << "Could not open file: " << file.errorString();
-        return;
-    }
-    //文件偏移到已经发送的位置，继续读取发送
-    file.seek(file_info->seq_ * MAX_FILE_LEN);
-    // 读取文件内容并且发送
-    QByteArray buffer;
-    // 将文件偏移到指定的位置
-    file.seek(trans_size);
-    buffer = file.read(MAX_FILE_LEN);
-    seq++;
-    QString base64Data = buffer.toBase64();
-    QJsonObject send_msg;
-    send_msg["filename"] = file_info->unique_name_;
-    send_msg["seq"] = seq;
-    send_msg["lastseq"] = last_seq;
-    send_msg["transferredsize"] = buffer.size() + (seq - 1) * MAX_FILE_LEN;
-    send_msg["totolsize"] = total_size;
-    send_msg["data"] = base64Data;
-    send_msg["md5"] = md5;
-    send_msg["type"] = type;
-    QJsonDocument send_doc(send_msg);
-    QByteArray sendData = send_doc.toJson();
-    emit signalSendData(ID_IMAGE_CHAT_MSG_REQ,sendData);
-    file.close();
+    emit signalUpdateUploadProgress(file_name);
+    if (file_info->_state != Uploading) return;
+
+    // 发送窗口内新分片
+    sendWindow(file_info);
 }
 
 void FileUploadMsg::download_file(REQUEST_ID req_id, int msg_length, QByteArray data)
@@ -717,3 +707,76 @@ void FileUploadMsg::onThreadStarted()
     registerSignal();
 }
 
+
+// 滑动窗口发送：一次性发送窗口内（最多 8 个）未发出的分片
+void FileUploadMsg::sendWindow(std::shared_ptr<MsgInfo> info)
+{
+    static const int WINDOW_SIZE = 8;
+    int lastSeq = (info->total_size_ + MAX_FILE_LEN - 1) / MAX_FILE_LEN;
+    int end = qMin(info->window_base_ + WINDOW_SIZE, lastSeq + 1);
+
+    for (int seq = info->window_base_; seq < end; seq++) {
+        if (info->acked_set_.contains(seq)) continue;
+        if (info->in_flight_.contains(seq)) continue;
+
+        // 读磁盘分片
+        QFile file(info->text_or_url_);
+        if (!file.open(QIODevice::ReadOnly)) continue;
+        file.seek((seq - 1) * MAX_FILE_LEN);
+        QByteArray buffer = file.read(MAX_FILE_LEN);
+        file.close();
+        if (buffer.isEmpty()) continue;
+
+        // 缓存（重传用）
+        info->chunk_cache_[seq] = buffer;
+
+        // 构造消息并发送
+        QJsonObject msg;
+        msg["filename"] = info->unique_name_;
+        msg["seq"] = seq;
+        msg["lastseq"] = lastSeq;
+        msg["transferredsize"] = qMin((qint64)(seq) * MAX_FILE_LEN, info->total_size_);
+        msg["totolsize"] = info->total_size_;
+        msg["data"] = QString(buffer.toBase64());
+        msg["md5"] = info->md5_;
+        msg["type"] = CHAT_FILE;
+        QJsonDocument doc(msg);
+        QByteArray sendData = doc.toJson();
+
+        emit signalSendData(ID_IMAGE_CHAT_MSG_REQ, sendData);
+        info->in_flight_.insert(seq);
+    }
+}
+
+// 500ms 定时扫描：窗口内未确认的分片从缓存重传
+void FileUploadMsg::scanWindow()
+{
+    static const int WINDOW_SIZE = 8;
+    auto& uploads = UserManager::GetInstance()->getTransFiles();
+
+    for (auto it = uploads.begin(); it != uploads.end(); ++it) {
+        auto info = it->second;
+        if (info->_state != Uploading) continue;
+
+        int lastSeq = (info->total_size_ + MAX_FILE_LEN - 1) / MAX_FILE_LEN;
+        int end = qMin(info->window_base_ + WINDOW_SIZE, lastSeq + 1);
+
+        for (int seq = info->window_base_; seq < end; seq++) {
+            if (info->acked_set_.contains(seq)) continue;
+            if (!info->chunk_cache_.contains(seq)) continue;
+            // 重传
+            QByteArray buffer = info->chunk_cache_[seq];
+            QJsonObject msg;
+            msg["filename"] = info->unique_name_;
+            msg["seq"] = seq;
+            msg["lastseq"] = lastSeq;
+            msg["transferredsize"] = qMin((qint64)(seq) * MAX_FILE_LEN, info->total_size_);
+            msg["totolsize"] = info->total_size_;
+            msg["data"] = QString(buffer.toBase64());
+            msg["md5"] = info->md5_;
+            msg["type"] = CHAT_FILE;
+            QJsonDocument doc(msg);
+            emit signalSendData(ID_IMAGE_CHAT_MSG_REQ, doc.toJson());
+        }
+    }
+}
