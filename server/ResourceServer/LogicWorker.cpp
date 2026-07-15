@@ -166,6 +166,12 @@ void LogicWorker::uploadFile(std::shared_ptr<CSession> session, short msgId, std
 	int type = root["type"].asInt();
 	int uid = root["uid"].asInt();
 	std::string token = root["token"].asString();
+	// TODO: 测试完成后删除 —— 模拟 20% 丢包，验证客户端滑动窗口重传
+	static int dropCount = 0;
+	if (++dropCount % 5 == 0) {
+		std::cout << "[TEST] simulate packet loss, drop seq=" << seq << std::endl;
+		return;
+	}
 	auto cfg = ConfigManager::getInstance();
 	std::string uploadPath = cfg["SelfServer"]["UploadPath"];
 	std::string fullPath = uploadPath + "/" + fileName;
