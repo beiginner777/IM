@@ -35,6 +35,7 @@ bool LogicSystem::addMd5FileInfo(std::string name, std::shared_ptr<FileInfo> fil
 	root["last_seq"] = fileInfo->last_seq_;
 	root["total_size"] = fileInfo->totolSize_;
 	root["trans_size"] = fileInfo->transfferredSize_;
+	root["last_acked"] = fileInfo->last_acked_seq_;
 	auto file_info_str = root.toStyledString();
 	auto redis_key = FILEUPLOADFREFIX + name;
 	return RedisManager::getInstance()->SetExp(redis_key, file_info_str, FILEINFOEXISTTIME);
@@ -63,6 +64,7 @@ std::shared_ptr<FileInfo> LogicSystem::getFileInfo(std::string name)
 	file_info->last_seq_ = root["last_seq"].asInt();
 	file_info->totolSize_ = root["total_size"].asInt();
 	file_info->transfferredSize_ = root["trans_size"].asInt();
+	file_info->last_acked_seq_ = root.get("last_acked", 0).asInt();
 	return file_info;
 }
 

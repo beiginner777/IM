@@ -9,9 +9,9 @@ class LogicWorker;
 class FileInfo {
 public:
 	FileInfo(int uid = 0, int seq = 0, std::string name = "", int total_size = 0,
-		int trans_size = 0, int last_seq = 0, std::string file_path_str = "")
+		int trans_size = 0, int last_seq = 0, std::string file_path_str = "", int last_acked = 0)
 		:uid_(uid), seq_(seq), name_(name), totolSize_(total_size),
-		transfferredSize_(trans_size), last_seq_(last_seq), last_acked_seq_(0), filePath_(file_path_str) 
+		transfferredSize_(trans_size), last_seq_(last_seq), last_acked_seq_(last_acked), filePath_(file_path_str) 
 	{
 	}
 	// 

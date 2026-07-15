@@ -317,7 +317,6 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 		rtvalue["code"] = 1;
 		rtvalue["msg"] = "open file failed";
 		rtvalue["seq"] = seq;
-		session->Send(rtvalue.toStyledString(), ID_UPLOAD_FILE_RSP);
 		return;
 	}
 	ofs.write(decodedData.c_str(), decodedData.size());
@@ -326,7 +325,6 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 		rtvalue["code"] = 2;
 		rtvalue["message"] = "write into file failed";
 		rtvalue["seq"] = seq;
-		session->Send(rtvalue.toStyledString(), ID_UPLOAD_FILE_RSP);
 		return;
 	}
 	ofs.close();
@@ -339,20 +337,23 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 	rtvalue["trans_size"] = transferredSize;
 	rtvalue["type"] = type;
 
-		// 更新 Redis FileInfo → 计算连续确认的 last_acked
-		{
-			auto fi = LogicSystem::getInstance()->getFileInfo(fileName);
-			if (fi) {
-				fi->seq_ = seq;
-				fi->transfferredSize_ = transferredSize;
-				if (seq == fi->last_acked_seq_ + 1)
-					fi->last_acked_seq_ = seq;
-				LogicSystem::getInstance()->addMd5FileInfo(fileName, fi);
-				rtvalue["last_acked"] = fi->last_acked_seq_;
-			} else {
-				rtvalue["last_acked"] = seq;
+		int lastAcked = seq;
+	// 更新 Redis FileInfo → 计算连续确认的 last_acked
+	{
+		auto fi = LogicSystem::getInstance()->getFileInfo(fileName);
+		if (fi) {
+			fi->seq_ = seq;
+			fi->transfferredSize_ = transferredSize;
+			if (seq == fi->last_acked_seq_ + 1) {
+				fi->last_acked_seq_ = seq;
+				lastAcked = fi->last_acked_seq_;
 			}
+			rtvalue["last_acked"] = lastAcked;
+		} else {
+			std::cout << "FileInfo not found for file: " << fileName << std::endl;
 		}
+	}
+
 	if (seq == lastSeq) {
 		// 将Redis中相关的信息删除
 		LogicSystem::getInstance()->DeleteMd5FileInfo(fileName);
@@ -365,7 +366,7 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 			std::cout << "[ERROR]: Can not find User_IP by uid,ImageMsg transfer failed.\n";
 			return;
 		}
-		std::cout << "Call ChatServer to Notifu uid = " << session->getUserId() << " ImageMsg success.\n";
+		std::cout << "Call ChatServer to Notify uid = " << session->getUserId() << " ImageMsg success.\n";
 		NotifyChatServerImgReq req;
 		req.set_uid(session->getUserId());
 		req.set_unique_name(fileName);
@@ -376,7 +377,7 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 	}
 	else {
 		LogicSystem::getInstance()->addMd5FileInfo(fileName,
-			std::make_shared<FileInfo>(uid,seq,fileName,totolSize,transferredSize,lastSeq, fullPath));
+			std::make_shared<FileInfo>(uid,seq,fileName,totolSize,transferredSize,lastSeq,fullPath,lastAcked));
 	}
 }
 
