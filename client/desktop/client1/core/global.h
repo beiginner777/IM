@@ -368,8 +368,10 @@ struct MsgInfo
     MsgInfo() = default;
     MsgInfo(CHAT_MSG_TYPE msgtype, QString text_or_url, QPixmap pixmap, QString unique_name, qint64 total_size, QString md5)
     :msg_type_(msgtype), text_or_url_(text_or_url), priview_pix_(pixmap),unique_name_(unique_name),total_size_(total_size),
-        current_size_(0),seq_(1),md5_(md5)
-    {}
+        current_size_(0),seq_(1),md5_(md5),window_base_(1),last_seq_(0)
+    {
+	    last_seq_ = (total_size_ + MAX_FILE_LEN - 1) / MAX_FILE_LEN;
+	}
 
     CHAT_MSG_TYPE msg_type_;// 消息的类型
     QString text_or_url_;// 表示文件和图像的本地路径
@@ -390,6 +392,7 @@ struct MsgInfo
 	QSet<int> in_flight_;
 
 	QHash<int, QByteArray> chunk_cache_;
+	int last_seq_;
 };
 Q_DECLARE_METATYPE(MsgInfo);
 
