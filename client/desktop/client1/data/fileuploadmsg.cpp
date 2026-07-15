@@ -173,8 +173,7 @@ void FileUploadMsg::upload_file(REQUEST_ID req_id, int msg_length, QByteArray da
     }
 
     if (file_info->window_base_ > file_info->last_seq_) {
-        qDebug() << "file_name = " << file_name << " chat image upload success.
-";
+        qDebug() << "file_name = " << file_name << " chat image upload success.";
         file_info->_state = TRANSFER_STATE::Upload_Finish;
         emit signalUpdateUploadProgress(file_name);
         return;
@@ -713,7 +712,7 @@ void FileUploadMsg::sendWindow(std::shared_ptr<MsgInfo> info)
 {
     static const int WINDOW_SIZE = 8;
     int lastSeq = (info->total_size_ + MAX_FILE_LEN - 1) / MAX_FILE_LEN;
-    int end = qMin(info->window_base_ + WINDOW_SIZE, lastSeq + 1);
+    int end = qMin(info->window_base_ + WINDOW_SIZE, info->last_seq_ + 1);
 
     for (int seq = info->window_base_; seq < end; seq++) {
         if (info->acked_set_.contains(seq)) continue;
@@ -734,7 +733,7 @@ void FileUploadMsg::sendWindow(std::shared_ptr<MsgInfo> info)
         QJsonObject msg;
         msg["filename"] = info->unique_name_;
         msg["seq"] = seq;
-        msg["lastseq"] = lastSeq;
+        msg["lastseq"] = info->last_seq_;
         msg["transferredsize"] = qMin((qint64)(seq) * MAX_FILE_LEN, info->total_size_);
         msg["totolsize"] = info->total_size_;
         msg["data"] = QString(buffer.toBase64());
@@ -758,8 +757,7 @@ void FileUploadMsg::scanWindow()
         auto info = it->second;
         if (info->_state != Uploading) continue;
 
-        int lastSeq = (info->total_size_ + MAX_FILE_LEN - 1) / MAX_FILE_LEN;
-        int end = qMin(info->window_base_ + WINDOW_SIZE, lastSeq + 1);
+        int end = qMin(info->window_base_ + WINDOW_SIZE, info->last_seq_ + 1);
 
         for (int seq = info->window_base_; seq < end; seq++) {
             if (info->acked_set_.contains(seq)) continue;
