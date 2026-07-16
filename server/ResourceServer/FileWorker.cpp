@@ -344,11 +344,21 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 		if (fi) {
 			fi->seq_ = seq;
 			fi->transfferredSize_ = transferredSize;
+			// 检测丢包：收到的 seq 不是期望的下一个连续序号
+			if (seq > fi->last_acked_seq_ + 1) {
+				std::cout << "[ResourceServer] PACKET LOSS detected: file=" << fileName
+				          << " expected seq=" << (fi->last_acked_seq_ + 1)
+				          << " but received seq=" << seq
+				          << " (gap=" << (seq - fi->last_acked_seq_ - 1) << " missing)"
+				          << " last_acked=" << fi->last_acked_seq_ << std::endl;
+			}
 			if (seq == fi->last_acked_seq_ + 1) {
 				fi->last_acked_seq_ = seq;
 				lastAcked = fi->last_acked_seq_;
 			}
 			rtvalue["last_acked"] = lastAcked;
+			std::cout << "[ResourceServer] ACK: file=" << fileName
+			          << " seq=" << seq << " last_acked=" << lastAcked << std::endl;
 		} else {
 			std::cout << "FileInfo not found for file: " << fileName << std::endl;
 		}

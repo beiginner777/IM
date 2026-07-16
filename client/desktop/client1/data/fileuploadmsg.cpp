@@ -156,6 +156,13 @@ void FileUploadMsg::upload_file(REQUEST_ID req_id, int msg_length, QByteArray da
     // ── 滑动窗口 ACK 处理 ──
     int last_acked = obj["last_acked"].toInt();
 
+    // 服务端 last_acked 落后于当前 ack → 中间有分片丢包（服务端检测到空洞）
+    if (last_acked < seq && last_acked > 0) {
+        qDebug() << "[Client] SERVER detected GAP: file=" << file_name
+                 << " last_acked=" << last_acked << " but received seq=" << seq
+                 << " window_base=" << file_info->window_base_;
+    }
+
     file_info->acked_set_.insert(seq);
     file_info->in_flight_.remove(seq);
     file_info->current_size_ = qMax(file_info->current_size_, (qint64)seq * MAX_FILE_LEN);
@@ -165,6 +172,9 @@ void FileUploadMsg::upload_file(REQUEST_ID req_id, int msg_length, QByteArray da
     while (file_info->acked_set_.contains(file_info->window_base_ + slide))
         slide++;
     if (slide > 0) {
+        qDebug() << "[Client] window slide: file=" << file_name
+                 << " base " << file_info->window_base_ << " -> " << (file_info->window_base_ + slide)
+                 << " (acked " << slide << " chunks)";
         file_info->window_base_ += slide;
         for (int s = file_info->window_base_ - slide; s < file_info->window_base_; s++) {
             file_info->acked_set_.remove(s);
@@ -760,10 +770,18 @@ void FileUploadMsg::scanWindow()
 
         int end = qMin(info->window_base_ + WINDOW_SIZE, info->last_seq_ + 1);
 
+        bool firstRetrans = true;
         for (int seq = info->window_base_; seq < end; seq++) {
             if (info->acked_set_.contains(seq)) continue;
             if (!info->chunk_cache_.contains(seq)) continue;
+            if (firstRetrans) {
+                qDebug() << "[Client] PACKET LOSS detected: file=" << info->unique_name_
+                         << " window=[" << info->window_base_ << ".." << (end-1) << "]"
+                         << " in_flight=" << info->in_flight_.size();
+                firstRetrans = false;
+            }
             // 重传
+            qDebug() << "[Client] RETRANSMIT seq=" << seq << " file=" << info->unique_name_;
             QByteArray buffer = info->chunk_cache_[seq];
             QJsonObject msg;
             msg["filename"] = info->unique_name_;

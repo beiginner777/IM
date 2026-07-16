@@ -36,7 +36,6 @@ void CSession::Send(const char* msg, int max_length, short msgid)
 		std::cout << "session: " << uuid_ << " send que fulled, size is " << MAX_SENDQUEUE_SIZE << std::endl;
 		return;
 	}
-	std::cout << "max_length = " << max_length << " " << "msg_id = " << msgid << std::endl;
 	que_.push(std::make_shared<SendNode>(msg, max_length, msgid));
 	if (que_.size() > 1)
 	{
@@ -52,7 +51,7 @@ void CSession::Send(const char* msg, int max_length, short msgid)
 }
 void CSession::Send(std::string msg, short msgid)
 {
-	std::cout << "send message = " << msg << std::endl;
+	//std::cout << "send message = " << msg << std::endl;
 	Send(msg.c_str(), msg.length(), msgid);
 }
 void CSession::AsyncReadHead(std::size_t len)
