@@ -74,6 +74,7 @@ void CSession::Send(const char* msg, size_t max_length, short msgid, std::string
 		return;
 	}
 	auto sendnode = que_.front();
+	std::cout << "sendmsg' s msg_id is " << sendnode->GetMsgId() << std::endl;
 	boost::asio::async_write(socket_, boost::asio::buffer(sendnode->data_, sendnode->totol_len_),
 		std::bind(&CSession::handleWrite, this, std::placeholders::_1, shared_from_this()));
 }
@@ -88,7 +89,8 @@ void CSession::Send(std::string msg, short msgid, std::string uuid)
 }
 void CSession::notifyOffLine(int uid)
 {
-	this->Send("", ID_NOTIFY_OFFLINE);
+	boost::uuids::uuid a_uuid = boost::uuids::random_generator()();
+	this->Send("", ID_NOTIFY_OFFLINE, boost::uuids::to_string(a_uuid));
 }
 void CSession::setHeartCheckTime(time_t tm)
 {

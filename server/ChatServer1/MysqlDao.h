@@ -175,7 +175,7 @@ private:
 				sql::mysql::MySQL_Driver* driver = sql::mysql::get_mysql_driver_instance();
 				auto conn = driver->connect(hostName, user, passwd);
 				conn->setSchema(schema);
-				std::cout << "Mysql Connect success.";
+				std::cout << "Mysql Connect success." << std::endl;
 				auto currentTime = std::chrono::system_clock::now().time_since_epoch();
 				long long timeStamp = std::chrono::duration_cast<std::chrono::seconds>(currentTime).count();
 				connections_.push(std::make_unique<SqlConnection>(conn, timeStamp));

@@ -4,7 +4,7 @@
 #include <sstream>
 std::string RedisManager::Get(const std::string& key, bool forceMaster)
 {
-	auto connect_ = getConn();
+	auto connect_ = getConn(forceMaster);
 	if (connect_ == nullptr) {
 		std::cout << "Get RedisConn failed.\n";
 		return "";
@@ -238,7 +238,11 @@ std::string RedisManager::RPop(const std::string& key)
 		returnConn(connect_);
 		});
 	redisReply* reply_ = (redisReply*)redisCommand(connect_, "RPOP %s ", key.c_str());
-	if (reply_ == nullptr || reply_->type == REDIS_REPLY_NIL) {
+	if (reply_ == nullptr) {
+		std::cout << "Execut command [ RPOP " << key << " ] failure ! " << std::endl;
+		return std::string();
+	}
+	if (reply_->type == REDIS_REPLY_NIL) {
 		// queue empty, normal
 		freeReplyObject(reply_);
 		return std::string();
@@ -591,6 +595,7 @@ redisContext* RedisManager::getConn(bool forceMaster)
 	if (forceMaster) {
 		tlsPoolIdx = -1;
 		std::lock_guard<std::mutex> lock(masterPoolMutex_);
+		//std::cout << "[RedisManager] getConn: forceMaster=true, returning master connection: " << masterPool_->IP() << std::endl;
 		return masterPool_->getConnection();
 	}
 	// 读走 Slave：随机轮询，Slave 不可用时回退 Master
@@ -688,6 +693,10 @@ bool RedisManager::SetBit(const std::string& key, size_t offset, int value)
 		key.c_str(), offset, value);
 	if (!reply || reply->type != REDIS_REPLY_INTEGER) {
 		if (reply) freeReplyObject(reply);
+		else {
+			std::cerr << "SetBit: redisCommand failed, err=" << connect_->err << ", errstr=" << connect_->errstr
+			          << std::endl;
+		}
 		return false;
 	}
 	freeReplyObject(reply);
@@ -714,6 +723,51 @@ int RedisManager::GetBit(const std::string& key, size_t offset)
 	freeReplyObject(reply);
 	return val;
 }
+
+bool RedisManager::SetBinary(const std::string& key, const std::string& value)
+{
+	auto connect_ = getConn(true);
+	if (connect_ == nullptr) {
+		std::cerr << "SetBinary: Get RedisConn failed." << std::endl;
+		return false;
+	}
+	Defer defer([this, &connect_]() {
+		returnConn(connect_);
+	});
+	redisReply* reply = (redisReply*)redisCommand(connect_, "SET %s %b",
+		key.c_str(), value.data(), value.size());
+	if (!reply || reply->type != REDIS_REPLY_STATUS) {
+		if (reply) freeReplyObject(reply);
+		else {
+			std::cerr << "SetBinary: redisCommand failed, err=" << connect_->err
+			          << ", errstr=" << connect_->errstr << std::endl;
+		}
+		return false;
+	}
+	freeReplyObject(reply);
+	return true;
+}
+
+std::string RedisManager::GetBinary(const std::string& key)
+{
+	auto connect_ = getConn(true);  // 强制走 master，保证能读到 SetBinary 刚写入的数据
+	if (connect_ == nullptr) {
+		std::cerr << "GetBinary: Get RedisConn failed." << std::endl;
+		return "";
+	}
+	Defer defer([this, &connect_]() {
+		returnConn(connect_);
+	});
+	redisReply* reply = (redisReply*)redisCommand(connect_, "GET %s", key.c_str());
+	if (!reply || reply->type != REDIS_REPLY_STRING) {
+		if (reply) freeReplyObject(reply);
+		return "";
+	}
+	std::string result(reply->str, reply->len);
+	freeReplyObject(reply);
+	return result;
+}
+
 RedisManager::~RedisManager()
 {
 	stopSentinelPoll();

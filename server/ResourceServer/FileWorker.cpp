@@ -360,7 +360,7 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 		// Grpc调用ChatServer去通知Client端有新的图片消息
 		std::string key = USERIPPREFIX + std::to_string(session->getUserId());
 		std::string server_ip = RedisManager::getInstance()->Get(key);
-		if (server_ip == "") {
+		if (server_ip == "") { // TODO
 			rtvalue["code"] = ERROE_CODR::ERROR_USER_IP_NOT_FIND;
 			rtvalue["message"] = "Can not find User_IP by uid,ImageMsg transfer failed.";
 			std::cout << "[ERROR]: Can not find User_IP by uid,ImageMsg transfer failed.\n";

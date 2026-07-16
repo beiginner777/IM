@@ -497,18 +497,17 @@ void FileUploadMsg::registerSignal()
             // 检查消息id 和 消息长度 字段是否发送完成
             if(!b_recv_pedding_)
             {
-                QDataStream stream(&buffer_,QIODevice::ReadOnly);
-                stream.setVersion(QDataStream::Qt_5_0);
-                if(buffer_.size() < static_cast<int>(sizeof(qint16) + sizeof(qint32))){
+                const int HEADER_SIZE = static_cast<int>(sizeof(qint16) + sizeof(qint32));
+                if(buffer_.size() < HEADER_SIZE){
                     return;
-                }else{
-                    // 读取头部
-                    stream >> msg_id_ >> msg_len_;
-                    // 相当于移动buffer_的读指针
-                    buffer_ = buffer_.mid(sizeof(qint16) + sizeof(qint32));
-                    //qDebug() << "msg_id = " << msg_id_ << "," << "msg_len = " << msg_len_;
-                    b_recv_pedding_ = true;
                 }
+                // 先拷贝头部出来解析，避免 buffer_ = mid() 时 stream 内部指针失效
+                QByteArray headerData = buffer_.left(HEADER_SIZE);
+                QDataStream stream(headerData);
+                stream.setVersion(QDataStream::Qt_5_0);
+                stream >> msg_id_ >> msg_len_;
+                buffer_ = buffer_.mid(HEADER_SIZE);
+                b_recv_pedding_ = true;
             }
             // 剩余数据不足
             if(buffer_.size() < msg_len_){
@@ -522,6 +521,8 @@ void FileUploadMsg::registerSignal()
             //qDebug() << "receive from ChatServer: " << messageBody ;
             buffer_ = buffer_.mid(msg_len_);
             b_recv_pedding_ = false;
+
+            //qDebug() << "[ResourceServer] msg_id = " << msg_id_;
 
             // 添加对应的参数
             handlers_[msg_id_]((REQUEST_ID)msg_id_,msg_len_,messageBody);
@@ -767,7 +768,7 @@ void FileUploadMsg::scanWindow()
             QJsonObject msg;
             msg["filename"] = info->unique_name_;
             msg["seq"] = seq;
-            msg["lastseq"] = lastSeq;
+            msg["lastseq"] = info->last_seq_;
             msg["transferredsize"] = qMin((qint64)(seq) * MAX_FILE_LEN, info->total_size_);
             msg["totolsize"] = info->total_size_;
             msg["data"] = QString(buffer.toBase64());

@@ -181,7 +181,7 @@ private:
 				sql::mysql::MySQL_Driver* driver = sql::mysql::get_mysql_driver_instance();
 				auto conn = driver->connect(hostName, user, passwd);
 				conn->setSchema(schema);
-				std::cout << "Mysql Connect success.";
+				std::cout << "Mysql Connect success." << std::endl;
 				//获取当前时间戳
 				auto currentTime = std::chrono::system_clock::now().time_since_epoch();
 				// 将时间戳转化为秒

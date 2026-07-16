@@ -25,7 +25,7 @@ public:
 		// std::cout << "construct RedisConnPool ." << std::endl;
 		auto cfg = ConfigManager::getInstance();
 		host_ = cfg["Redis"]["Host"];
-		port_ = cfg["Redis"]["Port"].c_str();
+		std::string _portStr = cfg["Redis"]["Port"]; port_ = _portStr; // 避免临时对象.c_str()野指针
 		password_ = cfg["Redis"]["Password"];
 		/*
 		std::cout << "Host: " << Host << std::endl;
@@ -172,9 +172,14 @@ public:
 			}
 		}
 	}
+	std::string IP() { 
+		return host_ + ":" + port_;
+	}
+
 private:
 	void init(std::string host, std::string port, std::string pwd, std::size_t conn_size = DEFAULT_REDIS_CONN_SIZE)
 	{
+		std::cout << "[RedisConnPool::init] connecting to " << host << ":" << port << " poolSize=" << conn_size << std::endl;
 		pool_size_ = conn_size;
 		host_ = host;
 		port_ = port;
@@ -238,6 +243,8 @@ public:
 	bool ExistsKey(const std::string& key, bool forceMaster = true);  // 默认走 Master（去重一致性）
 	bool SetBit(const std::string& key, size_t offset, int value);
 	int  GetBit(const std::string& key, size_t offset);
+	bool SetBinary(const std::string& key, const std::string& value);   // 批量写二进制（用于布隆持久化）
+	std::string GetBinary(const std::string& key);                       // 批量读二进制
 	std::string acqueireLock(const std::string& lockName, int lockTimeOut, int expireTime);
 	bool releaseLock(const std::string& lockName, const std::string& lockValue);
 	// 分布式限流：Redis Lua 固定窗口 INCR + EXPIRE

@@ -46,7 +46,7 @@ std::shared_ptr<FileInfo> LogicSystem::getFileInfo(std::string name)
 	// 从 redis 中获取文件上传进度的信息
 	std::shared_ptr<FileInfo> file_info = std::make_shared<FileInfo>();
 	std::string redis_key = FILEUPLOADFREFIX + name;
-	auto file_info_str = RedisManager::getInstance()->Get(redis_key);
+	auto file_info_str = RedisManager::getInstance()->Get(redis_key, true);
 	if(file_info_str.empty()) {
 		return nullptr;
 	}
