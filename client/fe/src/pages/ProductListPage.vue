@@ -29,7 +29,7 @@ function handleLogout() {
       <div class="header-content">
         <h1 class="header-logo">⚡ 秒杀商城</h1>
         <div class="header-actions">
-          <span class="welcome-text">欢迎，{{ authStore.userInfo?.username }}</span>
+          <span class="welcome-text">欢迎，{{ authStore.username }}</span>
           <Button type="text" @click="router.push('/rank')">
             <template #icon><TrophyOutlined /></template>
             排行榜

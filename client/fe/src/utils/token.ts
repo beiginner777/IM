@@ -1,20 +1,13 @@
-const TOKEN_KEY = 'im_jwt'
-const USER_KEY = 'im_user'
+const SERVER_KEY = 'im_server'
 
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY)
+interface ServerInfo {
+  username: string
+  host: string
+  port: number
 }
 
-export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token)
-}
-
-export function removeToken(): void {
-  localStorage.removeItem(TOKEN_KEY)
-}
-
-export function getUser(): { uid: string; username: string } | null {
-  const raw = localStorage.getItem(USER_KEY)
+export function getServerInfo(): ServerInfo | null {
+  const raw = localStorage.getItem(SERVER_KEY)
   if (!raw) return null
   try {
     return JSON.parse(raw)
@@ -23,19 +16,18 @@ export function getUser(): { uid: string; username: string } | null {
   }
 }
 
-export function setUser(user: { uid: string; username: string }): void {
-  localStorage.setItem(USER_KEY, JSON.stringify(user))
+export function setServerInfo(info: ServerInfo): void {
+  localStorage.setItem(SERVER_KEY, JSON.stringify(info))
 }
 
-export function removeUser(): void {
-  localStorage.removeItem(USER_KEY)
+export function removeServerInfo(): void {
+  localStorage.removeItem(SERVER_KEY)
 }
 
 export function isLoggedIn(): boolean {
-  return !!getToken()
+  return !!getServerInfo()
 }
 
 export function logout(): void {
-  removeToken()
-  removeUser()
+  removeServerInfo()
 }

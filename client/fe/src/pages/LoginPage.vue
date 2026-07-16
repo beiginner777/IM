@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Form, Input, Button, message } from 'ant-design-vue'
-import { login } from '../api'
+import { Form, Input, Button, message, Modal } from 'ant-design-vue'
+import { UserOutlined, LockOutlined, ThunderboltOutlined } from '@ant-design/icons-vue'
+import { login, setBaseURL } from '../api'
 import { useAuthStore } from '../store/auth'
 
 const router = useRouter()
@@ -25,19 +26,32 @@ async function handleSubmit() {
   try {
     await formRef.value.validate()
     loading.value = true
+
     const res = await login({
       username: formState.username,
       password: formState.password,
     })
-    const { token, uid } = res.data
-    authStore.loginSuccess(token, uid, formState.username)
-    message.success('登录成功')
-    const redirect = (route.query.redirect as string) || '/products'
-    router.push(redirect)
-  } catch (err: any) {
-    if (err?.response?.data?.message) {
-      message.error(err.response.data.message)
-    }
+
+    const { username, host, port } = res.data
+
+    // 1. 保存用户信息
+    authStore.loginSuccess(username, host, port)
+
+    // 2. 切换后端地址
+    setBaseURL(host, port)
+
+    // 3. 欢迎提示
+    Modal.success({
+      title: '登录成功',
+      content: `欢迎 ${username} 进入秒杀系统！`,
+      okText: '开始抢购',
+      onOk: () => {
+        const redirect = (route.query.redirect as string) || '/products'
+        router.push(redirect)
+      },
+    })
+  } catch {
+    // 错误已由拦截器统一处理（error_msg → message.error）
   } finally {
     loading.value = false
   }
@@ -59,7 +73,7 @@ async function handleSubmit() {
       <!-- 品牌区 -->
       <div class="brand">
         <div class="brand-icon">
-          ⚡
+          <ThunderboltOutlined />
         </div>
         <h1 class="brand-name">秒杀商城</h1>
         <p class="brand-desc">登录 IM 账号，参与限时抢购</p>
@@ -79,17 +93,24 @@ async function handleSubmit() {
             size="large"
             placeholder="请输入用户名"
             class="auth-input"
-          />
+          >
+            <template #prefix>
+              <UserOutlined class="input-icon" />
+            </template>
+          </Input>
         </Form.Item>
 
         <Form.Item name="password">
-          <Input
+          <Input.Password
             v-model:value="formState.password"
-            type="password"
             size="large"
             placeholder="请输入密码"
             class="auth-input"
-          />
+          >
+            <template #prefix>
+              <LockOutlined class="input-icon" />
+            </template>
+          </Input.Password>
         </Form.Item>
 
         <Form.Item>

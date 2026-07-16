@@ -36,9 +36,9 @@ export const useProductStore = defineStore('product', () => {
     }
   }
 
-  async function fetchOrders(uid: string) {
+  async function fetchOrders(username: string) {
     try {
-      const res = await getOrders(uid)
+      const res = await getOrders(username)
       orders.value = res.data
     } catch {
       // 错误已在拦截器中处理

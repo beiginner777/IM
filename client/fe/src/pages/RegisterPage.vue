@@ -2,7 +2,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { Form, Input, Button, message } from 'ant-design-vue'
-import { register } from '../api'
+import { register, setBaseURL } from '../api'
 import { useAuthStore } from '../store/auth'
 
 const router = useRouter()
@@ -46,14 +46,13 @@ async function handleSubmit() {
       username: formState.username,
       password: formState.password,
     })
-    const { token, uid } = res.data
-    authStore.loginSuccess(token, uid, formState.username)
+    const { username, host, port } = res.data
+    authStore.loginSuccess(username, host, port)
+    setBaseURL(host, port)
     message.success('注册成功')
     router.push('/products')
-  } catch (err: any) {
-    if (err?.response?.data?.message) {
-      message.error(err.response.data.message)
-    }
+  } catch {
+    // 错误已由拦截器统一处理
   } finally {
     loading.value = false
   }

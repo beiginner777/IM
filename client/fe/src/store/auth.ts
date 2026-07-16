@@ -1,31 +1,29 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getToken, setToken, removeToken, getUser, setUser, removeUser } from '../utils/token'
+import { getServerInfo, setServerInfo, removeServerInfo } from '../utils/token'
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(getToken())
-  const userInfo = ref<{ uid: string; username: string } | null>(getUser())
+  const serverInfo = ref<{ username: string; host: string; port: number } | null>(
+    getServerInfo(),
+  )
 
-  const isLoggedIn = computed(() => !!token.value)
+  const isLoggedIn = computed(() => !!serverInfo.value)
+  const username = computed(() => serverInfo.value?.username || '')
 
-  function loginSuccess(jwt: string, uid: string, username: string) {
-    token.value = jwt
-    userInfo.value = { uid, username }
-    setToken(jwt)
-    setUser({ uid, username })
+  function loginSuccess(username: string, host: string, port: number) {
+    serverInfo.value = { username, host, port }
+    setServerInfo({ username, host, port })
   }
 
   function logout() {
-    token.value = null
-    userInfo.value = null
-    removeToken()
-    removeUser()
+    serverInfo.value = null
+    removeServerInfo()
   }
 
   return {
-    token,
-    userInfo,
+    serverInfo,
     isLoggedIn,
+    username,
     loginSuccess,
     logout,
   }

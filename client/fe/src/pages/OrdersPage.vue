@@ -38,9 +38,9 @@ const columns = [
 ]
 
 onMounted(async () => {
-  if (!authStore.userInfo?.uid) return
+  if (!authStore.serverInfo?.username) return
   loading.value = true
-  await productStore.fetchOrders(authStore.userInfo.uid)
+  await productStore.fetchOrders(authStore.serverInfo.username)
   loading.value = false
 })
 

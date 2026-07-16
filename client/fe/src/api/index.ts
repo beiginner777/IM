@@ -1,4 +1,4 @@
-import request from './request'
+import request, { setBaseURL } from './request'
 
 // ==================== 类型定义 ====================
 
@@ -7,9 +7,11 @@ export interface LoginParams {
   password: string
 }
 
+/** 登录成功：GateServer 返回新服务器地址 */
 export interface LoginResult {
-  token: string
-  uid: string
+  username: string
+  host: string
+  port: number
 }
 
 export interface RegisterParams {
@@ -18,8 +20,9 @@ export interface RegisterParams {
 }
 
 export interface RegisterResult {
-  token: string
-  uid: string
+  username: string
+  host: string
+  port: number
 }
 
 export interface Product {
@@ -76,6 +79,9 @@ export function getRank() {
 }
 
 /** 获取订单记录 */
-export function getOrders(uid: string) {
-  return request.get<Order[]>('/orders', { params: { uid } })
+export function getOrders(username: string) {
+  return request.get<Order[]>('/orders', { params: { username } })
 }
+
+// 重新导出 setBaseURL，方便 LoginPage 调用
+export { setBaseURL }
