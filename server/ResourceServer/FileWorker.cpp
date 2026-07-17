@@ -258,9 +258,11 @@ void FileWorker::handleUploadHeadIcon(std::shared_ptr<FileTask> task)
 		// 通知好友有新的头像上传
 		notifyFriendNewHeadIcon(uid, fileName);
 	}
-	else {
-		LogicSystem::getInstance()->addMd5FileInfo(fileName,
-			std::make_shared<FileInfo>(uid, seq, fileName, totolSize, transferredSize, lastSeq, fullPath));
+		else {
+			if (!LogicSystem::getInstance()->addMd5FileInfo(fileName, fi)) {
+				std::cerr << "[ResourceServer] CRITICAL: save FileInfo to Redis failed, file="
+				          << fileName << " last_acked=" << lastAcked << std::endl;
+			}
 	}
 }
 
@@ -343,7 +345,9 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 					        << " last_acked " << seq << " -> " << fi->last_acked_seq_ << std::endl;
 			}
 			lastAcked = fi->last_acked_seq_;
-		} else if (seq > fi->last_acked_seq_ + 1) {
+		}
+		else if (seq > fi->last_acked_seq_ + 1) 
+		{
 			fi->pending_seqs_.insert(seq);
 			std::cout << "[ResourceServer] PACKET LOSS: file=" << fileName
 			        << " expected=" << (fi->last_acked_seq_ + 1)
@@ -351,14 +355,16 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 		}
 		rtvalue["last_acked"] = lastAcked;
 		std::cout << "[ResourceServer] ACK: file=" << fileName
-		        << " seq=" << seq << " last_acked=" << lastAcked << std::endl;
-		} else {
-			fi = std::make_shared<FileInfo>(uid, seq, fileName, totolSize, transferredSize, lastSeq, fullPath, seq);
-			lastAcked = seq;
-			rtvalue["last_acked"] = seq;
-		}
+				<< " seq=" << seq << " last_acked=" << lastAcked << std::endl;
+	} 
+	else
+	{
+		fi = std::make_shared<FileInfo>(uid, seq, fileName, totolSize, transferredSize, lastSeq, fullPath, seq);
+		lastAcked = seq;
+		rtvalue["last_acked"] = seq;
+	}
 	
-	if (seq == lastSeq) {
+	if (lastAcked == lastSeq) {
 		//LogicSystem::getInstance()->DeleteMd5FileInfo(fileName);
 		std::string key = USERIPPREFIX + std::to_string(session->getUserId());
 		std::string server_ip = RedisManager::getInstance()->Get(key);
@@ -375,10 +381,12 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 			std::cout << "Notify Client ChatImg failed.\n";
 		}
 	}
-	else {
-		LogicSystem::getInstance()->addMd5FileInfo(fileName,
-			fi);
-	}
+		else {
+			if (!LogicSystem::getInstance()->addMd5FileInfo(fileName, fi)) {
+				std::cerr << "[ResourceServer] CRITICAL: save FileInfo to Redis failed, file="
+				          << fileName << " last_acked=" << lastAcked << std::endl;
+			}
+		}
 }
 
 void FileWorker::postTaskToQue(std::shared_ptr<FileTask> task)
