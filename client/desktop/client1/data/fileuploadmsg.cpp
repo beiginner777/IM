@@ -773,6 +773,7 @@ void FileUploadMsg::scanWindow()
         bool firstRetrans = true;
         for (int seq = info->window_base_; seq < end; seq++) {
             if (info->acked_set_.contains(seq)) continue;
+            if (info->in_flight_.contains(seq)) continue;   // 正在发送中，等待 ACK
             if (!info->chunk_cache_.contains(seq)) continue;
             if (firstRetrans) {
                 qDebug() << "[Client] PACKET LOSS detected: file=" << info->unique_name_
@@ -794,6 +795,7 @@ void FileUploadMsg::scanWindow()
             msg["type"] = CHAT_FILE;
             QJsonDocument doc(msg);
             emit signalSendData(ID_IMAGE_CHAT_MSG_REQ, doc.toJson());
+            info->in_flight_.insert(seq);   // 标记为重传中，避免 sendWindow 重复发送
         }
     }
 }
