@@ -228,6 +228,8 @@ void ChatInterface::on_sendButton_clicked()
              // 将文件加入文件管理的容器
              qDebug() << "unique_name = " << msgList[i]->unique_name_;
              UserManager::GetInstance()->add_trans_file(msgList[i]->unique_name_,msgList[i]);
+             // 断点续传：先查询服务端进度，再开始发送窗口
+             FileUploadMsg::GetInstance()->queryResumeProgress(msgList[i]);
              // 发送消息
              QJsonDocument doc(textObj);
              QByteArray data = doc.toJson(QJsonDocument::Compact);

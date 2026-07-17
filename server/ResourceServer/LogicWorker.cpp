@@ -25,6 +25,7 @@ void LogicWorker::registerFunctionCallbacks()
 	handlers_[ID_DOWN_LOAD_FILE_REQ] = std::bind(&LogicWorker::downloadFile, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 	handlers_[ID_IMG_CHAT_CONTINUE_UPLOAD_REQ] = std::bind(&LogicWorker::imgChatContinueUpload, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 	handlers_[ID_FILE_CONTINUE_DOWNLOAD_REQ] = std::bind(&LogicWorker::fileContinueDownload, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+	handlers_[ID_RESUME_UPLOAD_REQ] = std::bind(&LogicWorker::resumeUpload, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 	// StatusServer 响应处理
 	handlers_[ID_REGISTER_RSP] = std::bind(&LogicWorker::handleRegisterRsp, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 	handlers_[ID_HEADT_CHECK_RSP] = std::bind(&LogicWorker::handleHeartCheckRsp, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
@@ -432,6 +433,35 @@ void LogicWorker::handleRegisterRsp(std::shared_ptr<CSession> session, short msg
 	std::cout << "[ResourceServer] Registered to StatusServer successfully." << std::endl;
 	session->server_->startReceiceConnections();
 }
+// 断点续传 —— 查询上传进度（逻辑简单，直接在此完成，不投递 FileWorker）
+void LogicWorker::resumeUpload(std::shared_ptr<CSession> session, short msgId, std::string msgData)
+{
+	Json::Value root;
+	Json::Reader reader;
+	Json::Value rtvalue;
+	if (!reader.parse(msgData, root)) {
+		rtvalue["code"] = 3;
+		rtvalue["msg"] = "parse json failed";
+		session->Send(rtvalue.toStyledString(), ID_RESUME_UPLOAD_RSP);
+		return;
+	}
+	std::string fileName = root["filename"].asString();
+	auto fi = LogicSystem::getInstance()->getFileInfo(fileName);
+	rtvalue["filename"] = fileName;
+	if (fi) {
+		rtvalue["code"] = 0;
+		rtvalue["last_acked"] = fi->last_acked_seq_;
+		rtvalue["last_seq"] = fi->last_seq_;
+		rtvalue["total_size"] = fi->totolSize_;
+		std::cout << "[ResourceServer] resumeUpload: file=" << fileName
+		          << " last_acked=" << fi->last_acked_seq_ << " last_seq=" << fi->last_seq_ << std::endl;
+	} else {
+		rtvalue["code"] = 1;  // 新文件
+		rtvalue["msg"] = "new file";
+	}
+	session->Send(rtvalue.toStyledString(), ID_RESUME_UPLOAD_RSP);
+}
+
 // 处理 StatusServer 心跳响应（更新心跳时间戳）
 void LogicWorker::handleHeartCheckRsp(std::shared_ptr<CSession> session, short msgId, std::string msgData)
 {

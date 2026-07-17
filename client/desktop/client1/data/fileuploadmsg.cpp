@@ -489,6 +489,7 @@ void FileUploadMsg::registerFunctionCallbacks()
     handlers_[ID_DOWN_LOAD_FILE_RSP] = std::bind(&FileUploadMsg::download_file,this,std::placeholders::_1,std::placeholders::_2,std::placeholders::_3);
     handlers_[ID_IMG_CHAT_CONTINUE_UPLOAD_RSP] = std::bind(&FileUploadMsg::imgChatContinueUpload,this,std::placeholders::_1,std::placeholders::_2,std::placeholders::_3);
     handlers_[ID_FILE_CONTINUE_DOWNLOAD_RSP] = std::bind(&FileUploadMsg::fileContinueDownload,this,std::placeholders::_1,std::placeholders::_2,std::placeholders::_3);
+    handlers_[ID_RESUME_UPLOAD_RSP] = std::bind(&FileUploadMsg::onResumeUploadRsp,this,std::placeholders::_1,std::placeholders::_2,std::placeholders::_3);
 }
 
 void FileUploadMsg::registerSignal()
@@ -801,4 +802,48 @@ void FileUploadMsg::scanWindow()
             info->in_flight_.insert(seq);   // 标记为重传中，避免 sendWindow 重复发送
         }
     }
+}
+
+// 断点续传 —— 向服务端查询上传进度
+void FileUploadMsg::queryResumeProgress(std::shared_ptr<MsgInfo> info)
+{
+    QJsonObject obj;
+    obj["filename"] = info->unique_name_;
+    QJsonDocument doc(obj);
+    emit signalSendData(REQUEST_ID::ID_RESUME_UPLOAD_REQ, doc.toJson());
+    qDebug() << "[Client] resume query: file=" << info->unique_name_;
+}
+
+// 服务端返回上传进度 → 设置 window_base_ 并开始发送
+void FileUploadMsg::onResumeUploadRsp(REQUEST_ID reqId, int msgLen, QByteArray data)
+{
+    QJsonDocument doc = QJsonDocument::fromJson(data);
+    if (doc.isNull()) return;
+    QJsonObject obj = doc.object();
+    QString fileName = obj["filename"].toString();
+
+    // 找到对应的 MsgInfo
+    auto info = UserManager::GetInstance()->get_trans_file(fileName);
+    if (!info) {
+        qDebug() << "[Client] resume rsp: file not found in trans map:" << fileName;
+        return;
+    }
+
+    int code = obj["code"].toInt();
+    if (code == 0) {
+        // 续传：从 last_acked + 1 开始
+        int lastAcked = obj["last_acked"].toInt();
+        int lastSeq   = obj["last_seq"].toInt();
+        info->window_base_ = lastAcked + 1;
+        info->last_seq_    = lastSeq;
+        info->current_size_ = lastAcked * MAX_FILE_LEN;
+        qDebug() << "[Client] resume: file=" << fileName
+                 << " last_acked=" << lastAcked << " start from seq=" << info->window_base_;
+    } else {
+        // 新文件：从 seq=1 开始
+        qDebug() << "[Client] resume: new file=" << fileName << ", start from seq=1";
+    }
+
+    info->_state = TRANSFER_STATE::Uploading;
+    sendWindow(info);
 }
