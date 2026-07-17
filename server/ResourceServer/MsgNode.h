@@ -16,7 +16,7 @@ public:
 	}
 	~MsgNode()
 	{
-		std::cout << "destructe MsgNode" << std::endl;
+		//std::cout << "destructe MsgNode" << std::endl;
 		delete[] data_; // new出来的空间，需要手动释放
 	}
 	// 清空缓冲区

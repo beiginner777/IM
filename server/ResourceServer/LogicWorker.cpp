@@ -166,6 +166,12 @@ void LogicWorker::uploadFile(std::shared_ptr<CSession> session, short msgId, std
 	int type = root["type"].asInt();
 	int uid = root["uid"].asInt();
 	std::string token = root["token"].asString();
+	// TODO: 测试完成后删除 —— 模拟 20% 丢包，验证客户端滑动窗口重传
+	static int dropCount = 0;
+	if (++dropCount % 5 == 0) {
+		std::cout << "[TEST] simulate packet loss, drop seq=" << seq << std::endl;
+		return;
+	}
 	auto cfg = ConfigManager::getInstance();
 	std::string uploadPath = cfg["SelfServer"]["UploadPath"];
 	std::string fullPath = uploadPath + "/" + fileName;
@@ -192,9 +198,6 @@ void LogicWorker::uploadFile(std::shared_ptr<CSession> session, short msgId, std
 			rtvalue["error"] = 4;
 			return;
 		}
-		file_info->seq_ = seq;
-		file_info->transfferredSize_ = transferredSize;
-		LogicSystem::getInstance()->addMd5FileInfo(fileName, file_info);
 	}
 	std::shared_ptr<FileTask> task = std::make_shared<FileTask>(session, msgId, md5, fileName, seq, totolSize, transferredSize, lastSeq, data, type);
 	// 根据文件名字来决定 投递 到 哪个 FileWorker 线程
@@ -242,6 +245,7 @@ void LogicWorker::syncFile(std::shared_ptr<CSession> session, short msgId, std::
 	rtvalue["total_size"] = file_info->totolSize_;
 	rtvalue["md5"] = md5;
 	rtvalue["file_name"] = file_info->name_;
+	rtvalue["last_acked"] = file_info->last_acked_seq_;
 }
 void LogicWorker::downloadFile(std::shared_ptr<CSession> session, short msgId, std::string msgData)
 {

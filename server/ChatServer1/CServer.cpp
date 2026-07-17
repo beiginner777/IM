@@ -11,12 +11,14 @@ CServer::CServer(boost::asio::io_context& ioc, std::string port)
 	timer_(ioc),
 	heartCheckTimer_(ioc)
 {
-	auto& start_server_ioc = AsioIOContextThreadPool::getInstance()->getIOContext();
-	connectionToStatusServer_ = std::make_shared<CSession>(start_server_ioc, this);
-	if (!connectToStatusServer()) {
-		std::cout << "Connect to StatusServer failed, please check the StatusServer is running or not." << std::endl;
-		exit(-1);
-	}
+	//auto& start_server_ioc = AsioIOContextThreadPool::getInstance()->getIOContext();
+	//connectionToStatusServer_ = std::make_shared<CSession>(start_server_ioc, this);
+	//if (!connectToStatusServer()) {
+	//	std::cout << "Connect to StatusServer failed, please check the StatusServer is running or not." << std::endl;
+	//	exit(-1);
+	//}
+	// 绕过 StatusServer，直接开始接收客户端连接
+	startAccept();
 }
 CServer::~CServer()
 {
@@ -43,6 +45,7 @@ void CServer::startReceiceConnections()
 
 std::string CServer::getConnectionToStatusServerUuid()
 {
+	if (!connectionToStatusServer_) return "";
 	return connectionToStatusServer_->getUuid();
 }
 

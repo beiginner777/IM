@@ -58,6 +58,9 @@ public slots:
     void slotContinueUploadFile(QString unique_name);
     void slotContinueDownloadFile(QString unique_name);
     void onThreadStarted();
+    // 滑动窗口
+    void sendWindow(std::shared_ptr<MsgInfo> info);
+    void scanWindow();
 
 signals:
     void signalConnToResServer(ServerInfo si);

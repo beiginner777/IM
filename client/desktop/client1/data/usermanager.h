@@ -97,6 +97,7 @@ public:
     // 添加文件传输中 映射关系
     void add_trans_file(QString name,std::shared_ptr<MsgInfo> image) { trans_files_[name] = image; }
     std::shared_ptr<MsgInfo> get_trans_file(QString name);
+    std::map<QString,std::shared_ptr<MsgInfo>>& getTransFiles() { return trans_files_; }
 
     // 下载文件的信息
     void add_download_file(QString file, std::shared_ptr<DownloadFileInfo> file_info);

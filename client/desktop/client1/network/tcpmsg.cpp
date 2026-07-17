@@ -397,22 +397,17 @@ void TcpMsg::registerSignal()
             {
                 // Protocol: uuid(36B) + msg_id(2B) + msg_len(2B) = 40B header
                 const int HEADER_SIZE = sizeof(quint16) * 2 + 36;
-                // 没有读取到完整的消息头，那么就先返回，等下一次读取凑够40bits
                 if(buffer_.size() < HEADER_SIZE){
                     return;
                 }
-                // 读取uuid
-                char uuidBuf[37] = {0};
-                QDataStream stream(&buffer_, QIODevice::ReadOnly);
-                stream.setVersion(QDataStream::Qt_5_0);
-                stream.readRawData(uuidBuf, 36);
-                stream.setByteOrder(QDataStream::BigEndian);
-                QString recvUuid = QString::fromUtf8(uuidBuf, 36).replace(QChar('\0'), QString());
-                // 读取msg_id + msg_len
-                stream >> msg_id_ >> msg_len_;
-                // 移动缓冲区的读取位置
+                // 手动逐字节解析，不依赖 QDataStream 的内部指针
+                QByteArray uuidBytes = buffer_.left(36);
+                QString recvUuid = QString::fromUtf8(uuidBytes).replace(QChar('\0'), QString());
+                // msg_id: BigEndian uint16 at offset 36~37
+                msg_id_ = ((quint16)(quint8)buffer_[36] << 8) | (quint16)(quint8)buffer_[37];
+                // msg_len: BigEndian uint16 at offset 38~39
+                msg_len_ = ((quint16)(quint8)buffer_[38] << 8) | (quint16)(quint8)buffer_[39];
                 buffer_ = buffer_.mid(HEADER_SIZE);
-                // 移除服务端回复的消息
                 assert(!recvUuid.isEmpty());
                 if (!recvUuid.isEmpty()) {
                     pending_ack_.remove(recvUuid);
