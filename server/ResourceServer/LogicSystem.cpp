@@ -36,7 +36,9 @@ bool LogicSystem::addMd5FileInfo(std::string name, std::shared_ptr<FileInfo> fil
 	root["total_size"] = fileInfo->totolSize_;
 	root["trans_size"] = fileInfo->transfferredSize_;
 	root["last_acked"] = fileInfo->last_acked_seq_;
-	root["max_received_seq"] = fileInfo->max_received_seq_;
+	Json::Value pending(Json::arrayValue);
+	for (int s : fileInfo->pending_seqs_) pending.append(s);
+	root["pending_seqs"] = pending;
 	auto file_info_str = root.toStyledString();
 	auto redis_key = FILEUPLOADFREFIX + name;
 	return RedisManager::getInstance()->SetExp(redis_key, file_info_str, FILEINFOEXISTTIME);
@@ -66,7 +68,10 @@ std::shared_ptr<FileInfo> LogicSystem::getFileInfo(std::string name)
 	file_info->totolSize_ = root["total_size"].asInt();
 	file_info->transfferredSize_ = root["trans_size"].asInt();
 	file_info->last_acked_seq_ = root.get("last_acked", 0).asInt();
-	file_info->max_received_seq_ = root.get("max_received_seq", 0).asInt();
+	file_info->pending_seqs_.clear();
+	if (root.isMember("pending_seqs")) {
+		for (const auto& v : root["pending_seqs"]) file_info->pending_seqs_.insert(v.asInt());
+	}
 	return file_info;
 }
 

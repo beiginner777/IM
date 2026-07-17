@@ -326,52 +326,44 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 	// 计算连续确认的 last_acked（支持乱序到达 + 重传 + 死锁恢复）
 	int lastAcked = 0;
 	
-		auto fi = LogicSystem::getInstance()->getFileInfo(fileName);
-		if (fi) {
-			fi->seq_ = seq;
-			fi->transfferredSize_ = transferredSize;
-			// 默认保持当前连续值，不污染 Redis
+	auto fi = LogicSystem::getInstance()->getFileInfo(fileName);
+	if (fi) {
+		fi->seq_ = seq;
+		fi->transfferredSize_ = transferredSize;
+		// 默认保持当前连续值，不污染 Redis
+		lastAcked = fi->last_acked_seq_;
+		if (seq == fi->last_acked_seq_ + 1) {
+			fi->last_acked_seq_ = seq;
+			while (fi->pending_seqs_.count(fi->last_acked_seq_ + 1)) {
+				fi->pending_seqs_.erase(fi->last_acked_seq_ + 1);
+				fi->last_acked_seq_++;
+			}
+			if (fi->last_acked_seq_ > seq) {
+				std::cout << "[ResourceServer] catch-up: file=" << fileName
+					        << " last_acked " << seq << " -> " << fi->last_acked_seq_ << std::endl;
+			}
 			lastAcked = fi->last_acked_seq_;
-			// 收到期望的下一个包 → 连续确认推进
-			if (seq == fi->last_acked_seq_ + 1) {
-				fi->last_acked_seq_ = seq;
-				// 跳过已被乱序写入的后续分片（利用 max_received_seq）
-				if (fi->max_received_seq_ > fi->last_acked_seq_) {
-					std::cout << "[ResourceServer] catch-up: file=" << fileName
-					          << " last_acked " << fi->last_acked_seq_
-					          << " -> " << fi->max_received_seq_ << std::endl;
-					fi->last_acked_seq_ = fi->max_received_seq_;
-				}
-				lastAcked = fi->last_acked_seq_;
-			}
-			// 更新最大收到的 seq
-			if (seq > fi->max_received_seq_) {
-				fi->max_received_seq_ = seq;
-			}
-			// 丢包日志
-			if (seq > fi->last_acked_seq_ + 1) {
-				std::cout << "[ResourceServer] PACKET LOSS: file=" << fileName
-				          << " expected=" << (fi->last_acked_seq_ + 1)
-				          << " received=" << seq << " last_acked=" << lastAcked << std::endl;
-			}
-			rtvalue["last_acked"] = lastAcked;
-			std::cout << "[ResourceServer] ACK: file=" << fileName
-			          << " seq=" << seq << " last_acked=" << lastAcked << std::endl;
-			} else {
-				fi = std::make_shared<FileInfo>(uid, seq, fileName, totolSize, transferredSize, lastSeq, fullPath, seq);
-				fi->max_received_seq_ = seq;
-				lastAcked = seq;
-				rtvalue["last_acked"] = seq;
-			}
+		} else if (seq > fi->last_acked_seq_ + 1) {
+			fi->pending_seqs_.insert(seq);
+			std::cout << "[ResourceServer] PACKET LOSS: file=" << fileName
+			        << " expected=" << (fi->last_acked_seq_ + 1)
+			        << " received=" << seq << " pending=" << fi->pending_seqs_.size() << std::endl;
+		}
+		rtvalue["last_acked"] = lastAcked;
+		std::cout << "[ResourceServer] ACK: file=" << fileName
+		        << " seq=" << seq << " last_acked=" << lastAcked << std::endl;
+		} else {
+			fi = std::make_shared<FileInfo>(uid, seq, fileName, totolSize, transferredSize, lastSeq, fullPath, seq);
+			lastAcked = seq;
+			rtvalue["last_acked"] = seq;
+		}
 	
 	if (seq == lastSeq) {
 		//LogicSystem::getInstance()->DeleteMd5FileInfo(fileName);
 		std::string key = USERIPPREFIX + std::to_string(session->getUserId());
 		std::string server_ip = RedisManager::getInstance()->Get(key);
 		if (server_ip == "") {
-			rtvalue["code"] = ERROE_CODR::ERROR_USER_IP_NOT_FIND;
-			rtvalue["message"] = "Can not find User_IP by uid,ImageMsg transfer failed.";
-			std::cout << "[ERROR]: Can not find User_IP by uid,ImageMsg transfer failed.\n";
+			std::cout << "[DEBUG]: Can not find User_IP by uid,ImageMsg transfer failed.\n";
 			return;
 		}
 		std::cout << "Call ChatServer to Notify uid = " << session->getUserId() << " ImageMsg success.\n";

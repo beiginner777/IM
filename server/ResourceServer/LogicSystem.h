@@ -23,8 +23,8 @@ public:
 	int transfferredSize_;
 	std::string filePath_;
 	int last_seq_;
-	int last_acked_seq_;       // 连续确认值
-	int max_received_seq_;     // 最大收到值（用于跳空洞）
+	int last_acked_seq_;                         // 连续确认值
+	std::set<int> pending_seqs_;                  // 已收到但不连续的 seq（填补空洞后逐个消化）
 };
 class DownloadFileInfo
 {
