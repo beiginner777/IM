@@ -163,6 +163,7 @@ void FileUploadMsg::upload_file(REQUEST_ID req_id, int msg_length, QByteArray da
                  << " window_base=" << file_info->window_base_;
     }
 
+    qDebug() << "[" << file_info->unique_name_ << "] receive seq = " << seq;
     file_info->acked_set_.insert(seq);
     file_info->in_flight_.remove(seq);
     file_info->current_size_ = qMax(file_info->current_size_, (qint64)seq * MAX_FILE_LEN);
@@ -182,7 +183,7 @@ void FileUploadMsg::upload_file(REQUEST_ID req_id, int msg_length, QByteArray da
         }
     }
 
-    if (file_info->window_base_ > file_info->last_seq_) {
+    if (file_info->last_seq_ == last_acked) {
         qDebug() << "file_name = " << file_name << " chat image upload success.";
         file_info->_state = TRANSFER_STATE::Upload_Finish;
         emit signalUpdateUploadProgress(file_name);
@@ -752,7 +753,7 @@ void FileUploadMsg::sendWindow(std::shared_ptr<MsgInfo> info)
         msg["type"] = CHAT_FILE;
         QJsonDocument doc(msg);
         QByteArray sendData = doc.toJson();
-
+        // 发送数据
         emit signalSendData(ID_IMAGE_CHAT_MSG_REQ, sendData);
         info->in_flight_.insert(seq);
     }
@@ -772,10 +773,11 @@ void FileUploadMsg::scanWindow()
 
         bool firstRetrans = true;
         for (int seq = info->window_base_; seq < end; seq++) {
+            qDebug() << "["  << info->unique_name_ << "]" << " Reupdate seq = " << seq;
             if (info->acked_set_.contains(seq)) continue;
-            if (!info->chunk_cache_.contains(seq)) continue;
-            // scanWindow 是重传路径，不受 in_flight 限制——ACK 可能丢包，in_flight 永远不超时
             info->in_flight_.remove(seq);
+            if (info->in_flight_.contains(seq)) continue;
+            if (!info->chunk_cache_.contains(seq)) continue;
             if (firstRetrans) {
                 qDebug() << "[Client] PACKET LOSS detected: file=" << info->unique_name_
                          << " window=[" << info->window_base_ << ".." << (end-1) << "]"

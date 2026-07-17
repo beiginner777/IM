@@ -21,6 +21,7 @@
 #include <chrono>
 #include <atomic>
 #include <queue>
+#include <set>
 #include <hiredis/hiredis.h> // hiredis 头文件
 #include <exception>
 #include <json/json.h>

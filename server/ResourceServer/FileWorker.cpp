@@ -259,10 +259,11 @@ void FileWorker::handleUploadHeadIcon(std::shared_ptr<FileTask> task)
 		notifyFriendNewHeadIcon(uid, fileName);
 	}
 		else {
-			if (!LogicSystem::getInstance()->addMd5FileInfo(fileName, fi)) {
+		    /* if (!LogicSystem::getInstance()->addMd5FileInfo(fileName, fi))
+		    {
 				std::cerr << "[ResourceServer] CRITICAL: save FileInfo to Redis failed, file="
 				          << fileName << " last_acked=" << lastAcked << std::endl;
-			}
+			}*/
 	}
 }
 
@@ -359,9 +360,7 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 	} 
 	else
 	{
-		fi = std::make_shared<FileInfo>(uid, seq, fileName, totolSize, transferredSize, lastSeq, fullPath, seq);
-		lastAcked = seq;
-		rtvalue["last_acked"] = seq;
+		std::cout << "[ResourceServer] Fatal Error!" << std::endl;
 	}
 	
 	if (lastAcked == lastSeq) {
@@ -381,12 +380,10 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 			std::cout << "Notify Client ChatImg failed.\n";
 		}
 	}
-		else {
-			if (!LogicSystem::getInstance()->addMd5FileInfo(fileName, fi)) {
-				std::cerr << "[ResourceServer] CRITICAL: save FileInfo to Redis failed, file="
-				          << fileName << " last_acked=" << lastAcked << std::endl;
-			}
-		}
+	if (!LogicSystem::getInstance()->addMd5FileInfo(fileName, fi)) {
+		std::cerr << "[ResourceServer] CRITICAL: save FileInfo to Redis failed, file="
+				    << fileName << " last_acked=" << lastAcked << std::endl;
+	}
 }
 
 void FileWorker::postTaskToQue(std::shared_ptr<FileTask> task)

@@ -13,7 +13,7 @@ public:
 		int last_acked = 0)
 		:uid_(uid), seq_(seq), name_(name), totolSize_(total_size),
 		transfferredSize_(trans_size), last_seq_(last_seq), filePath_(file_path_str),
-		last_acked_seq_(last_acked), max_received_seq_(0)
+		last_acked_seq_(last_acked)
 	{
 	}
 	int uid_;

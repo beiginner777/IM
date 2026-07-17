@@ -198,7 +198,6 @@ void LogicWorker::uploadFile(std::shared_ptr<CSession> session, short msgId, std
 			rtvalue["error"] = 4;
 			return;
 		}
-			// FileWorker è´è´£ææ Redis ç¶ææ´æ°
 	}
 	std::shared_ptr<FileTask> task = std::make_shared<FileTask>(session, msgId, md5, fileName, seq, totolSize, transferredSize, lastSeq, data, type);
 	// 根据文件名字来决定 投递 到 哪个 FileWorker 线程
