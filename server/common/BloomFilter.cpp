@@ -3,6 +3,7 @@
 #include <cmath>
 #include <functional>
 #include <iostream>
+#include <cstring>
 // 计算位数组大小 m = -n * ln(p) / (ln2)^2
 static size_t calcBitSize(size_t n, double p)
 {
@@ -81,39 +82,52 @@ bool BloomFilter::contains(uint64_t uid) const
 {
 	return contains(std::to_string(uid));
 }
-// 持久化到 Redis BITMAP
+// 持久化到 Redis（一次 SET 批量写入，避免逐位 SETBIT 的 958 万次网络往返）
 bool BloomFilter::saveToRedis(const std::string& bitmapKey)
 {
 	auto redis = RedisManager::getInstance();
 	if (!redis) return false;
-	size_t written = 0;
-	for (size_t pos = 0; pos < bits_.size(); pos++) {
-		if (bits_.test(pos)) {
-			redis->SetBit(bitmapKey, pos, 1);
-			written++;
-		}
+	// 将 boost::dynamic_bitset 序列化为二进制 block 数组
+	std::vector<boost::dynamic_bitset<>::block_type> blocks;
+	boost::to_block_range(bits_, std::back_inserter(blocks));
+	std::string binary(reinterpret_cast<const char*>(blocks.data()),
+	                   blocks.size() * sizeof(boost::dynamic_bitset<>::block_type));
+	if (!redis->SetBinary(bitmapKey, binary)) {
+		std::cerr << "[BloomFilter] Failed to save to Redis: " << bitmapKey << std::endl;
+		return false;
 	}
 	std::cout << "[BloomFilter] Saved to Redis: " << bitmapKey
-	          << " (" << written << " bits set of " << bits_.size() << ")" << std::endl;
+	          << " (" << bits_.count() << " bits set of " << bits_.size()
+	          << ", " << binary.size() << " bytes)" << std::endl;
 	return true;
 }
-// 从 Redis BITMAP 恢复
+// 从 Redis 恢复（一次 EXISTS + GET 批量读取）
 bool BloomFilter::loadFromRedis(const std::string& bitmapKey)
 {
 	auto redis = RedisManager::getInstance();
 	if (!redis) return false;
-	if (redis->GetBit(bitmapKey, 0) < 0) {
+	// 用 EXISTS 判断 key 是否存在（旧代码 GetBit(0) < 0 永远失效）
+	if (!redis->ExistsKey(bitmapKey)) {
 		std::cout << "[BloomFilter] No Redis bitmap: " << bitmapKey << std::endl;
 		return false;
 	}
-	size_t loaded = 0;
-	for (size_t pos = 0; pos < bits_.size(); pos++) {
-		if (redis->GetBit(bitmapKey, pos) > 0) {
-			bits_.set(pos);
-			loaded++;
-		}
+	std::string binary = redis->GetBinary(bitmapKey);
+	if (binary.empty()) {
+		std::cout << "[BloomFilter] Redis bitmap is empty: " << bitmapKey << std::endl;
+		return false;
 	}
+	// 反序列化：从二进制 block 数组恢复 bitset
+	size_t blockSize = sizeof(boost::dynamic_bitset<>::block_type);
+	if (binary.size() % blockSize != 0) {
+		std::cerr << "[BloomFilter] Corrupted Redis data: size=" << binary.size() << std::endl;
+		return false;
+	}
+	std::vector<boost::dynamic_bitset<>::block_type> blocks(
+		binary.size() / blockSize);
+	std::memcpy(blocks.data(), binary.data(), binary.size());
+	boost::from_block_range(blocks.begin(), blocks.end(), bits_);
 	std::cout << "[BloomFilter] Loaded from Redis: " << bitmapKey
-	          << " (" << loaded << " bits set of " << bits_.size() << ")" << std::endl;
+	          << " (" << bits_.count() << " bits set of " << bits_.size()
+	          << ", " << binary.size() << " bytes)" << std::endl;
 	return true;
 }

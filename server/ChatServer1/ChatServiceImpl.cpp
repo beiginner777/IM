@@ -159,7 +159,8 @@ Status ChatServiceImpl::NotifyKickUser(ServerContext* context, const KickUserReq
         std::cout << "recver = " << touid << " is not in current " << cfg["SelfServer"]["Name"] << std::endl;
         return Status::OK;
     }
-    session->Send("", ID_NOTIFY_OFFLINE);
+    boost::uuids::uuid a_uuid = boost::uuids::random_generator()();
+    session->Send("", ID_NOTIFY_OFFLINE, boost::uuids::to_string(a_uuid));
     return Status::OK;
 }
 Status ChatServiceImpl::NotifyChatServerImg(ServerContext* context, const NotifyChatServerImgReq* req, NotifyChatServerImgRsp* response)

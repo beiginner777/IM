@@ -98,5 +98,7 @@ private:
 	std::unordered_map<int, TokenBucket> userBuckets_;
 	// 全局 QPS 上限（ChatServer 级）
 	TokenBucket globalBucket_{5000.0, 6000.0};
+	// 限流器互斥锁（IO 线程并发调用 postMsgToQue）
+	std::mutex rateLimitMtx_;
 };
 #endif

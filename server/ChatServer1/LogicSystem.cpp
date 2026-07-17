@@ -22,6 +22,8 @@ LogicSystem::~LogicSystem()
 // 对所有请求类型生效（文本、图片、登录、好友操作等）
 bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<CSession> session, short msgId)
 {
+	std::lock_guard<std::mutex> lock(rateLimitMtx_);  // 保护 globalBucket_ 和 userBuckets_
+	std::cout << "msg_id = " << msgId << " ============================= " << std::endl;
 	// L1: 全局 QPS（保护 ChatServer 进程，所有请求共享）
 	if (!globalBucket_.consume(1)) {
 		std::cerr << "[RateLimit] Global QPS limit reached, reject msgId=" << msgId << std::endl;
@@ -37,7 +39,7 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<CSession> session, short m
 	// L2: 本地令牌桶（uid 维度，纯内存）
 	auto it = userBuckets_.find(uid);
 	if (it == userBuckets_.end()) {
-		userBuckets_.emplace(uid, TokenBucket(10.0, 15.0));
+		userBuckets_.emplace(uid, TokenBucket(10.0, 50.0));
 		it = userBuckets_.find(uid);
 	}
 	if (!it->second.consume(1)) {
@@ -49,7 +51,7 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<CSession> session, short m
 		return false;
 	}
 	// L3: Redis 分布式限流（跨 ChatServer 统一计数，Redis 不可用自动放行）
-	if (!RedisManager::getInstance()->checkRateLimit(uid, 10)) {
+	if (!RedisManager::getInstance()->checkRateLimit(uid, 100)) {
 		std::cerr << "[RateLimit] User " << uid << " exceeded Redis rate limit, msgId=" << msgId << std::endl;
 		Json::Value rt;
 		rt["code"] = ERROR_RATE_LIMITED;
@@ -67,7 +69,7 @@ void LogicSystem::dealTask()
 		std::unique_lock<std::mutex> locker(mtx_);
 		while (que_.empty() && !b_stop_)
 		{
-			std::cout << "LoginSystem is waiting for data . . ." << std::endl;
+			//std::cout << "LoginSystem is waiting for data . . ." << std::endl;
 			cond_.wait(locker);
 		}
 		if (b_stop_)
@@ -121,6 +123,7 @@ void LogicSystem::registerFunctionCallbacks()
 	handlers_[ID_LOAD_FRIEND_APPLY_REQ] = std::bind(&LogicSystem::loadFriendApplyList, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 	handlers_[ID_REGISTER_RSP] = std::bind(&LogicSystem::registerToStatusServer, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 	handlers_[ID_HEADT_CHECK_RSP] = std::bind(&LogicSystem::heartCheckWithStatusServer, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+	handlers_[ID_LOAD_CHAT_MSG_REQ] = std::bind(&LogicSystem::loadChatMsg, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 }
 
 void LogicSystem::registerToStatusServer(std::shared_ptr<CSession> session, short msgId, std::string msgData,
@@ -410,7 +413,7 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 	std::string token = root["token"].asString();
 	std::cout << "uid = " << uid << " request login ChatServer,token = " << token << std::endl;
 	Json::Value value;
-	std::string TokenValue = RedisManager::getInstance()->Get(USERUIDPREFIX + std::to_string(uid));
+	/* std::string TokenValue = RedisManager::getInstance()->Get(USERUIDPREFIX + std::to_string(uid));
 	if (TokenValue == "")
 	{
 		value["code"] = ERROR_INVALIDUID;
@@ -425,6 +428,7 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 		session->Send(value.toStyledString(), msgId, uuid);
 		return;
 	}
+	*/
 	std::string lock_key = LOCKPREFIX + std::to_string(uid);
 	std::string identifier = RedisManager::getInstance()->acqueireLock(lock_key, LOCK_TIMEOUT, ACQUIRE_TIMEOUT);
 	std::string ip = RedisManager::getInstance()->Get(USERIPPREFIX + std::to_string(uid));
@@ -482,12 +486,12 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 	session->setUserId(uid);
 	std::string ipkey = USERIPPREFIX + std::to_string(uid);
 	RedisManager::getInstance()->Set(ipkey, name);
-	std::cout << "after user login: " << std::endl;
-	UserManager::getInstance()->printSessions();
+	//std::cout << "after user login: " << std::endl;
+	//UserManager::getInstance()->printSessions();
 	UserManager::getInstance()->addSession(uid, session);
 	session->Send(value.toStyledString(), ID_CHAT_LOGIN_RSP, uuid);
-	std::cout << "after user login: " << std::endl;
-	UserManager::getInstance()->printSessions();
+	//std::cout << "after user login: " << std::endl;
+	//UserManager::getInstance()->printSessions();
 	RedisManager::getInstance()->releaseLock(lock_key, identifier);
 }
 

@@ -152,6 +152,7 @@
     <ClCompile Include="MysqlDao.cpp" />
     <ClCompile Include="MysqlManager.cpp" />
     <ClCompile Include="BatchMessageWriter.cpp" />
+    <ClCompile Include="StatusGrpcClient.cpp" />
     <ClCompile Include="UserManager.cpp" />
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
@@ -169,6 +170,7 @@
     <ClInclude Include="MsgNode.h" />
     <ClInclude Include="MysqlDao.h" />
     <ClInclude Include="MysqlManager.h" />
+    <ClInclude Include="StatusGrpcClient.h" />
     <ClInclude Include="UserManager.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>

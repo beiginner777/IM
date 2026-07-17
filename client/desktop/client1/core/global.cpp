@@ -175,7 +175,7 @@ QPixmap returnPixMapByUrl(QString url)
                 return QPixmap(":/res/default.jpeg");
             }
         }else{
-            qWarning() << "头像存储目录不存在.";
+            //qWarning() << "头像存储目录不存在.";
             return QPixmap(":/res/default.jpeg");
         }
     }

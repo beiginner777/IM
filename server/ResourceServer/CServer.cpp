@@ -9,13 +9,15 @@ CServer::CServer(boost::asio::io_context& ioc, std::string port)
 	timer_(ioc),
 	heartCheckTimer_(ioc)
 {
-	auto& start_server_ioc = AsioIOContextThreadPool::getInstance()->getIOContext();
-	connectionToStatusServer_ = std::make_shared<CSession>(start_server_ioc, this);
-	connectionToStatusServer_->setHeaderLen(4); // StatusServer 用 4 字节头（ResourceServer 默认 6 字节）
-	if (!connectToStatusServer()) {
-		std::cout << "[ResourceServer] Connect to StatusServer failed." << std::endl;
-		exit(-1);
-	}
+	//auto& start_server_ioc = AsioIOContextThreadPool::getInstance()->getIOContext();
+	//connectionToStatusServer_ = std::make_shared<CSession>(start_server_ioc, this);
+	//connectionToStatusServer_->setHeaderLen(4); // StatusServer 用 4 字节头（ResourceServer 默认 6 字节）
+	//if (!connectToStatusServer()) {
+	//	std::cout << "[ResourceServer] Connect to StatusServer failed." << std::endl;
+	//	exit(-1);
+	//}
+	//  绕过 StatusServer，直接开始接收客户端连接
+	startAccept();
 }
 CServer::~CServer()
 {

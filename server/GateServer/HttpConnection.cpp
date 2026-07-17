@@ -86,7 +86,7 @@ void HttpConnection::send_response()
 {
 	auto self = shared_from_this();
 	response_.content_length(response_.body().size());
-	std::cout << "return message = " << boost::beast::buffers_to_string(response_.body().data()) << std::endl;
+	//std::cout << "return message = " << boost::beast::buffers_to_string(response_.body().data()) << std::endl;
 	http::async_write(
 		sock_,
 		response_,

@@ -35,6 +35,10 @@ bool LogicSystem::addMd5FileInfo(std::string name, std::shared_ptr<FileInfo> fil
 	root["last_seq"] = fileInfo->last_seq_;
 	root["total_size"] = fileInfo->totolSize_;
 	root["trans_size"] = fileInfo->transfferredSize_;
+	root["last_acked"] = fileInfo->last_acked_seq_;
+	Json::Value pending(Json::arrayValue);
+	for (int s : fileInfo->pending_seqs_) pending.append(s);
+	root["pending_seqs"] = pending;
 	auto file_info_str = root.toStyledString();
 	auto redis_key = FILEUPLOADFREFIX + name;
 	return RedisManager::getInstance()->SetExp(redis_key, file_info_str, FILEINFOEXISTTIME);
@@ -45,7 +49,7 @@ std::shared_ptr<FileInfo> LogicSystem::getFileInfo(std::string name)
 	// 从 redis 中获取文件上传进度的信息
 	std::shared_ptr<FileInfo> file_info = std::make_shared<FileInfo>();
 	std::string redis_key = FILEUPLOADFREFIX + name;
-	auto file_info_str = RedisManager::getInstance()->Get(redis_key);
+	auto file_info_str = RedisManager::getInstance()->Get(redis_key, true);
 	if(file_info_str.empty()) {
 		return nullptr;
 	}
@@ -63,6 +67,11 @@ std::shared_ptr<FileInfo> LogicSystem::getFileInfo(std::string name)
 	file_info->last_seq_ = root["last_seq"].asInt();
 	file_info->totolSize_ = root["total_size"].asInt();
 	file_info->transfferredSize_ = root["trans_size"].asInt();
+	file_info->last_acked_seq_ = root.get("last_acked", 0).asInt();
+	file_info->pending_seqs_.clear();
+	if (root.isMember("pending_seqs")) {
+		for (const auto& v : root["pending_seqs"]) file_info->pending_seqs_.insert(v.asInt());
+	}
 	return file_info;
 }
 

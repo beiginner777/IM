@@ -1,4 +1,4 @@
-﻿#include "FileWorker.h"
+#include "FileWorker.h"
 #include "CSession.h"
 #include "ConfigManager.h"
 #include "LogicSystem.h"
@@ -152,7 +152,7 @@ void FileWorker::notifyFriendNewHeadIcon(int self_id, std::string fileName)
 			return;
 		}
 		std::cout << "Call ChatServer to Notify uid = " << online_friend_id << " friend icon change success.\n";
-		
+
 		NotifyFriendIconChangeReq req;
 		req.set_uid(online_friend_id);
 		req.set_redis_id(REDIS_ID::REDIS_ID_FRIEND_ICON_CHANGE);
@@ -204,40 +204,32 @@ void FileWorker::handleUploadHeadIcon(std::shared_ptr<FileTask> task)
 	std::string data = task->data_;
 	// 对base64编码的数据进行解码
 	std::string decodedData = base64_decode(task->data_);
-	/*std::cout << "=================================================" << std::endl;
-	std::cout << "receive from client: " << fileName << "(" << seq << "/ " << lastSeq << ")"
-		<< ",transferredSize = " << transferredSize << ",totolSize = " << totolSize << std::endl
-		<< ",decodedData size = " << decodedData.size() << std::endl;
-	std::cout << "data = " << data << std::endl;
-	std::cout << "=================================================" << std::endl << std::endl;*/
 	auto cfg = ConfigManager::getInstance();
 	std::string uploadPath = cfg["SelfServer"]["UploadPath"];
 	std::string fullPath = uploadPath + "/" + fileName;
 	std::ofstream ofs;
-	// 第一个包，那么就需要创建文件来保存这个文件
+	// 定位写入（非追加）：乱序/重传包也写到正确的文件偏移
 	if (seq == 1) {
-		// 存在就清空，不存在就创建
 		ofs.open(fullPath, std::ios::binary | std::ios::out);
 	}
 	else {
-		// 以二进制的形式对文件进行追加
-		ofs.open(fullPath, std::ios::binary | std::ios::app);
+		ofs.open(fullPath, std::ios::binary | std::ios::in | std::ios::out);
+		if (!ofs.is_open()) { ofs.clear(); ofs.open(fullPath, std::ios::binary | std::ios::out); }
 	}
 	if (!ofs.is_open()) {
 		std::cout << "文件" << fullPath << "打开失败" << std::endl;
 		rtvalue["code"] = 1;
 		rtvalue["msg"] = "open file failed";
 		rtvalue["seq"] = seq;
-		session->Send(rtvalue.toStyledString(), ID_UPLOAD_HEAD_ICON_RSP);
 		return;
 	}
+	ofs.seekp((seq - 1) * MAX_FILE_LEN);
 	ofs.write(decodedData.c_str(), decodedData.size());
 	if (!ofs) {
 		std::cout << "写入" << fullPath << "失败" << std::endl;
 		rtvalue["code"] = 2;
 		rtvalue["message"] = "write into file failed";
 		rtvalue["seq"] = seq;
-		session->Send(rtvalue.toStyledString(), ID_UPLOAD_HEAD_ICON_RSP);
 		return;
 	}
 	ofs.close();
@@ -266,9 +258,12 @@ void FileWorker::handleUploadHeadIcon(std::shared_ptr<FileTask> task)
 		// 通知好友有新的头像上传
 		notifyFriendNewHeadIcon(uid, fileName);
 	}
-	else {
-		LogicSystem::getInstance()->addMd5FileInfo(fileName,
-			std::make_shared<FileInfo>(uid, seq, fileName, totolSize, transferredSize, lastSeq, fullPath));
+		else {
+		    /* if (!LogicSystem::getInstance()->addMd5FileInfo(fileName, fi))
+		    {
+				std::cerr << "[ResourceServer] CRITICAL: save FileInfo to Redis failed, file="
+				          << fileName << " last_acked=" << lastAcked << std::endl;
+			}*/
 	}
 }
 
@@ -293,40 +288,32 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 	int type = task->type_;
 	// 对base64编码的数据进行解码
 	std::string decodedData = base64_decode(task->data_);
-	/*std::cout << "=================================================" << std::endl;
-	std::cout << "receive from client: " << fileName << "(" << seq << "/ " << lastSeq << ")"
-		<< ",transferredSize = " << transferredSize << ",totolSize = " << totolSize << std::endl
-		<< ",decodedData size = " << decodedData.size() << std::endl;
-	std::cout << "data = " << data << std::endl;
-	std::cout << "=================================================" << std::endl << std::endl;*/
 	auto cfg = ConfigManager::getInstance();
 	std::string uploadPath = cfg["SelfServer"]["UploadPath"];
 	std::string fullPath = uploadPath + "/" + fileName;
 	std::ofstream ofs;
-	// 第一个包，那么就需要创建文件来保存这个文件
+	// 定位写入（非追加）：乱序/重传包也写到正确的文件偏移
 	if (seq == 1) {
-		// 存在就清空，不存在就创建
 		ofs.open(fullPath, std::ios::binary | std::ios::out);
 	}
 	else {
-		// 以二进制的形式对文件进行追加
-		ofs.open(fullPath, std::ios::binary | std::ios::app);
+		ofs.open(fullPath, std::ios::binary | std::ios::in | std::ios::out);
+		if (!ofs.is_open()) { ofs.clear(); ofs.open(fullPath, std::ios::binary | std::ios::out); }
 	}
 	if (!ofs.is_open()) {
 		std::cout << "文件" << fullPath << "打开失败" << std::endl;
 		rtvalue["code"] = 1;
 		rtvalue["msg"] = "open file failed";
 		rtvalue["seq"] = seq;
-		session->Send(rtvalue.toStyledString(), ID_UPLOAD_FILE_RSP);
 		return;
 	}
+	ofs.seekp((seq - 1) * MAX_FILE_LEN);
 	ofs.write(decodedData.c_str(), decodedData.size());
 	if (!ofs) {
 		std::cout << "写入" << fullPath << "失败" << std::endl;
 		rtvalue["code"] = 2;
 		rtvalue["message"] = "write into file failed";
 		rtvalue["seq"] = seq;
-		session->Send(rtvalue.toStyledString(), ID_UPLOAD_FILE_RSP);
 		return;
 	}
 	ofs.close();
@@ -338,19 +325,53 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 	rtvalue["totol_size"] = totolSize;
 	rtvalue["trans_size"] = transferredSize;
 	rtvalue["type"] = type;
-	if (seq == lastSeq) {
-		// 将Redis中相关的信息删除
-		LogicSystem::getInstance()->DeleteMd5FileInfo(fileName);
-		// Grpc调用ChatServer去通知Client端有新的图片消息
+
+	// 计算连续确认的 last_acked（支持乱序到达 + 重传 + 死锁恢复）
+	int lastAcked = 0;
+	
+	auto fi = LogicSystem::getInstance()->getFileInfo(fileName);
+	if (fi) {
+		fi->seq_ = seq;
+		fi->transfferredSize_ = transferredSize;
+		// 默认保持当前连续值，不污染 Redis
+		lastAcked = fi->last_acked_seq_;
+		if (seq == fi->last_acked_seq_ + 1) {
+			fi->last_acked_seq_ = seq;
+			while (fi->pending_seqs_.count(fi->last_acked_seq_ + 1)) {
+				fi->pending_seqs_.erase(fi->last_acked_seq_ + 1);
+				fi->last_acked_seq_++;
+			}
+			if (fi->last_acked_seq_ > seq) {
+				std::cout << "[ResourceServer] catch-up: file=" << fileName
+					        << " last_acked " << seq << " -> " << fi->last_acked_seq_ << std::endl;
+			}
+			lastAcked = fi->last_acked_seq_;
+		}
+		else if (seq > fi->last_acked_seq_ + 1) 
+		{
+			fi->pending_seqs_.insert(seq);
+			std::cout << "[ResourceServer] PACKET LOSS: file=" << fileName
+			        << " expected=" << (fi->last_acked_seq_ + 1)
+			        << " received=" << seq << " pending=" << fi->pending_seqs_.size() << std::endl;
+		}
+		rtvalue["last_acked"] = lastAcked;
+		std::cout << "[ResourceServer] ACK: file=" << fileName
+				<< " seq=" << seq << " last_acked=" << lastAcked << std::endl;
+	} 
+	else
+	{
+		std::cout << "[ResourceServer] Fatal Error!" << std::endl;
+	}
+	
+	if (lastAcked == lastSeq) {
+		//LogicSystem::getInstance()->DeleteMd5FileInfo(fileName);
 		std::string key = USERIPPREFIX + std::to_string(session->getUserId());
 		std::string server_ip = RedisManager::getInstance()->Get(key);
 		if (server_ip == "") {
-			rtvalue["code"] = ERROE_CODR::ERROR_USER_IP_NOT_FIND;
-			rtvalue["message"] = "Can not find User_IP by uid,ImageMsg transfer failed.";
-			std::cout << "[ERROR]: Can not find User_IP by uid,ImageMsg transfer failed.\n";
+			std::cout << "[DEBUG]: Can not find User_IP by uid,ImageMsg transfer failed.\n";
 			return;
 		}
-		std::cout << "Call ChatServer to Notifu uid = " << session->getUserId() << " ImageMsg success.\n";
+		std::cout << "Call ChatServer to Notify uid = " << session->getUserId() << " ImageMsg success.\n";
 		NotifyChatServerImgReq req;
 		req.set_uid(session->getUserId());
 		req.set_unique_name(fileName);
@@ -359,15 +380,14 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 			std::cout << "Notify Client ChatImg failed.\n";
 		}
 	}
-	else {
-		LogicSystem::getInstance()->addMd5FileInfo(fileName,
-			std::make_shared<FileInfo>(uid,seq,fileName,totolSize,transferredSize,lastSeq, fullPath));
+	if (!LogicSystem::getInstance()->addMd5FileInfo(fileName, fi)) {
+		std::cerr << "[ResourceServer] CRITICAL: save FileInfo to Redis failed, file="
+				    << fileName << " last_acked=" << lastAcked << std::endl;
 	}
 }
 
 void FileWorker::postTaskToQue(std::shared_ptr<FileTask> task)
 {
-	// 将文件结点 根据 文件名 放入FileSystem的某个FileWorker中
 	std::lock_guard<std::mutex> locket(mtx_);
 	que_.push(task);
 	cond_.notify_one();

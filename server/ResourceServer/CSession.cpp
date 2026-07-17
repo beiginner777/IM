@@ -36,7 +36,6 @@ void CSession::Send(const char* msg, int max_length, short msgid)
 		std::cout << "session: " << uuid_ << " send que fulled, size is " << MAX_SENDQUEUE_SIZE << std::endl;
 		return;
 	}
-	std::cout << "max_length = " << max_length << " " << "msg_id = " << msgid << std::endl;
 	que_.push(std::make_shared<SendNode>(msg, max_length, msgid));
 	if (que_.size() > 1)
 	{
@@ -52,7 +51,7 @@ void CSession::Send(const char* msg, int max_length, short msgid)
 }
 void CSession::Send(std::string msg, short msgid)
 {
-	std::cout << "send message = " << msg << std::endl;
+	//std::cout << "send message = " << msg << std::endl;
 	Send(msg.c_str(), msg.length(), msgid);
 }
 void CSession::AsyncReadHead(std::size_t len)
@@ -74,10 +73,10 @@ void CSession::AsyncReadHead(std::size_t len)
 		// 获取头部的 消息id （此时是网络字节序）
 		short msg_id_net = 0;
 		memcpy(&msg_id_net, recv_head_node_->data_, HEAD_ID_LEN);
-		std::cout << "msg_id_net = " << msg_id_net << std::endl;
+		//std::cout << "msg_id_net = " << msg_id_net << std::endl;
 		// 将 消息id 转化为 主机字节序
 		short msg_id_host = boost::asio::detail::socket_ops::network_to_host_short(msg_id_net);
-		std::cout << "msg_id_host = " << msg_id_host << std::endl;
+		//std::cout << "msg_id_host = " << msg_id_host << std::endl;
 		// 消息id非法。直接断开连接
 		if (msg_id_host > MAX_MSG_ID)
 		{
@@ -98,7 +97,7 @@ void CSession::AsyncReadHead(std::size_t len)
 			memcpy(&msg_len_net, recv_head_node_->data_ + HEAD_ID_LEN, 2);
 			msg_len_host = boost::asio::detail::socket_ops::network_to_host_short(msg_len_net);
 		}
-		std::cout << "msg_len_host = " << msg_len_host << std::endl;
+		//std::cout << "msg_len_host = " << msg_len_host << std::endl;
 		// 消息长度非法。直接断开连接
 		if (msg_len_host > MAX_MSG_LEN)
 		{

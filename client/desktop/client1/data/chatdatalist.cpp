@@ -835,7 +835,7 @@ void ChatDataDelegate::paint(QPainter *painter, const QStyleOptionViewItem &opti
         case MsgStatus::READED: statusText = "✓"; statusColor = QColor(150, 150, 150); break;
         case MsgStatus::SEND_FAILED: statusText = "!"; statusColor = QColor(255, 0, 0); break;
         }
-        qDebug() << "[Debug] statusText = " << statusText << ", context = " << content;
+        //qDebug() << "[Debug] statusText = " << statusText << ", context = " << content;
         QRect statusRect(timeRect.left() - 25, timeRect.top(), 20, 20);
         painter->setPen(statusColor);
         painter->setFont(QFont("Arial", 10, QFont::Bold));

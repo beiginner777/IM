@@ -7,9 +7,10 @@ class CSession;
 struct FileTask {
 	FileTask(std::shared_ptr<CSession> session,int req_id, std::string md5,std::string name,
 		int seq, int totolSize, int transfferredSize, int lastSeq,
-		std::string data, int type = -1) :session_(session), req_id_(req_id),md5_(md5),
+		std::string data, int type = -1, int lastAckedSeq = 0) :session_(session), req_id_(req_id),md5_(md5),
 		seq_(seq), name_(name), totolSize_(totolSize),
-		transfferredSize_(transfferredSize), lastSeq_(lastSeq), data_(data), type_(type)
+		transfferredSize_(transfferredSize), lastSeq_(lastSeq), data_(data), type_(type),
+			lastAckedSeq_(lastAckedSeq)
 	{
 	}
 	~FileTask() {}
@@ -23,6 +24,7 @@ struct FileTask {
 	int lastSeq_;
 	std::string data_;
 	int type_;
+	int lastAckedSeq_;
 };
 class FileWorker
 {

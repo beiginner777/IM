@@ -32,6 +32,15 @@
     <ClCompile Include="crypto\BCryptHasher.cpp">
       <Filter>crypto</Filter>
     </ClCompile>
+    <ClCompile Include="AlertManager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="crypto\bcrypt_impl.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="BloomFilter.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AsioIOContextThreadPool.h">
@@ -54,6 +63,15 @@
     </ClInclude>
     <ClInclude Include="crypto\BCryptHasher.h">
       <Filter>crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="AlertManager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="BloomFilter.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Defer.h">
+      <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
