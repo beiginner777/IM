@@ -69,7 +69,7 @@ void LogicSystem::dealTask()
 		std::unique_lock<std::mutex> locker(mtx_);
 		while (que_.empty() && !b_stop_)
 		{
-			std::cout << "LoginSystem is waiting for data . . ." << std::endl;
+			//std::cout << "LoginSystem is waiting for data . . ." << std::endl;
 			cond_.wait(locker);
 		}
 		if (b_stop_)
