@@ -124,8 +124,7 @@ bool RedisManager::SetExp(const std::string& key, const std::string& value, int 
 		return false;
 	}
 	freeReplyObject(reply);
-	std::cout << "Execute command [ SETEX " << key << " " << expire_seconds
-		<< " " << value << " ] success ! " << std::endl;
+	//std::cout << "Execute command [ SETEX " << key << " " << expire_seconds << " " << value << " ] success ! " << std::endl;
 	return true;
 }
 

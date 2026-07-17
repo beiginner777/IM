@@ -773,8 +773,9 @@ void FileUploadMsg::scanWindow()
         bool firstRetrans = true;
         for (int seq = info->window_base_; seq < end; seq++) {
             if (info->acked_set_.contains(seq)) continue;
-            if (info->in_flight_.contains(seq)) continue;   // 正在发送中，等待 ACK
             if (!info->chunk_cache_.contains(seq)) continue;
+            // scanWindow 是重传路径，不受 in_flight 限制——ACK 可能丢包，in_flight 永远不超时
+            info->in_flight_.remove(seq);
             if (firstRetrans) {
                 qDebug() << "[Client] PACKET LOSS detected: file=" << info->unique_name_
                          << " window=[" << info->window_base_ << ".." << (end-1) << "]"
