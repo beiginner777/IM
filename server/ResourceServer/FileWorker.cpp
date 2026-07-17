@@ -325,7 +325,7 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 
 	// 计算连续确认的 last_acked（支持乱序到达 + 重传 + 死锁恢复）
 	int lastAcked = 0;
-	{
+	
 		auto fi = LogicSystem::getInstance()->getFileInfo(fileName);
 		if (fi) {
 			fi->seq_ = seq;
@@ -357,12 +357,15 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 			rtvalue["last_acked"] = lastAcked;
 			std::cout << "[ResourceServer] ACK: file=" << fileName
 			          << " seq=" << seq << " last_acked=" << lastAcked << std::endl;
-		} else {
-			rtvalue["last_acked"] = seq;
-		}
-	}
+			} else {
+				fi = std::make_shared<FileInfo>(uid, seq, fileName, totolSize, transferredSize, lastSeq, fullPath, seq);
+				fi->max_received_seq_ = seq;
+				lastAcked = seq;
+				rtvalue["last_acked"] = seq;
+			}
+	
 	if (seq == lastSeq) {
-		LogicSystem::getInstance()->DeleteMd5FileInfo(fileName);
+		//LogicSystem::getInstance()->DeleteMd5FileInfo(fileName);
 		std::string key = USERIPPREFIX + std::to_string(session->getUserId());
 		std::string server_ip = RedisManager::getInstance()->Get(key);
 		if (server_ip == "") {
@@ -382,7 +385,7 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 	}
 	else {
 		LogicSystem::getInstance()->addMd5FileInfo(fileName,
-			std::make_shared<FileInfo>(uid,seq,fileName,totolSize,transferredSize,lastSeq,fullPath,lastAcked));
+			fi);
 	}
 }
 
