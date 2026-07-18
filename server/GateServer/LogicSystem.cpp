@@ -45,7 +45,7 @@ LogicSystem::~LogicSystem()
 void LogicSystem::registerGetHandler()
 {
 	// 前端静态文件目录（相对 GateServer 项目目录: server/GateServer/）
-	static const std::string kFeDist = "../../client/fe/dist";
+	static const std::string kFeDist = "../../client/React/dist";
 
 	// 响应 index.html 的通用 lambda
 	auto serveFeApp = [this](std::shared_ptr<HttpConnection> conn) {
@@ -67,11 +67,8 @@ void LogicSystem::registerGetHandler()
 
 	// SPA 路由 —— 所有前端路由都返回 index.html
 	getHandles_["/"]            = serveFeApp;
-	getHandles_["/login"]       = serveFeApp;
-	getHandles_["/register"]    = serveFeApp;
-	getHandles_["/products"]    = serveFeApp;
-	getHandles_["/orders"]      = serveFeApp;
-	getHandles_["/rank"]        = serveFeApp;
+	getHandles_["/index"] = serveFeApp;
+
 }
 
 void LogicSystem::registerPostHandler()
@@ -360,7 +357,7 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 	else
 	{
 		// 无匹配路由 → 尝试作为静态文件返回
-		static const std::string kFeDist = "../../client/fe/dist";
+		static const std::string kFeDist = "../../client/React/dist";
 		std::string filePath = kFeDist + url_;
 		std::ifstream file(filePath, std::ios::binary);
 		auto& response = conn->response_;
