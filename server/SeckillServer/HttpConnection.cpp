@@ -2,42 +2,45 @@
 #include "HttpConnection.h"
 #include "LogicSystem.h"
 #include "SeckillServer.h"
+
 HttpConnection::HttpConnection(tcp::socket&& sock, SeckillServer* server)
 	: sock_(std::move(sock))
 	, deadline_(sock_.get_executor(), std::chrono::seconds(60))
 	, server_(server)
-	, conCountDecremented_(false)
+	, connectionClosed_(false)
 {
 }
 HttpConnection::~HttpConnection()
 {
-	sock_.close();
+	closeConnection();
 }
-void HttpConnection::decrementIfNeeded()
+void HttpConnection::closeConnection()
 {
-	if (!conCountDecremented_ && server_) {
-		conCountDecremented_ = true;
+	// 只执行一次：减连接数 + 关 socket
+	if (connectionClosed_) return;
+	connectionClosed_ = true;
+	if (server_) {
 		server_->decrementConnCount();
 	}
+	boost::system::error_code ec;
+	sock_.close(ec);
 }
-void HttpConnection::check_deadline()
+void HttpConnection::resetDeadline()
 {
+	// 重置 60s 空闲超时：取消旧定时器（回调收到 operation_aborted 直接返回）→ 重新计时
+	deadline_.cancel();
+	deadline_.expires_after(std::chrono::seconds(60));
 	auto self = shared_from_this();
 	deadline_.async_wait([self](boost::system::error_code ec) {
-		if (ec)
-		{
-			// 超时：关闭 socket 并减少连接计数
-			self->decrementIfNeeded();
-			self->sock_.close();
-			return;
-		}
-		self->deadline_.cancel();
-		});
+		if (ec) return;             // operation_aborted：主动取消了，不做任何事
+		// ec == 0：60 秒内没有任何请求，空闲超时
+		self->closeConnection();
+	});
 }
 void HttpConnection::start()
 {
+	resetDeadline();
 	read_request();
-	check_deadline();
 }
 void HttpConnection::read_request()
 {
@@ -55,11 +58,11 @@ void HttpConnection::read_request()
 			}
 			else
 			{
-				// 读取请求失败（客户端提前断开等），直接清理连接计数
-				std::cout << __FILE__ << ":" << __LINE__ << std::endl;
-				std::cout << "error code: " << ec.value() << std::endl;
-				std::cout << "error message: " << ec.message() << std::endl;
-				self->decrementIfNeeded();
+				// 客户端断开 或 HTTP 协议错误 → 清理连接
+				if (ec != http::error::end_of_stream) {
+					std::cout << "[HttpConnection] read error: " << ec.message() << std::endl;
+				}
+				self->closeConnection();
 			}
 		});
 }
@@ -67,7 +70,7 @@ void HttpConnection::prase_request()
 {
 	auto self = shared_from_this();
 	response_.version(request_.version());
-	response_.keep_alive(false);
+	response_.keep_alive(true);   // ← 告诉客户端：我不会主动关，你可以复用这条连接
 	// CORS：前端跨端口访问，所有响应统一带上允许跨域的头
 	response_.set(http::field::access_control_allow_origin, "*");
 	if (request_.method() == http::verb::options)
@@ -98,18 +101,22 @@ void HttpConnection::send_response()
 {
 	auto self = shared_from_this();
 	response_.content_length(response_.body().size());
+	response_.set(http::field::connection, "keep-alive");
 	http::async_write(
 		sock_,
 		response_,
 		[self](beast::error_code ec, std::size_t bytesTransfered)
 		{
-			self->sock_.shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
-			self->deadline_.cancel();
-			// 响应已完成，减少连接计数
-			self->decrementIfNeeded();
 			if (ec.value()) {
-				std::cout << "error code: " << ec.value() << std::endl;
-				std::cout << "error message: " << ec.message() << std::endl;
+				std::cout << "[HttpConnection] write error: " << ec.message() << std::endl;
+				self->closeConnection();
+				return;
 			}
+			// 响应写完 → 重置空闲超时 → 清 buffer → 读下一个请求（keep-alive 循环）
+			self->resetDeadline();
+			self->buffer_.consume(self->buffer_.size());
+			self->request_ = {};
+			self->response_ = {};
+			self->read_request();
 		});
 }
