@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Table, Button, App } from 'antd'
+import { Table, Button, Empty } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { useProductStore } from '../store/product'
 import { useAuthStore } from '../store/auth'
@@ -24,7 +24,7 @@ export default function OrdersPage() {
         <h1 style={{ fontSize: 24, margin: 0 }}>我的抢购记录</h1>
       </div>
       {orders.length === 0 && !loading ? (
-        <App.Empty description="暂无抢购记录"><Button type="primary" onClick={() => nav('/products')}>去抢购</Button></App.Empty>
+        <Empty description="暂无抢购记录"><Button type="primary" onClick={() => nav('/products')}>去抢购</Button></Empty>
       ) : (
         <Table dataSource={orders} loading={loading} rowKey="orderId" pagination={{ pageSize: 10 }}
           columns={[

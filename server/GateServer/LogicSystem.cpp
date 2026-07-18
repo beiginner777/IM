@@ -359,9 +359,9 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 		// 无匹配路由 → 尝试作为静态文件返回
 		static const std::string kFeDist = "../../client/React/dist";
 		std::string filePath = kFeDist + url_;
+		std::cout << "[GateServer] filePath = " << filePath << std::endl;
 		std::ifstream file(filePath, std::ios::binary);
 		auto& response = conn->response_;
-
 		auto isSuffix = [](const std::string& s, const std::string& sfx) {
 			return s.size() >= sfx.size() && s.rfind(sfx) == s.size() - sfx.size();
 		};
