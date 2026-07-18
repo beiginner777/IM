@@ -118,7 +118,7 @@ enum REQUEST_ID
     ID_NOTIFY_OFFLINE, // 通知下线
     ID_HEADT_CHECK_REQ, // 心跳检测的请求
     ID_HEADT_CHECK_RSP, // 心跳检测的回包
-	ID_REGISTER_REQ = 1046, // 其它服务的注册请求
+	ID_REGISTER_REQ = 2001, // 其它服务的注册请求（服务间协议，独立区间避免与客户端消息 ID 冲突）
     ID_REGISTER_RSP // 其它服务的注册回包
 };
 class Defer {

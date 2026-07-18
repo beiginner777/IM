@@ -53,8 +53,8 @@ enum REQUEST_ID
 {
     ID_HEADT_CHECK_REQ = 1018, // 心跳检测的请求
     ID_HEADT_CHECK_RSP = 1019, // 心跳检测的回包
-    ID_REGISTER_REQ = 1046,    // 服务注册请求
-    ID_REGISTER_RSP = 1047     // 服务注册回包
+    ID_REGISTER_REQ = 2001,    // 服务注册请求（服务间协议，独立区间避免与客户端消息 ID 冲突）
+    ID_REGISTER_RSP = 2002     // 服务注册回包
 };
 
 // 服务类型：必须与 StatusServer/global.h 中的 ServerType 一致
