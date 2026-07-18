@@ -328,19 +328,21 @@ void LogicSystem::registerPostHandler()
 		}
 		// 查询状态服务器Status分配一个SeckillServer
 		StatusGrpcClient client;
-		auto reply = client.GetSeckillServer(userInfo->uid_);
+		/*auto reply = client.GetSeckillServer(userInfo->uid_);
 		if (reply.error()) {
 			std::cout << " grpc failed to connect StatusServer: get SeckillServer failed, error is " << reply.error() << std::endl;
 			value["error_code"] = ERROR_RPC_CON_STATUSSERVER;
 			value["error_msg"] = "无法分配秒杀服务器，请稍后重试";
 			beast::ostream(response.body()) << value.toStyledString();
 			return;
-		}
+		}*/
 		value["error_code"] = SUCCESS;
 		value["username"] = name;
 		// SeckillServer 地址（前端 setBaseURL 使用，port 需为数字类型）
-		value["host"] = reply.host();
-		value["port"] = std::atoi(reply.port().c_str());
+		//value["host"] = reply.host();
+		//value["port"] = std::atoi(reply.port().c_str());
+		value["host"] = "127.0.0.1";
+		value["port"] = "8080";
 		beast::ostream(response.body()) << value.toStyledString();
 	};
 }
