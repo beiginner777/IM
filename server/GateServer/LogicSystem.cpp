@@ -341,8 +341,9 @@ void LogicSystem::registerPostHandler()
 		// SeckillServer 地址（前端 setBaseURL 使用，port 需为数字类型）
 		//value["host"] = reply.host();
 		//value["port"] = std::atoi(reply.port().c_str());
+		// 临时硬编码指向 SeckillServer（8100），StatusServer 的 GetSeckillServer 实现后恢复上面的代码
 		value["host"] = "127.0.0.1";
-		value["port"] = "8080";
+		value["port"] = 8100;
 		beast::ostream(response.body()) << value.toStyledString();
 	};
 }
