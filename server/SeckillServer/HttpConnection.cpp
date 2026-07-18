@@ -1,14 +1,27 @@
 #include "global.h"
 #include "HttpConnection.h"
 #include "LogicSystem.h"
-HttpConnection::HttpConnection(tcp::socket&& sock)
+#include "SeckillServer.h"
+HttpConnection::HttpConnection(tcp::socket&& sock, SeckillServer* server)
 	: sock_(std::move(sock))
 	, deadline_(sock_.get_executor(), std::chrono::seconds(60))
+	, server_(server)
+	, conCountDecremented_(false)
 {
 }
 HttpConnection::~HttpConnection()
 {
+	// 兜底：如果 send_response 的 callback 没有正常触发 decrement（极端情况），
+	// 在析构时补一刀
+	decrementIfNeeded();
 	sock_.close();
+}
+void HttpConnection::decrementIfNeeded()
+{
+	if (!conCountDecremented_ && server_) {
+		conCountDecremented_ = true;
+		server_->decrementConnCount();
+	}
 }
 void HttpConnection::check_deadline()
 {
@@ -16,6 +29,8 @@ void HttpConnection::check_deadline()
 	deadline_.async_wait([self](boost::system::error_code ec) {
 		if (ec)
 		{
+			// 超时：关闭 socket 并减少连接计数
+			self->decrementIfNeeded();
 			self->sock_.close();
 			return;
 		}
@@ -91,6 +106,8 @@ void HttpConnection::send_response()
 		{
 			self->sock_.shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
 			self->deadline_.cancel();
+			// 响应已完成，减少连接计数
+			self->decrementIfNeeded();
 			if (ec.value()) {
 				std::cout << "error code: " << ec.value() << std::endl;
 				std::cout << "error message: " << ec.message() << std::endl;

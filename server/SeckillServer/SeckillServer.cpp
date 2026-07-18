@@ -2,6 +2,7 @@
 #include "HttpConnection.h"
 #include "StatusClientSession.h"
 #include "AsioIOContextThreadPool.h"
+#include "RedisManager.h"
 SeckillServer::SeckillServer(boost::asio::io_context& ioc, unsigned int port)
 	: ioc_(ioc)
 	, acceptor_(ioc, tcp::endpoint(tcp::v4(), port))
@@ -60,8 +61,9 @@ void SeckillServer::startAccept()
 			self->startAccept();
 			return;
 		}
-		auto conn = std::make_shared<HttpConnection>(std::move(*socket));
+		auto conn = std::make_shared<HttpConnection>(std::move(*socket), self.get());
 		conn->start();
+		self->incrementConnCount();
 		std::cout << "[SeckillServer] new connection accepted." << std::endl;
 		self->startAccept();
 	});
@@ -85,6 +87,38 @@ std::shared_ptr<StatusClientSession> SeckillServer::getOrCreateStatusSession()
 			<< HEART_CHRCK_INTERVAL << "s." << std::endl;
 	}
 	return statusSession_;
+}
+void SeckillServer::incrementConnCount()
+{
+	ConfigManager cfg = ConfigManager::getInstance();
+	std::string selfName = cfg["SelfServer"]["Name"];
+	std::string jsonStr = RedisManager::getInstance()->HGet(SECKILLSERVERS, selfName);
+	Json::Reader reader;
+	Json::Value json;
+	int count = 0;
+	if (reader.parse(jsonStr, json)) {
+		count = json["con_count"].asInt();
+	}
+	count++;
+	json["con_count"] = count;
+	RedisManager::getInstance()->HSet(SECKILLSERVERS, selfName, json.toStyledString());
+	std::cout << "[SeckillServer] connection_count = " << count << std::endl;
+}
+void SeckillServer::decrementConnCount()
+{
+	ConfigManager cfg = ConfigManager::getInstance();
+	std::string selfName = cfg["SelfServer"]["Name"];
+	std::string jsonStr = RedisManager::getInstance()->HGet(SECKILLSERVERS, selfName);
+	Json::Reader reader;
+	Json::Value json;
+	int count = 0;
+	if (reader.parse(jsonStr, json)) {
+		count = json["con_count"].asInt();
+		count = std::max(0, count - 1);
+	}
+	json["con_count"] = count;
+	RedisManager::getInstance()->HSet(SECKILLSERVERS, selfName, json.toStyledString());
+	std::cout << "[SeckillServer] connection_count = " << count << std::endl;
 }
 void SeckillServer::stopHeartbeat()
 {

@@ -10,6 +10,9 @@ public:
 	SeckillServer(boost::asio::io_context& ioc, unsigned int port);
 	~SeckillServer();
 	void start();
+	// HTTP 连接数更新（供 HttpConnection 调用，写入 Redis 供 StatusServer 做负载均衡）
+	void incrementConnCount();
+	void decrementConnCount();
 private:
 	void startAccept();
 	// 每 HEART_CHRCK_INTERVAL 秒触发一次：连接断了就重连注册，连接正常就发心跳
