@@ -53,6 +53,7 @@
 #define USERUIDPREFIX "uid_"
 #define CHATSERVERS "ChatServers"
 #define RESOURCESERVERS "ResourceServers"
+#define SECKILLSERVERS "SeckillServers"
 #define USERBASEINFO "userbaseinfo_"
 #define USERIPPREFIX  "uip_"
 #define LOCKPREFIX "lock_"

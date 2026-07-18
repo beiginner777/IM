@@ -25,6 +25,10 @@ CServer::~CServer()
 	{
 		kv.second->Close();
 	}
+	for (auto kv : seckill_sessions_)
+	{
+		kv.second->Close();
+	}
 }
 
 void CServer::storeInServer(std::shared_ptr<CSession> session, ServerType server_type)
@@ -39,6 +43,9 @@ void CServer::storeInServer(std::shared_ptr<CSession> session, ServerType server
 		break;
 	case RESOURCE_SERVER:
 		resource_sessions_.insert(std::pair<std::string, std::shared_ptr<CSession>>(session->getUuid(), session));
+		break;
+	case SECKILL_SERVER:
+		seckill_sessions_.insert(std::pair<std::string, std::shared_ptr<CSession>>(session->getUuid(), session));
 		break;
 	default:
 		break;
@@ -79,6 +86,7 @@ void CServer::checkConnectionIsOverTime(boost::system::error_code ec)
 	checkChatServerConnIsOverTime();
 	// 检查ResourceServer连接是否超时
 	checkResourceSercerConnIsOverTime();
+	checkSeckillServerConnIsOverTime();
 	// 开启下一个定时检测任务
 	startTimer();
 }
@@ -144,6 +152,34 @@ void CServer::checkResourceSercerConnIsOverTime()
 	}
 }
 
+void CServer::checkSeckillServerConnIsOverTime()
+{
+	std::map<std::string, std::shared_ptr<CSession>> copy_sessions_;
+	{
+		std::lock_guard<std::mutex> locker(mtx_);
+		copy_sessions_ = seckill_sessions_;
+	}
+	std::vector<std::shared_ptr<CSession>> expiredSession;
+	{
+		for (auto it = copy_sessions_.begin(); it != copy_sessions_.end(); ++it)
+		{
+			std::shared_ptr<CSession> session = it->second;
+			bool expired = session->isHeartOverTime();
+			if (expired) {
+				expiredSession.push_back(session);
+			}
+		}
+	}
+	if (expiredSession.size())
+	{
+		std::cout << "[INFO] There are " << expiredSession.size() << " seckillserver_connection heartCheckOverTime.\n";
+	}
+	for (auto session : expiredSession)
+	{
+		session->Close();
+	}
+}
+
 void CServer::clearSession(std::string uuid)
 {
 	std::lock_guard<std::mutex> locker(mtx_);
@@ -151,6 +187,12 @@ void CServer::clearSession(std::string uuid)
 	{
 		resource_sessions_.erase(uuid);
 		std::cout << "erase resource session whose uuid is " << uuid << std::endl;
+		return;
+	}
+	if (seckill_sessions_.count(uuid))
+	{
+		seckill_sessions_.erase(uuid);
+		std::cout << "erase seckill session whose uuid is " << uuid << std::endl;
 		return;
 	}
 	if (sessions_.count(uuid))

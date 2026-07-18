@@ -62,6 +62,31 @@ Status StatusServiceImpl::GetResourceServer(ServerContext* context, const GetRes
 	          << " for " << request->chatserver_name() << std::endl;
 	return Status::OK;
 }
+Status StatusServiceImpl::GetSeckillServer(ServerContext* context, const GetSeckillServerReq* request, GetSeckillServerRsp* reply)
+{
+	if (!server_) {
+		std::cerr << "[GetSeckillServer] CServer not set" << std::endl;
+		reply->set_error(ERROR_RPC);
+		return Status::OK;
+	}
+	Server_Info selected = getLeastLoadedServer(
+		server_->getSeckillSessions(),
+		ServerType::SECKILL_SERVER,
+		SECKILLSERVERS);
+	if (selected.name.empty()) {
+		std::cerr << "[GetSeckillServer] No available SeckillServer" << std::endl;
+		reply->set_error(ERROR_RPC);
+		return Status::OK;
+	}
+	reply->set_host(selected.host);
+	reply->set_port(selected.port);
+	reply->set_error(SUCCESS);
+	std::cout << "[GetSeckillServer] Return " << selected.name
+	          << " (" << selected.host << ":" << selected.port << ")"
+	          << " con_count=" << selected.con_count
+	          << " for uid " << request->uid() << std::endl;
+	return Status::OK;
+}
 static Server_Info getLeastLoadedServer(
 	const std::map<std::string, std::shared_ptr<CSession>>& sessions,
 	ServerType expectedType,
