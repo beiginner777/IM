@@ -1,107 +1,164 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Heart</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="index.css">
+    <title>秒杀商城 — IM Flash Sale</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(160deg, #0f0c29 0%, #1a1a3e 30%, #24243e 60%, #1a1a3e 100%);
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 背景粒子动画 */
+        .bg-particles {
+            position: absolute; inset: 0; pointer-events: none;
+        }
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(102, 126, 234, 0.3);
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0) scale(1); opacity: 0.3; }
+            50%      { transform: translateY(-30px) scale(1.5); opacity: 0.8; }
+        }
+
+        /* 光晕 */
+        .glow-1, .glow-2 {
+            position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.12;
+        }
+        .glow-1 { width: 600px; height: 600px; background: #667eea; top: -200px; left: -200px; }
+        .glow-2 { width: 500px; height: 500px; background: #f093fb; bottom: -200px; right: -150px; }
+
+        /* 主卡片 */
+        .hero {
+            position: relative; z-index: 1;
+            text-align: center;
+            animation: fadeUp 0.8s ease-out;
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .logo {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 80px; height: 80px; border-radius: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.45);
+            font-size: 40px; margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: 48px; font-weight: 800; color: #fff;
+            letter-spacing: 2px; margin-bottom: 12px;
+        }
+        h1 span { background: linear-gradient(135deg, #667eea, #f093fb); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .subtitle {
+            font-size: 18px; color: rgba(255,255,255,0.45); margin-bottom: 48px;
+        }
+
+        /* 按钮组 */
+        .actions { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+        .btn {
+            display: inline-block; padding: 14px 40px; border-radius: 14px;
+            font-size: 16px; font-weight: 700; text-decoration: none;
+            letter-spacing: 2px; transition: all 0.3s ease; cursor: pointer;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff; box-shadow: 0 4px 20px rgba(102, 126, 234, 0.45);
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(102, 126, 234, 0.6); }
+        .btn-ghost {
+            border: 1.5px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.8);
+            background: rgba(255,255,255,0.04); backdrop-filter: blur(8px);
+        }
+        .btn-ghost:hover { border-color: #667eea; color: #fff; background: rgba(102,126,234,0.12); }
+
+        /* 统计 */
+        .stats {
+            display: flex; gap: 48px; justify-content: center; margin-top: 56px;
+        }
+        .stat-item { text-align: center; }
+        .stat-num  { font-size: 32px; font-weight: 800; color: #fff; }
+        .stat-label{ font-size: 13px; color: rgba(255,255,255,0.35); margin-top: 4px; letter-spacing: 1px; }
+
+        /* 底部 */
+        .footer {
+            position: absolute; bottom: 24px; left: 0; right: 0; text-align: center;
+            font-size: 13px; color: rgba(255,255,255,0.2); letter-spacing: 1px;
+        }
+    </style>
 </head>
 <body>
-    <div id="particles-js"></div>
-    <svg viewBox="-500 -500 1000 1000">  <!-- 添加初始viewBox确保星星可见 -->
-        <path id='shape' fill="gold"/>  <!-- 添加初始填充色 -->
-    </svg>
-    <h1>click it, enter Jerry's blog!</h1>
-    
-    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
-    <script src="index.js"></script>
+
+    <div class="glow-1"></div>
+    <div class="glow-2"></div>
+
+    <!-- 背景粒子 -->
+    <div class="bg-particles" id="particles"></div>
+
+    <div class="hero">
+        <div class="logo">⚡</div>
+        <h1>秒杀<span>商城</span></h1>
+        <p class="subtitle">高性能 · 低延迟 · 原子扣库存</p>
+
+        <div class="actions">
+            <a href="/login"    class="btn btn-primary">立即登录</a>
+            <a href="/register" class="btn btn-ghost">注册账号</a>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-num">Redis</div>
+                <div class="stat-label">原子引擎</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-num">Lua</div>
+                <div class="stat-label">防超卖</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-num">C++</div>
+                <div class="stat-label">Beast 服务</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-num">ms</div>
+                <div class="stat-label">级延迟</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">Built with Beast · Redis · RabbitMQ &nbsp;|&nbsp; Powered by IM</div>
+
     <script>
-    // 初始化粒子效果 - 启用完整的交互功能
-    document.addEventListener('DOMContentLoaded', function() {
-        particlesJS('particles-js', {
-            "particles": {
-                "number": {
-                    "value": 60,
-                    "density": {
-                        "enable": true,
-                        "value_area": 800
-                    }
-                },
-                "color": {
-                    "value": "#ffffff"
-                },
-                "shape": {
-                    "type": "circle"
-                },
-                "opacity": {
-                    "value": 0.3,
-                    "random": true,
-                    "anim": {
-                        "enable": true,
-                        "speed": 1,
-                        "opacity_min": 0.1,
-                        "sync": false
-                    }
-                },
-                "size": {
-                    "value": 2,
-                    "random": true
-                },
-                "line_linked": {
-                    "enable": true,
-                    "distance": 150,
-                    "color": "#ff69b4",
-                    "opacity": 0.2,
-                    "width": 1
-                },
-                "move": {
-                    "enable": true,
-                    "speed": 1,
-                    "direction": "none",
-                    "random": true,
-                    "straight": false,
-                    "out_mode": "out",
-                    "bounce": false,
-                    "attract": {
-                        "enable": true,
-                        "rotateX": 600,
-                        "rotateY": 1200
-                    }
-                }
-            },
-            "interactivity": {
-                "detect_on": "window",  // 改为检测窗口范围内的交互
-                "events": {
-                    "onhover": {
-                        "enable": true,
-                        "mode": "grab"  // 悬停时粒子会聚集
-                    },
-                    "onclick": {
-                        "enable": true,
-                        "mode": "push"  // 点击时推出粒子
-                    },
-                    "resize": true
-                },
-                "modes": {
-                    "grab": {
-                        "distance": 140,
-                        "line_linked": {
-                            "opacity": 0.8  // 增加连线可见度
-                        }
-                    },
-                    "push": {
-                        "particles_nb": 4
-                    },
-                    "repulse": {
-                        "distance": 200,
-                        "duration": 0.4
-                    }
-                }
-            },
-            "retina_detect": true
-        });
-    });
-</script>
+        // 背景粒子
+        (function() {
+            var c = document.getElementById('particles');
+            for (var i = 0; i < 30; i++) {
+                var p = document.createElement('div');
+                p.className = 'particle';
+                var s = Math.random() * 4 + 2;
+                p.style.width  = s + 'px';
+                p.style.height = s + 'px';
+                p.style.left   = Math.random() * 100 + '%';
+                p.style.top    = Math.random() * 100 + '%';
+                p.style.animationDelay = Math.random() * 6 + 's';
+                p.style.animationDuration = (Math.random() * 4 + 4) + 's';
+                c.appendChild(p);
+            }
+        })();
+    </script>
 </body>
 </html>
