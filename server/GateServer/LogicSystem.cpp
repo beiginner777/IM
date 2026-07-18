@@ -292,19 +292,6 @@ void LogicSystem::registerPostHandler()
 		std::string name = root["username"].asString();
 		std::string password = root["password"].asString();
 		std::cout << "[fe_login] name = " << name << std::endl;
-		// 布隆过滤器拦截不存在的用户
-		static BloomFilter bloomFeLogin(1000000, 0.01);
-		static bool bloomFeLoginLoaded = false;
-		if (!bloomFeLoginLoaded) {
-			bloomFeLogin.loadFromRedis("bloom:user_search");
-			bloomFeLoginLoaded = true;
-		}
-		if (!bloomFeLogin.contains(name)) {
-			value["error_code"] = ERROR_USER_NOT_EXIST;
-			value["error_msg"] = "用户不存在";
-			beast::ostream(response.body()) << value.toStyledString();
-			return;
-		}
 		// 数据库校验用户名密码（bcrypt）
 		std::shared_ptr<UserInfo> userInfo = std::make_shared<UserInfo>();
 		int returnCode = MysqlManager::getInstance()->userLogin(name, password, userInfo);
