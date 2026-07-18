@@ -11,9 +11,6 @@ HttpConnection::HttpConnection(tcp::socket&& sock, SeckillServer* server)
 }
 HttpConnection::~HttpConnection()
 {
-	// 兜底：如果 send_response 的 callback 没有正常触发 decrement（极端情况），
-	// 在析构时补一刀
-	decrementIfNeeded();
 	sock_.close();
 }
 void HttpConnection::decrementIfNeeded()
@@ -58,9 +55,11 @@ void HttpConnection::read_request()
 			}
 			else
 			{
+				// 读取请求失败（客户端提前断开等），直接清理连接计数
 				std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 				std::cout << "error code: " << ec.value() << std::endl;
 				std::cout << "error message: " << ec.message() << std::endl;
+				self->decrementIfNeeded();
 			}
 		});
 }
