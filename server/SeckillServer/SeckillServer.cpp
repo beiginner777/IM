@@ -88,18 +88,31 @@ std::shared_ptr<StatusClientSession> SeckillServer::getOrCreateStatusSession()
 	}
 	return statusSession_;
 }
+// 从 Redis 读取自身服务信息 JSON，parse 失败时用 config 重建（防止 con_count 被孤立覆盖）
+static Json::Value loadSelfInfo(const std::string& selfName)
+{
+	ConfigManager cfg = ConfigManager::getInstance();
+	std::string jsonStr = RedisManager::getInstance()->HGet(SECKILLSERVERS, selfName);
+	Json::Reader reader;
+	Json::Value json;
+	if (!jsonStr.empty() && reader.parse(jsonStr, json) && !json.empty()) {
+		return json;
+	}
+	// Redis 里没有或解析失败 → 用 config.ini 重建完整信息
+	std::cout << "[SeckillServer] loadSelfInfo fallback to config (jsonStr empty or parse failed)" << std::endl;
+	json["host"] = cfg["SelfServer"]["Host"];
+	json["port"] = cfg["SelfServer"]["Port"];
+	json["name"] = selfName;
+	json["server_type"] = ServerType::SECKILL_SERVER;
+	json["con_count"] = 0;
+	return json;
+}
 void SeckillServer::incrementConnCount()
 {
 	ConfigManager cfg = ConfigManager::getInstance();
 	std::string selfName = cfg["SelfServer"]["Name"];
-	std::string jsonStr = RedisManager::getInstance()->HGet(SECKILLSERVERS, selfName);
-	Json::Reader reader;
-	Json::Value json;
-	int count = 0;
-	if (reader.parse(jsonStr, json)) {
-		count = json["con_count"].asInt();
-	}
-	count++;
+	Json::Value json = loadSelfInfo(selfName);
+	int count = json["con_count"].asInt() + 1;
 	json["con_count"] = count;
 	RedisManager::getInstance()->HSet(SECKILLSERVERS, selfName, json.toStyledString());
 	std::cout << "[SeckillServer] connection_count = " << count << std::endl;
@@ -108,14 +121,8 @@ void SeckillServer::decrementConnCount()
 {
 	ConfigManager cfg = ConfigManager::getInstance();
 	std::string selfName = cfg["SelfServer"]["Name"];
-	std::string jsonStr = RedisManager::getInstance()->HGet(SECKILLSERVERS, selfName);
-	Json::Reader reader;
-	Json::Value json;
-	int count = 0;
-	if (reader.parse(jsonStr, json)) {
-		count = json["con_count"].asInt();
-		count = std::max(0, count - 1);
-	}
+	Json::Value json = loadSelfInfo(selfName);
+	int count = std::max(0, json["con_count"].asInt() - 1);
 	json["con_count"] = count;
 	RedisManager::getInstance()->HSet(SECKILLSERVERS, selfName, json.toStyledString());
 	std::cout << "[SeckillServer] connection_count = " << count << std::endl;
