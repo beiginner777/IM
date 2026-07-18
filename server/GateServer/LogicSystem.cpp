@@ -268,6 +268,77 @@ void LogicSystem::registerPostHandler()
 		beast::ostream(response.body()) << value.toStyledString();
 		//std::cout << "return message1 = " << boost::beast::buffers_to_string(response.body().data()) << std::endl;
 	};
+	// Web秒杀前端 登录的函数（与桌面端 /loginAddr 区分）
+	// 响应协议与前端约定：成功 {error_code:0, username, host, port}；失败 {error_code, error_msg}
+	postHandles_["/fe_login"] = [this](std::shared_ptr<HttpConnection> conn) {
+		auto& request = conn->request_;
+		auto& response = conn->response_;
+		auto& body = request.body();
+		std::string bodyStr = boost::beast::buffers_to_string(body.data());
+		std::cout << "receive post body = " << bodyStr << std::endl;
+		response.set(http::field::content_type, "application/json");
+		Json::Value root;
+		Json::Reader reader;
+		Json::Value value;
+		// json解析失败
+		if (!reader.parse(bodyStr, root))
+		{
+			value["error_code"] = ERROE_CODR::ERROR_JSON;
+			value["error_msg"] = "json prase failed !";
+			beast::ostream(response.body()) << value.toStyledString();
+			return;
+		}
+		// 用户的登录信息
+		std::string name = root["username"].asString();
+		std::string password = root["password"].asString();
+		std::cout << "[fe_login] name = " << name << std::endl;
+		// 布隆过滤器拦截不存在的用户
+		static BloomFilter bloomFeLogin(1000000, 0.01);
+		static bool bloomFeLoginLoaded = false;
+		if (!bloomFeLoginLoaded) {
+			bloomFeLogin.loadFromRedis("bloom:user_search");
+			bloomFeLoginLoaded = true;
+		}
+		if (!bloomFeLogin.contains(name)) {
+			value["error_code"] = ERROR_USER_NOT_EXIST;
+			value["error_msg"] = "用户不存在";
+			beast::ostream(response.body()) << value.toStyledString();
+			return;
+		}
+		// 数据库校验用户名密码（bcrypt）
+		std::shared_ptr<UserInfo> userInfo = std::make_shared<UserInfo>();
+		int returnCode = MysqlManager::getInstance()->userLogin(name, password, userInfo);
+		if (returnCode == ERROR_USER_NOT_EXIST)
+		{
+			value["error_code"] = ERROR_USER_NOT_EXIST;
+			value["error_msg"] = "用户不存在";
+			beast::ostream(response.body()) << value.toStyledString();
+			return;
+		}
+		else if (returnCode == ERROR_PASSWORD)
+		{
+			value["error_code"] = ERROR_PASSWORD;
+			value["error_msg"] = "密码错误";
+			beast::ostream(response.body()) << value.toStyledString();
+			return;
+		}
+		// 查询状态服务器Status分配一个SeckillServer
+		StatusGrpcClient client;
+		auto reply = client.GetSeckillServer(userInfo->uid_);
+		if (reply.error()) {
+			std::cout << " grpc failed to connect StatusServer: get SeckillServer failed, error is " << reply.error() << std::endl;
+			value["error_code"] = ERROR_RPC_CON_STATUSSERVER;
+			value["error_msg"] = "无法分配秒杀服务器，请稍后重试";
+			beast::ostream(response.body()) << value.toStyledString();
+			return;
+		}
+		value["error_code"] = SUCCESS;
+		value["username"] = name;
+		// SeckillServer 地址（前端 setBaseURL 使用，port 需为数字类型）
+		value["host"] = reply.host();
+		value["port"] = std::atoi(reply.port().c_str());
+		beast::ostream(response.body()) << value.toStyledString();
+	};
 }
 
 void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
@@ -332,7 +403,7 @@ void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn)
 
 	// /api/* 路由映射到 GateServer 内部 handler
 	if (target.find("/api/") == 0) {
-		if (target == "/api/login")    target = "/loginAddr";
+		if (target == "/api/login")    target = "/fe_login"; // Web前端登录，与桌面端 /loginAddr 区分
 		if (target == "/api/register") target = "/registerUserAddr";
 		if (target == "/api/verify")   target = "/getVerifyCode";
 	}
