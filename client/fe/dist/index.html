@@ -142,7 +142,6 @@
             100% { transform: translateY(-100vh) translateX(40px) scale(0.5); opacity: 0; }
         }
 
-        /* ====== 响应式 ====== */
         @media (max-width: 768px) {
             .navbar { padding: 16px 20px; }
             .hero h1 { font-size: 32px; }
@@ -152,7 +151,6 @@
 </head>
 <body>
 
-    <!-- 光晕 -->
     <div class="glow-1"></div>
     <div class="glow-2"></div>
 
@@ -193,7 +191,7 @@
             <div class="feature-card">
                 <div class="feature-icon">📨</div>
                 <div class="feature-title">消息队列异步削峰</div>
-                <div class="feature-desc">RabbitMQ 将订单写入、通知、排行榜异步并行</div>
+                <div class="feature-desc">RabbitMQ 将订单写入、通知、排行榜异步并行处理</div>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">🖥️</div>
@@ -211,7 +209,6 @@
     <footer class="footer">Built with C++ · Boost Beast · Redis · RabbitMQ &nbsp;|&nbsp; IM Flash Sale Platform</footer>
 
     <script>
-        // 背景上升粒子
         (function() {
             for (var i = 0; i < 25; i++) {
                 var p = document.createElement('div');
