@@ -309,6 +309,23 @@ void LogicSystem::registerPostHandler()
 			beast::ostream(response.body()) << value.toStyledString();
 			return;
 		}
+		else if (returnCode == ERROR_LOGIN)
+		{
+			// SQL 执行异常
+			value["error_code"] = ERROR_LOGIN;
+			value["error_msg"] = "服务繁忙，请稍后重试";
+			beast::ostream(response.body()) << value.toStyledString();
+			return;
+		}
+		else if (returnCode != SUCCESS)
+		{
+			// 其他非用户侧错误（如 MySQL 连接池拿不到连接返回的 ERROR_REGISTER），
+			// 统一按服务繁忙处理，防止穿透到成功分支
+			value["error_code"] = returnCode;
+			value["error_msg"] = "服务繁忙，请稍后重试";
+			beast::ostream(response.body()) << value.toStyledString();
+			return;
+		}
 		// 查询状态服务器Status分配一个SeckillServer
 		StatusGrpcClient client;
 		auto reply = client.GetSeckillServer(userInfo->uid_);
