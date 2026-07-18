@@ -137,7 +137,8 @@ enum ServerType
 {
     None = 0,
     CHAT_SERVER,
-    RESOURCE_SERVER
+    RESOURCE_SERVER,
+    SECKILL_SERVER // 秒杀业务服务器
 };
 struct Server_Info
 {
