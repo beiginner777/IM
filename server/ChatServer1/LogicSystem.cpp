@@ -9,13 +9,21 @@
 #include "CServer.h"
 #include "utils.h"
 #include "BatchMessageWriter.h"
+#include "LogicWorker.h"
+
+#define LOGICWORKER_COUNT 4
+
 LogicSystem::LogicSystem() : b_stop_(false)
 {
 	registerFunctionCallbacks();
-	work_thread_ = std::thread(&LogicSystem::dealTask, this);
+	for (int i = 0; i < LOGICWORKER_COUNT; i++) {
+		workers_.push_back(std::make_shared<LogicWorker>(i, this));
+	}
 }
 LogicSystem::~LogicSystem()
 {
+	b_stop_ = true;
+	workers_.clear();
 	std::cout << "LogicSystem is destructed." << std::endl;
 }
 // 统一限流中间件：在 dealTask 分发到具体 handler 前调用
@@ -265,15 +273,27 @@ bool LogicSystem::getUserByName(std::string name, Json::Value& rtvalue)
 void LogicSystem::postMsgToQue(std::shared_ptr<LogicNode> logicNode)
 {
 	// ── 统一限流拦截（入队前）──
-	// 对所有客户端请求生效，StatusServer 内部消息（uid==0）自动跳过
 	short reqId = logicNode->recvNode_->msg_id_;
 	if (!tryAcquireRateLimit(logicNode->session_, reqId)) {
-		// 被限流，不入队，已在 tryAcquireRateLimit 中回包
 		return;
 	}
-	std::lock_guard<std::mutex> locker(mtx_);
-	que_.push(logicNode);
-	cond_.notify_all();
+	std::string msgData(logicNode->recvNode_->data_, logicNode->recvNode_->totol_len_);
+	std::string uuid = logicNode->recvNode_->uuid_;
+
+	// 按 session uuid 哈希路由到 LogicWorker（同一用户的消息串行）
+	std::hash<std::string> hasher;
+	int idx = hasher(logicNode->session_->getUuid()) % workers_.size();
+	workers_[idx]->postMsg(logicNode->session_, reqId, msgData, uuid);
+}
+
+// LogicWorker 回调：单线程内执行具体的 handler
+void LogicSystem::dispatch(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
+{
+	if (handlers_.count(msgId)) {
+		handlers_[msgId](session, msgId, msgData, uuid);
+	} else {
+		std::cout << "system error: can't find handler for msgId=" << msgId << std::endl;
+	}
 }
 
 void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
