@@ -30,7 +30,7 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<CSession> session, short m
 		Json::Value rt;
 		rt["code"] = ERROR_RATE_LIMITED;
 		rt["message"] = "server busy, please retry later";
-		session->Send(rt.toStyledString(), getRspMsgId(msgId));
+		session->Send(rt.toStyledString(), getRspMsgId(msgId), boost::uuids::to_string(boost::uuids::random_generator()()));
 		return false;
 	}
 	int uid = session->getUserId();
@@ -47,7 +47,7 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<CSession> session, short m
 		Json::Value rt;
 		rt["code"] = ERROR_RATE_LIMITED;
 		rt["message"] = "发送过于频繁，请稍后重试";
-		session->Send(rt.toStyledString(), getRspMsgId(msgId));
+		session->Send(rt.toStyledString(), getRspMsgId(msgId), boost::uuids::to_string(boost::uuids::random_generator()()));
 		return false;
 	}
 	// L3: Redis 分布式限流（跨 ChatServer 统一计数，Redis 不可用自动放行）
@@ -56,7 +56,7 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<CSession> session, short m
 		Json::Value rt;
 		rt["code"] = ERROR_RATE_LIMITED;
 		rt["message"] = "发送过于频繁，请稍后重试";
-		session->Send(rt.toStyledString(), getRspMsgId(msgId));
+		session->Send(rt.toStyledString(), getRspMsgId(msgId), boost::uuids::to_string(boost::uuids::random_generator()()));
 		return false;
 	}
 	return true;

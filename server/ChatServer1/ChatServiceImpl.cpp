@@ -4,6 +4,13 @@
 #include "RedisManager.h"
 #include "MysqlManager.h"
 #include "LogicSystem.h"
+#include <boost/uuid/uuid_io.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+
+// helper: generate a random UUID string for Send
+static std::string genUuid() {
+	return boost::uuids::to_string(boost::uuids::random_generator()());
+}
 ChatServiceImpl::ChatServiceImpl()
 {
 }
@@ -35,7 +42,7 @@ Status ChatServiceImpl::NotifyAddFriend(ServerContext* context, const AddFriendR
     rtvalue["sex"] = request->sex(); // 对方的sex
     rtvalue["nick"] = request->nick(); // 对方的nick
     std::string return_str = rtvalue.toStyledString();
-    session->Send(return_str, ID_NOTIFY_ADD_FRIEND_REQ);
+    session->Send(return_str, ID_NOTIFY_ADD_FRIEND_REQ, genUuid());
     return Status::OK;
 }
 bool ChatServiceImpl::GetBaseInfo(int uid, std::shared_ptr<UserInfo>& userinfo)
@@ -114,7 +121,7 @@ Status ChatServiceImpl::NotifyAuthFriend(ServerContext* context, const AuthFrien
     rtvalue["nick"] = userinfo->nick_;
     rtvalue["icon"] = userinfo->icon_;
     rtvalue["sex"] = userinfo->sex_;
-    session->Send(rtvalue.toStyledString(), ID_NOTIFY_ACCESS_VERIFY);
+    session->Send(rtvalue.toStyledString(), ID_NOTIFY_ACCESS_VERIFY, genUuid());
     return Status::OK;
 }
 Status ChatServiceImpl::NotifyTextChatMsg(::grpc::ServerContext* context, const TextChatMsgReq* request, TextChatMsgRsp* response)
@@ -143,7 +150,7 @@ Status ChatServiceImpl::NotifyTextChatMsg(::grpc::ServerContext* context, const 
     }
     rtvalue["text_array"] = text_array;
     std::string return_str = rtvalue.toStyledString();
-    session->Send(return_str, ID_NOTIFY_TEXT_CHAT_MSG_REQ);
+    session->Send(return_str, ID_NOTIFY_TEXT_CHAT_MSG_REQ, genUuid());
     return Status::OK;
 }
 Status ChatServiceImpl::NotifyKickUser(ServerContext* context, const KickUserReq* request, KickUserRsp* response)
@@ -196,7 +203,7 @@ Status ChatServiceImpl::NotifyChatServerImg(ServerContext* context, const Notify
     // 修改Mysql的ChatMessage表 message_id = msg->message_id 的 status 为 2
     MysqlManager::getInstance()->updateChatMsgStatus(msg->thread_id, msg->message_id, MsgStatus::READED);
     // 通知发送方消息发送完成
-    session->Send(rtvalue.toStyledString(), ID_IMAGE_CHAT_MSG_RSP);
+    session->Send(rtvalue.toStyledString(), ID_IMAGE_CHAT_MSG_RSP, genUuid());
     // 通知接收方有聊天图片消息
     // to do ... 判断是否是在本服务器，如果不是，还需要使用 grpc 远程调用去通知
     auto peer_session = UserManager::getInstance()->GetSession(msg->recv_id);
@@ -209,7 +216,7 @@ Status ChatServiceImpl::NotifyChatServerImg(ServerContext* context, const Notify
         // 通知接收方收到消息
         std::cout << "receicer is " << msg->recv_id << std::endl;
         std::string ans = rtvalue.toStyledString();
-        peer_session->Send(ans, ID_NOTIFY_CHAT_IMAGE_MSG);
+        peer_session->Send(ans, ID_NOTIFY_CHAT_IMAGE_MSG, genUuid());
     }
     response->set_error(SUCCESS);
     return Status::OK;
@@ -235,7 +242,7 @@ Status ChatServiceImpl::NotifyFriendIconChange(ServerContext* context, const Not
     rtvalue["friend_icon"] = friend_icon;
     rtvalue["code"] = SUCCESS;
     rtvalue["message"] = "friend icon change";
-    session->Send(rtvalue.toStyledString(), ID_NOTIFY_FRIEND_ICON_CHANGE);
+    session->Send(rtvalue.toStyledString(), ID_NOTIFY_FRIEND_ICON_CHANGE, genUuid());
     response->set_error(ERROE_CODR::SUCCESS);
     return Status::OK;
 }
