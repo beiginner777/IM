@@ -7,6 +7,9 @@ const request = axios.create({ baseURL: '/api', timeout: 10000, headers: { 'Cont
 export function setBaseURL(host: string, port: number) {
   request.defaults.baseURL = `http://${host}:${port}`
 }
+export function resetBaseURL() {
+  request.defaults.baseURL = '/api'
+}
 
 request.interceptors.response.use(
   (res) => {
