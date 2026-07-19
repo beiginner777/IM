@@ -21,10 +21,18 @@ LogicSystem::LogicSystem()
 {
 	// Mock 商品数据（后续任务替换为 MySQL 商品表 + Redis 预热库存）
 	products_ = {
-		{ 1, "iPhone 15 Pro 限时秒杀", 4999, 50,  "https://picsum.photos/seed/iphone/400/300" },
-		{ 2, "RTX 4090 显卡",          9999, 20,  "https://picsum.photos/seed/gpu/400/300" },
-		{ 3, "Switch OLED 游戏机",     1499, 100, "https://picsum.photos/seed/switch/400/300" },
-		{ 4, "AirPods Pro 2",          999,  200, "https://picsum.photos/seed/airpods/400/300" },
+		{ 1,  "iPhone 15 Pro Max 256GB",   6999,  30,  "https://picsum.photos/seed/iphone15/400/300" },
+		{ 2,  "MacBook Air M3 15\"",       8999,  15,  "https://picsum.photos/seed/macbook/400/300" },
+		{ 3,  "AirPods Pro 2 (USB-C)",     1499,  100, "https://picsum.photos/seed/airpods2/400/300" },
+		{ 4,  "Apple Watch Ultra 2",       5299,  25,  "https://picsum.photos/seed/applewatch/400/300" },
+		{ 5,  "iPad Pro M4 11\"",          6799,  20,  "https://picsum.photos/seed/ipadpro/400/300" },
+		{ 6,  "RTX 4090 24GB 显卡",        12999, 10,  "https://picsum.photos/seed/rtx4090/400/300" },
+		{ 7,  "Sony PS5 Slim 光驱版",      3299,  40,  "https://picsum.photos/seed/ps5slim/400/300" },
+		{ 8,  "Nintendo Switch OLED",      1899,  60,  "https://picsum.photos/seed/switcholed/400/300" },
+		{ 9,  "Dyson V15 无线吸尘器",      3999,  35,  "https://picsum.photos/seed/dysonv15/400/300" },
+		{ 10, "Sony WH-1000XM5 耳机",      2299,  50,  "https://picsum.photos/seed/sonyxm5/400/300" },
+		{ 11, "DJI Mini 4 Pro 无人机",     4199,  18,  "https://picsum.photos/seed/djimini4/400/300" },
+		{ 12, "Kindle Scribe 64GB",        2699,  45,  "https://picsum.photos/seed/kindlescribe/400/300" },
 	};
 	registerGetHandler();
 }
@@ -132,7 +140,7 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 	std::string target = conn->request_.target();
 	// 解码出来 URL放在 url_变量当中; 然后将 键值对 放在getPrama_中
 	prase_get_request(target);
-	std::cout << "prase url = " << url_ << std::endl;
+	std::cout << "[SeckillServer] prase get_url = " << url_ << std::endl;
 	if (getHandles_.count(url_))
 	{
 		getHandles_[url_](conn);
@@ -153,7 +161,7 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn)
 {
 	std::string target = conn->request_.target();
-	std::cout << "prase url = " << target << std::endl;
+	std::cout << "[SeckillServer] prase post_url = " << target << std::endl;
 	// POST /buy/{productId}：路径参数，前缀匹配
 	static const std::string kBuyPrefix = "/buy/";
 	if (target.find(kBuyPrefix) == 0)
