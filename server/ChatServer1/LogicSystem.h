@@ -4,6 +4,7 @@
 #include "global.h"
 #include "TokenBucket.h"
 #include <unordered_map>
+#include <condition_variable>
 class RecvNode;
 class CSession;
 class LogicNode
@@ -87,8 +88,9 @@ private:
 	std::map<int, functionCallback> handlers_;
 	// LogicWorker 线程池
 	std::vector<std::shared_ptr<class LogicWorker>> workers_;  // 必须在 handlers_ 之后初始化
-	// 逻辑队列是共享资源（单线程 dealTask 已废弃，保留 que_/mtx_/cond_/work_thread_ 用于兼容，worker 不走这里）
+	// 逻辑队列是共享资源（单线程 dealTask 已废弃，保留用于兼容）
 	std::mutex mtx_;
+	std::condition_variable cond_;
 	// 是否停止工作
 	std::atomic_bool b_stop_;
 	//
