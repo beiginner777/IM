@@ -365,7 +365,7 @@ void FileUploadMsg::imgChatContinueUpload(REQUEST_ID req_id, int msg_length, QBy
     // 解析返回结果
     QString unique_name = obj["unique_name"].toString();
     QString md5 = obj["md5"].toString();
-    int seq = obj["seq"].toInt();
+    int last_ack_seq = obj["last_ack_seq"].toInt();
     int last_seq = obj["last_seq"].toInt();
     int total_size = obj["total_size"].toInt();
     int trans_size = obj["trans_size"].toInt();
@@ -378,19 +378,19 @@ void FileUploadMsg::imgChatContinueUpload(REQUEST_ID req_id, int msg_length, QBy
         return;
     }
 
-    // seq 现在是 last_acked_seq_（服务端连续确认值）
-    if(seq >= last_seq){
-        qDebug() << "unique_name = " << unique_name << " upload already complete, seq=" << seq;
+    // last_ack_seq 是服务端连续确认值
+    if(last_ack_seq >= last_seq){
+        qDebug() << "unique_name = " << unique_name << " upload already complete, last_ack_seq=" << last_ack_seq;
         msg_info->_state = TRANSFER_STATE::Upload_Finish;
         emit signalUpdateUploadProgress(unique_name);
         return;
     }
 
     // 设置窗口位置：从 last_acked + 1 开始，走滑动窗口
-    msg_info->window_base_ = seq + 1;
+    msg_info->window_base_ = last_ack_seq + 1;
     msg_info->last_seq_    = last_seq;
     msg_info->total_size_  = total_size;
-    msg_info->current_size_= seq * MAX_FILE_LEN;
+    msg_info->current_size_= last_ack_seq * MAX_FILE_LEN;
     msg_info->_state       = TRANSFER_STATE::Uploading;
     qDebug() << "[Client] resume: unique_name=" << unique_name
              << " start from seq=" << msg_info->window_base_
