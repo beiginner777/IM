@@ -240,7 +240,7 @@ void LogicWorker::syncFile(std::shared_ptr<CSession> session, short msgId, std::
 		return;
 	}
 	rtvalue["lastseq"] = file_info->last_seq_;
-	rtvalue["seq"] = file_info->seq_;
+	rtvalue["seq"] = file_info->last_acked_seq_;
 	rtvalue["transfer_size"] = file_info->transfferredSize_;
 	rtvalue["total_size"] = file_info->totolSize_;
 	rtvalue["md5"] = md5;
@@ -324,8 +324,8 @@ void LogicWorker::imgChatContinueUpload(std::shared_ptr<CSession> session, short
 	}
 	rtvalue["uid"] = file_info->uid_;
 	rtvalue["last_seq"] = file_info->last_seq_;
-	rtvalue["seq"] = file_info->seq_;
-	rtvalue["trans_size"] = file_info->transfferredSize_;
+	rtvalue["seq"] = file_info->last_acked_seq_;
+	rtvalue["trans_size"] = file_info->last_acked_seq_ * MAX_FILE_LEN;
 	rtvalue["total_size"] = file_info->totolSize_;
 	rtvalue["md5"] = md5;
 	rtvalue["unique_name"] = file_info->name_;
@@ -359,7 +359,7 @@ void LogicWorker::fileContinueDownload(std::shared_ptr<CSession> session, short 
 	}
 	rtvalue["uid"] = file_info->uid_;
 	rtvalue["download_file"] = file_info->download_file_;
-	rtvalue["seq"] = file_info->seq_;
+	rtvalue["seq"] = file_info->last_acked_seq_;
 	rtvalue["last_seq"] = file_info->last_seq_;
 	rtvalue["trans_size"] = file_info->trans_size_;
 	rtvalue["total_size"] = file_info->total_size_;

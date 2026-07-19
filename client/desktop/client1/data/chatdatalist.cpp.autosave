@@ -1166,7 +1166,6 @@ void ChatDataDelegate::drawPicContent(QPainter* p,
     QRect target(topLeft, scaled.size());
     p->drawPixmap(target, scaled);
 
-    // TODO：添加图片消息的继续上传/下载的逻辑：参考下方measureFileContent实现
 }
 
 
