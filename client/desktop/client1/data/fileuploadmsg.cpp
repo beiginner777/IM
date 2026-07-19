@@ -741,9 +741,7 @@ void FileUploadMsg::scanWindow()
     for (auto it = uploads.begin(); it != uploads.end(); ++it) {
         auto info = it->second;
         if (info->_state != Uploading) continue;
-
         int end = qMin(info->window_base_ + WINDOW_SIZE, info->last_seq_ + 1);
-
         bool firstRetrans = true;
         for (int seq = info->window_base_; seq < end; seq++) {
             qDebug() << "["  << info->unique_name_ << "]" << " Reupdate seq = " << seq;
