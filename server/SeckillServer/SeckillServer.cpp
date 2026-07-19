@@ -92,7 +92,7 @@ std::shared_ptr<StatusClientSession> SeckillServer::getOrCreateStatusSession()
 static Json::Value loadSelfInfo(const std::string& selfName)
 {
 	ConfigManager cfg = ConfigManager::getInstance();
-	std::string jsonStr = RedisManager::getInstance()->HGet(SECKILLSERVERS, selfName);
+	std::string jsonStr = RedisManager::getInstance()->HGet(SECKILLSERVERS, selfName, true);
 	Json::Reader reader;
 	Json::Value json;
 	if (!jsonStr.empty() && reader.parse(jsonStr, json) && !json.empty()) {
