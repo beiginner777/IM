@@ -425,10 +425,15 @@ void TcpMsg::registerSignal()
             buffer_ = buffer_.mid(msg_len_);
             b_recv_pedding_ = false;
 
-            qDebug() << "[TcpMsg] msg_id = " << msg_id_ ;
+            qDebug() << "[TcpMsg] msg_id = " << msg_id_ << " (enum ID_IMAGE_CHAT_MSG_RSP = " << (int)ID_IMAGE_CHAT_MSG_RSP << ")";
 
-            // 添加对应的参数
-            handlers_[msg_id_]((REQUEST_ID)msg_id_,msg_len_,messageBody);
+            // 硬编码兜底：无论如何 msg_id=1035 都走 sendImgMsg
+            if (msg_id_ == 1035) {
+                qDebug() << "[TcpMsg] force route msg_id=1035 to sendImgMsg";
+                sendImgMsg((REQUEST_ID)1035, msg_len_, messageBody);
+            } else {
+                handlers_[msg_id_]((REQUEST_ID)msg_id_,msg_len_,messageBody);
+            }
 
             }
         });
