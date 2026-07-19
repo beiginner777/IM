@@ -1,4 +1,7 @@
 #include "LogicSystem.h"
+#include "MysqlDao.h"
+#include "RedisManager.h"
+#include "JWT.h"
 // 当前时间字符串，格式: 2026-07-18 15:04:05
 static std::string nowString()
 {
@@ -16,8 +19,7 @@ void LogicSystem::sendJson(std::shared_ptr<HttpConnection> conn, const Json::Val
 	response.set(http::field::content_type, "application/json");
 	beast::ostream(response.body()) << value.toStyledString();
 }
-LogicSystem::LogicSystem()
-	: nextOrderId_(1)
+LogicSystem::LogicSystem() : nextOrderId_(1), mysqlDao_(new MysqlDao())
 {
 	// Mock 商品数据（后续任务替换为 MySQL 商品表 + Redis 预热库存）
 	products_ = {
@@ -91,6 +93,9 @@ void LogicSystem::registerGetHandler()
 	// GET /orders?username=xxx —— 抢购记录，前端期望裸数组 [{orderId,productName,time,status}]
 	// 注意：前端 POST /buy 未携带用户身份，Mock 阶段返回全部记录，不按 username 过滤；
 	// 待接入统一认证（JWT）后再关联到用户
+	getHandles_["/balance"] = [this](std::shared_ptr<HttpConnection> conn) {
+		handleGetBalance(conn);
+	};
 	getHandles_["/orders"] = [this](std::shared_ptr<HttpConnection> conn) {
 		Json::Value arr(Json::arrayValue);
 		{
@@ -107,33 +112,77 @@ void LogicSystem::registerGetHandler()
 		sendJson(conn, arr);
 	};
 }
-// POST /buy/{productId}，前端期望 {success: bool, message: string}
+// 认证失败统一响应
+void LogicSystem::sendAuthError(std::shared_ptr<HttpConnection> conn, const std::string& msg)
+{
+	Json::Value v;
+	v["success"] = false;
+	v["message"] = msg;
+	sendJson(conn, v);
+}
+
+// POST /buy/{productId}
 void LogicSystem::handleBuy(std::shared_ptr<HttpConnection> conn, int productId)
 {
 	Json::Value value;
+	if (!conn->authenticate()) { sendAuthError(conn, "请先登录"); return; }
+	// 从 body 提取密码
+	std::string bodyStr = beast::buffers_to_string(conn->request_.body().data());
+	Json::Value reqBody;
+	Json::Reader reader;
+	reader.parse(bodyStr, reqBody);
+	if (!mysqlDao_->verifyPassword(conn->uid(), reqBody["password"].asString())) {
+		sendAuthError(conn, "密码错误"); return;
+	}
+
 	std::lock_guard<std::mutex> lock(dataMtx_);
 	auto it = std::find_if(products_.begin(), products_.end(),
 		[productId](const SeckillProduct& p) { return p.id == productId; });
-	if (it == products_.end()) {
-		value["success"] = false;
-		value["message"] = "商品不存在";
-		sendJson(conn, value);
-		return;
-	}
-	if (it->stock <= 0) {
-		value["success"] = false;
-		value["message"] = "手慢了，已售罄";
-		sendJson(conn, value);
-		return;
-	}
-	// Mock 扣库存（内存态，后续任务替换为 Redis Lua 原子扣减 + RabbitMQ 异步落单）
+	if (it == products_.end()) { value["success"] = false; value["message"] = "商品不存在"; sendJson(conn, value); return; }
+	if (it->stock <= 0) { value["success"] = false; value["message"] = "已售罄"; sendJson(conn, value); return; }
+
 	it->stock--;
 	buyCount_[productId]++;
 	orders_.push_back({ nextOrderId_++, it->name, nowString(), "成功" });
 	value["success"] = true;
 	value["message"] = "抢购成功";
 	sendJson(conn, value);
-	std::cout << "[SeckillServer] product(" << it->name << ") sold, stock left = " << it->stock << std::endl;
+	std::cout << "[SeckillServer] uid=" << conn->uid() << " bought " << it->name << " stock=" << it->stock << std::endl;
+}
+
+// POST /recharge {amount, password}
+void LogicSystem::handleRecharge(std::shared_ptr<HttpConnection> conn)
+{
+	Json::Value value;
+	if (!conn->authenticate()) { sendAuthError(conn, "请先登录"); return; }
+	std::string bodyStr = beast::buffers_to_string(conn->request_.body().data());
+	Json::Value reqBody; Json::Reader reader;
+	reader.parse(bodyStr, reqBody);
+	if (!mysqlDao_->verifyPassword(conn->uid(), reqBody["password"].asString())) {
+		sendAuthError(conn, "密码错误"); return;
+	}
+	double amount = reqBody["amount"].asDouble();
+	if (amount <= 0) { value["code"] = -1; value["message"] = "金额无效"; sendJson(conn, value); return; }
+	double cur = mysqlDao_->getBalance(conn->uid());
+	if (cur < 0) { value["code"] = -1; value["message"] = "查询余额失败"; sendJson(conn, value); return; }
+	double newBal = cur + amount;
+	if (!mysqlDao_->updateBalance(conn->uid(), newBal)) {
+		value["code"] = -1; value["message"] = "充值失败"; sendJson(conn, value); return;
+	}
+	// 清除缓存
+	RedisManager::getInstance()->Del("balance_cache:" + std::to_string(conn->uid()));
+	value["code"] = 0; value["balance"] = newBal;
+	sendJson(conn, value);
+}
+
+// GET /balance
+void LogicSystem::handleGetBalance(std::shared_ptr<HttpConnection> conn)
+{
+	Json::Value value;
+	if (!conn->authenticate()) { sendAuthError(conn, "请先登录"); return; }
+	double b = mysqlDao_->getBalance(conn->uid());
+	value["balance"] = b;
+	sendJson(conn, value);
 }
 void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 {
@@ -162,7 +211,9 @@ void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn)
 {
 	std::string target = conn->request_.target();
 	std::cout << "[SeckillServer] prase post_url = " << target << std::endl;
-	// POST /buy/{productId}：路径参数，前缀匹配
+	// POST /recharge
+	if (target == "/recharge") { handleRecharge(conn); return; }
+	// POST /buy/{productId}
 	static const std::string kBuyPrefix = "/buy/";
 	if (target.find(kBuyPrefix) == 0)
 	{

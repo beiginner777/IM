@@ -17,7 +17,12 @@ public:
 	bool verifyPassword(int uid, const std::string& password);
 
 private:
-	struct SqlConnection { std::unique_ptr<sql::Connection> con_; };
+	struct SqlConnection {
+		std::unique_ptr<sql::Connection> con_;
+		SqlConnection(std::unique_ptr<sql::Connection> c) : con_(std::move(c)) {}
+		SqlConnection(sql::Connection* c) : con_(c) {}
+	};
+};
 	std::queue<std::unique_ptr<SqlConnection>> pool_;
 	std::mutex mtx_;
 	std::condition_variable cond_;
