@@ -70,7 +70,7 @@ int MysqlDao::userLogin(std::string name, std::string password, std::shared_ptr<
     std::unique_ptr<SqlConnection> conn = pool_->getConnection();
     if (conn == nullptr) {
         std::cout << "mysqlConn is nullptr, register failed.\n";
-        return ERROR_REGISTER;
+        return ERROR_LOGIN;
     }
     Defer defer([this, &conn]() {
         pool_->returnConnection(std::move(conn));
@@ -106,7 +106,6 @@ int MysqlDao::userLogin(std::string name, std::string password, std::shared_ptr<
             std::cout << "User(" << name << ") password error." << std::endl;
             return ERROR_PASSWORD;
         }
-        // �û�������
         std::cout << "User(" << name << ") not exists." << std::endl;
         return ERROR_USER_NOT_EXIST;
     }

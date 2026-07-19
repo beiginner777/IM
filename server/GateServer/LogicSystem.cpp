@@ -44,34 +44,30 @@ LogicSystem::~LogicSystem()
 
 void LogicSystem::registerGetHandler()
 {
-	// 前端静态文件目录（相对 GateServer 项目目录: server/GateServer/）
-	static const std::string kFeDist = "../../client/fe/dist";
+//	// 前端静态文件目录（相对 GateServer 项目目录: server/GateServer/）
+//	static const std::string kFeDist = "../../client/React/dist";
+//
+//	// 响应 index.html 的通用 lambda
+//	auto serveFeApp = [this](std::shared_ptr<HttpConnection> conn) {
+//		auto& response = conn->response_;
+//		std::ifstream file(kFeDist + "/index.html", std::ios::binary);
+//		if (file.is_open()) {
+//			response.result(http::status::ok);
+//			std::stringstream buffer;
+//			buffer << file.rdbuf();
+//			response.set(http::field::content_type, "text/html");
+//			beast::ostream(response.body()) << buffer.str();
+//			response.content_length(response.body().size());
+//		} else {
+//			response.result(http::status::not_found);
+//			response.set(http::field::content_type, "text/plain");
+//			beast::ostream(response.body()) << "index.html not found\n";
+//		}
+//	};
+//
+//	getHandles_["/"]            = serveFeApp;
+//	getHandles_["/index"] = serveFeApp;
 
-	// 响应 index.html 的通用 lambda
-	auto serveFeApp = [this](std::shared_ptr<HttpConnection> conn) {
-		auto& response = conn->response_;
-		std::ifstream file(kFeDist + "/index.html", std::ios::binary);
-		if (file.is_open()) {
-			response.result(http::status::ok);
-			std::stringstream buffer;
-			buffer << file.rdbuf();
-			response.set(http::field::content_type, "text/html");
-			beast::ostream(response.body()) << buffer.str();
-			response.content_length(response.body().size());
-		} else {
-			response.result(http::status::not_found);
-			response.set(http::field::content_type, "text/plain");
-			beast::ostream(response.body()) << "index.html not found\n";
-		}
-	};
-
-	// SPA 路由 —— 所有前端路由都返回 index.html
-	getHandles_["/"]            = serveFeApp;
-	getHandles_["/login"]       = serveFeApp;
-	getHandles_["/register"]    = serveFeApp;
-	getHandles_["/products"]    = serveFeApp;
-	getHandles_["/orders"]      = serveFeApp;
-	getHandles_["/rank"]        = serveFeApp;
 }
 
 void LogicSystem::registerPostHandler()
@@ -351,54 +347,45 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 	// 解码出来 URL放在 url_变量当中;  然后将 键值对 放在getPrama_中
 	prase_get_request(target);
 	std::cout << "prase url = " << url_ << std::endl;
-	if (getHandles_.count(url_))
-	{
-		getHandles_[url_](conn);
-		url_ = "";
-		getPrama_.clear();
-	}
-	else
-	{
-		// 无匹配路由 → 尝试作为静态文件返回
-		static const std::string kFeDist = "../../client/fe/dist";
-		std::string filePath = kFeDist + url_;
-		std::ifstream file(filePath, std::ios::binary);
-		auto& response = conn->response_;
+	// 作为静态文件返回
+	static const std::string kFeDist = "../../client/React/dist";
+	std::string filePath = kFeDist + url_;
+	std::cout << "[GateServer] filePath = " << filePath << std::endl;
+	std::ifstream file(filePath, std::ios::binary);
+	auto& response = conn->response_;
+	auto isSuffix = [](const std::string& s, const std::string& sfx) {
+		return s.size() >= sfx.size() && s.rfind(sfx) == s.size() - sfx.size();
+	};
 
-		auto isSuffix = [](const std::string& s, const std::string& sfx) {
-			return s.size() >= sfx.size() && s.rfind(sfx) == s.size() - sfx.size();
-		};
-
-		if (file.is_open()) {
+	if (file.is_open()) {
+		response.result(http::status::ok);
+		std::stringstream buffer;
+		buffer << file.rdbuf();
+		if (isSuffix(filePath, ".css"))       response.set(http::field::content_type, "text/css");
+		else if (isSuffix(filePath, ".js"))   response.set(http::field::content_type, "application/javascript");
+		else if (isSuffix(filePath, ".svg"))  response.set(http::field::content_type, "image/svg+xml");
+		else if (isSuffix(filePath, ".png"))  response.set(http::field::content_type, "image/png");
+		else                              response.set(http::field::content_type, "application/octet-stream");
+		beast::ostream(response.body()) << buffer.str();
+		response.content_length(response.body().size());
+	} else {
+		// 静态文件也不存在 → SPA 回退
+		std::ifstream idx(kFeDist + "/index.html");
+		if (idx.is_open()) {
 			response.result(http::status::ok);
-			std::stringstream buffer;
-			buffer << file.rdbuf();
-			if (isSuffix(filePath, ".css"))       response.set(http::field::content_type, "text/css");
-			else if (isSuffix(filePath, ".js"))   response.set(http::field::content_type, "application/javascript");
-			else if (isSuffix(filePath, ".svg"))  response.set(http::field::content_type, "image/svg+xml");
-			else if (isSuffix(filePath, ".png"))  response.set(http::field::content_type, "image/png");
-			else                              response.set(http::field::content_type, "application/octet-stream");
-			beast::ostream(response.body()) << buffer.str();
+			std::stringstream buf;
+			buf << idx.rdbuf();
+			response.set(http::field::content_type, "text/html");
+			beast::ostream(response.body()) << buf.str();
 			response.content_length(response.body().size());
 		} else {
-			// 静态文件也不存在 → SPA 回退
-			std::ifstream idx(kFeDist + "/index.html");
-			if (idx.is_open()) {
-				response.result(http::status::ok);
-				std::stringstream buf;
-				buf << idx.rdbuf();
-				response.set(http::field::content_type, "text/html");
-				beast::ostream(response.body()) << buf.str();
-				response.content_length(response.body().size());
-			} else {
-				response.result(http::status::not_found);
-				response.set(http::field::content_type, "text/plain");
-				beast::ostream(response.body()) << "404 not found\n";
-			}
+			response.result(http::status::not_found);
+			response.set(http::field::content_type, "text/plain");
+			beast::ostream(response.body()) << "404 not found\n";
 		}
-		url_ = "";
-		getPrama_.clear();
 	}
+	url_ = "";
+	getPrama_.clear();
 }
 
 void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn)
