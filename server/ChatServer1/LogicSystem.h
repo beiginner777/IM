@@ -4,6 +4,7 @@
 #include "global.h"
 #include "TokenBucket.h"
 #include <unordered_map>
+#include <condition_variable>
 class RecvNode;
 class CSession;
 class LogicNode
@@ -28,6 +29,8 @@ public:
 	~LogicSystem();
 	// 向提供接口，向逻辑队列投递 逻辑结点
 	void postMsgToQue(std::shared_ptr<LogicNode> logicNode);
+	// LogicWorker 调用的分发入口
+	void dispatch(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid);
 	// ChatServerImpl 请求相关的信息
 	std::shared_ptr<ChatMessage> GetUserThreadImageMsg(std::string unique_name);
 private:
@@ -83,9 +86,9 @@ private:
 	bool RemoveUserThreadImageMsg(std::string unique_name);
 	std::queue<std::shared_ptr<LogicNode>> que_;
 	std::map<int, functionCallback> handlers_;
-	// 子线程来执行任务
-	std::thread work_thread_;
-	// 逻辑队列是共享资源
+	// LogicWorker 线程池
+	std::vector<std::shared_ptr<class LogicWorker>> workers_;  // 必须在 handlers_ 之后初始化
+	// 逻辑队列是共享资源（单线程 dealTask 已废弃，保留用于兼容）
 	std::mutex mtx_;
 	std::condition_variable cond_;
 	// 是否停止工作
