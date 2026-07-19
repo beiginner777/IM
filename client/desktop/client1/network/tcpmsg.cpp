@@ -409,6 +409,11 @@ void TcpMsg::registerSignal()
                 msg_id_ = ((quint16)(quint8)buffer_[36] << 8) | (quint16)(quint8)buffer_[37];
                 // msg_len: BigEndian uint16 at offset 38~39
                 msg_len_ = ((quint16)(quint8)buffer_[38] << 8) | (quint16)(quint8)buffer_[39];
+                // hex dump header + first 4 bytes of body
+                QString hex;
+                for (int i=0; i<qMin(buffer_.size(), 44); i++)
+                    hex += QString("%1 ").arg((quint8)buffer_[i], 2, 16, QChar('0'));
+                qDebug() << "[TcpMsg] buf:" << hex << "msg_id:" << msg_id_ << "msg_len:" << msg_len_ << "bufSize:" << buffer_.size();
                 buffer_ = buffer_.mid(HEADER_SIZE);
                 assert(!recvUuid.isEmpty());
                 if (!recvUuid.isEmpty()) {
