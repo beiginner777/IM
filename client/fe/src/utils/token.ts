@@ -4,16 +4,14 @@ interface ServerInfo {
   username: string
   host: string
   port: number
+  token: string
+  balance: number
 }
 
 export function getServerInfo(): ServerInfo | null {
   const raw = localStorage.getItem(SERVER_KEY)
   if (!raw) return null
-  try {
-    return JSON.parse(raw)
-  } catch {
-    return null
-  }
+  try { return JSON.parse(raw) } catch { return null }
 }
 
 export function setServerInfo(info: ServerInfo): void {
@@ -22,6 +20,10 @@ export function setServerInfo(info: ServerInfo): void {
 
 export function removeServerInfo(): void {
   localStorage.removeItem(SERVER_KEY)
+}
+
+export function getToken(): string {
+  return getServerInfo()?.token || ''
 }
 
 export function isLoggedIn(): boolean {

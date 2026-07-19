@@ -1,6 +1,13 @@
 import axios from 'axios'
 import { message } from 'ant-design-vue'
-import { getServerInfo } from '../utils/token'
+import { getServerInfo, getToken } from '../utils/token'
+
+// ==================== 请求拦截器：附带 JWT ====================
+request.interceptors.request.use((config) => {
+  const token = getToken()
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
 
 const request = axios.create({
   baseURL: '/api',
