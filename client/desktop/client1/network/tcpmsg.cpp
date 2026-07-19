@@ -388,7 +388,9 @@ void TcpMsg::registerSignal()
     // 当缓冲区接收到服务器的数据之后，触发对应的槽函数
     connect(socket_,&QTcpSocket::readyRead,[&](){
         // 将服务器发送的消息存储到缓冲区
+        int n = socket_->bytesAvailable();
         buffer_.append(socket_->readAll());
+        qDebug() << "[TcpMsg] readyRead: +" << n << "bytes, buffer=" << buffer_.size();
 
         forever
         {
