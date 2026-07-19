@@ -61,8 +61,6 @@ public slots:
     // 滑动窗口
     void sendWindow(std::shared_ptr<MsgInfo> info);
     void scanWindow();
-    void onResumeUploadRsp(REQUEST_ID reqId, int msgLen, QByteArray data);
-    void queryResumeProgress(std::shared_ptr<MsgInfo> info);
 
 signals:
     void signalConnToResServer(ServerInfo si);

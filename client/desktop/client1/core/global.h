@@ -260,8 +260,6 @@ enum REQUEST_ID
 
     ID_FILE_CONTINUE_DOWNLOAD_REQ, // 文件续传下载请求
     ID_FILE_CONTINUE_DOWNLOAD_RSP, // 文件续传下载回包
-    ID_RESUME_UPLOAD_REQ, // 断点续传 - 查询上传进度
-    ID_RESUME_UPLOAD_RSP, // 断点续传 - 返回进度
 };
 Q_DECLARE_METATYPE(REQUEST_ID)
 
