@@ -388,9 +388,7 @@ void TcpMsg::registerSignal()
     // 当缓冲区接收到服务器的数据之后，触发对应的槽函数
     connect(socket_,&QTcpSocket::readyRead,[&](){
         // 将服务器发送的消息存储到缓冲区
-        int n = socket_->bytesAvailable();
         buffer_.append(socket_->readAll());
-        qDebug() << "[TcpMsg] readyRead: +" << n << "bytes, buffer=" << buffer_.size();
 
         forever
         {
@@ -409,11 +407,6 @@ void TcpMsg::registerSignal()
                 msg_id_ = ((quint16)(quint8)buffer_[36] << 8) | (quint16)(quint8)buffer_[37];
                 // msg_len: BigEndian uint16 at offset 38~39
                 msg_len_ = ((quint16)(quint8)buffer_[38] << 8) | (quint16)(quint8)buffer_[39];
-                // hex dump header + first 4 bytes of body
-                QString hex;
-                for (int i=0; i<qMin(buffer_.size(), 44); i++)
-                    hex += QString("%1 ").arg((quint8)buffer_[i], 2, 16, QChar('0'));
-                qDebug() << "[TcpMsg] buf:" << hex << "msg_id:" << msg_id_ << "msg_len:" << msg_len_ << "bufSize:" << buffer_.size();
                 buffer_ = buffer_.mid(HEADER_SIZE);
                 assert(!recvUuid.isEmpty());
                 if (!recvUuid.isEmpty()) {
@@ -432,15 +425,8 @@ void TcpMsg::registerSignal()
             buffer_ = buffer_.mid(msg_len_);
             b_recv_pedding_ = false;
 
-            qDebug() << "[TcpMsg] msg_id = " << msg_id_ << " (enum ID_IMAGE_CHAT_MSG_RSP = " << (int)ID_IMAGE_CHAT_MSG_RSP << ")";
-
-            // 硬编码兜底：无论如何 msg_id=1035 都走 sendImgMsg
-            if (msg_id_ == 1035) {
-                qDebug() << "[TcpMsg] force route msg_id=1035 to sendImgMsg";
-                sendImgMsg((REQUEST_ID)1035, msg_len_, messageBody);
-            } else {
-                handlers_[msg_id_]((REQUEST_ID)msg_id_,msg_len_,messageBody);
-            }
+            // 添加对应的参数
+            handlers_[msg_id_]((REQUEST_ID)msg_id_,msg_len_,messageBody);
 
             }
         });
