@@ -537,7 +537,6 @@ bool ChatUserView::eventFilter(QObject *watched, QEvent *event)
             if(maxScrollValue - currentValue <= 0){
                 if(is_load_more_from_local_){
                     qDebug() << "loading more ChatUser";
-                    //emit LoadLocalData::GetInstance()->signalLoadChatUserList();
                 }
             }
         }

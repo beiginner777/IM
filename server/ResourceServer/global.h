@@ -163,8 +163,10 @@ enum REQUEST_ID
     ID_LOAD_CHAT_MSG_RSP, // 加载聊天消息的回包
     ID_FILE_CONTINUE_DOWNLOAD_REQ, // 文件续传下载请求
     ID_FILE_CONTINUE_DOWNLOAD_RSP, // 文件续传下载回包
-	ID_REGISTER_REQ,
-	ID_REGISTER_RSP
+    ID_RESUME_UPLOAD_REQ, // 断点续传查询进度
+    ID_RESUME_UPLOAD_RSP, // 断点续传返回进度
+    ID_REGISTER_REQ, // 服务注册请求（StatusServer）
+    ID_REGISTER_RSP  // 服务注册回包（StatusServer）
 };
 enum REDIS_ID
 {

@@ -306,6 +306,7 @@ void UserManager::addChatThreadData(std::shared_ptr<ChatThreadData> chatThreadDa
 {
     int thread_id = chatThreadData->GetThreadId();
     int other_id = chatThreadData->GetOtherId();
+    qDebug() << "Create thread_id = " << thread_id << " other_id = " << other_id << " ChatThreadData.";
     if(_chat_map.find(thread_id) != _chat_map.end()){
         qDebug() << "thread_id = " << thread_id << " other_id = " << other_id << " ChatThreadData exist.";
         return;

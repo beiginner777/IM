@@ -221,7 +221,8 @@ public:
         int thread_id, CHAT_THREAD_TYPE form_type, CHAT_MSG_TYPE msg_type,
         int send_uid, int recv_uid, int status, QDateTime chat_time):
         ChatDataBase(message_id,unique_id,thread_id, form_type, msg_type, msg_info->unique_name_,
-            send_uid, recv_uid, status, chat_time), msg_info_(msg_info)
+            send_uid, recv_uid, status, chat_time)
+        ,msg_info_(msg_info)
     {
     }
     std::shared_ptr<MsgInfo> msg_info_;

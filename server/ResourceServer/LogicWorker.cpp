@@ -359,7 +359,7 @@ void LogicWorker::fileContinueDownload(std::shared_ptr<CSession> session, short 
 	}
 	rtvalue["uid"] = file_info->uid_;
 	rtvalue["download_file"] = file_info->download_file_;
-	rtvalue["last_ack_seq"] = file_info->last_acked_seq_;
+	//rtvalue["last_ack_seq"] = file_info->last_acked_seq_;
 	rtvalue["last_seq"] = file_info->last_seq_;
 	rtvalue["trans_size"] = file_info->trans_size_;
 	rtvalue["total_size"] = file_info->total_size_;
