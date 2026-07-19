@@ -145,6 +145,7 @@
     <ClCompile Include="CServer.cpp" />
     <ClCompile Include="CSession.cpp" />
     <ClCompile Include="LogicSystem.cpp" />
+    <ClCompile Include="LogicWorker.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="message.grpc.pb.cc" />
     <ClCompile Include="message.pb.cc" />
@@ -165,6 +166,7 @@
     <ClInclude Include="data.h" />
     <ClInclude Include="global.h" />
     <ClInclude Include="LogicSystem.h" />
+    <ClInclude Include="LogicWorker.h" />
     <ClInclude Include="message.grpc.pb.h" />
     <ClInclude Include="message.pb.h" />
     <ClInclude Include="MsgNode.h" />
