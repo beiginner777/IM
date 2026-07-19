@@ -425,6 +425,8 @@ void TcpMsg::registerSignal()
             buffer_ = buffer_.mid(msg_len_);
             b_recv_pedding_ = false;
 
+            qDebug() << "[TcpMsg] msg_id = " << msg_id_ ;
+
             // 添加对应的参数
             handlers_[msg_id_]((REQUEST_ID)msg_id_,msg_len_,messageBody);
 
