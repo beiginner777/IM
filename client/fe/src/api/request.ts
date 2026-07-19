@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { message } from 'ant-design-vue'
+import { getServerInfo } from '../utils/token'
 
 const request = axios.create({
   baseURL: '/api',
@@ -63,5 +64,12 @@ request.interceptors.response.use(
     return Promise.reject(error)
   },
 )
+
+// 页面刷新后从 localStorage 恢复 baseURL ——
+// 否则刷新后 axios 回到默认 /api，所有业务请求打到 GateServer 拿 HTML 而非 JSON
+const saved = getServerInfo()
+if (saved) {
+  request.defaults.baseURL = `http://${saved.host}:${saved.port}`
+}
 
 export default request

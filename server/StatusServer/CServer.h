@@ -18,6 +18,8 @@ public:
 	const std::map<std::string, std::shared_ptr<CSession>>& getSessions() const { return sessions_; }
 	
 	const std::map<std::string, std::shared_ptr<CSession>>& getResourceSessions() const { return resource_sessions_; }
+
+	const std::map<std::string, std::shared_ptr<CSession>>& getSeckillSessions() const { return seckill_sessions_; }
 	
 	std::mutex& getMutex() { return mtx_; }
 	
@@ -33,6 +35,7 @@ private:
 	void checkChatServerConnIsOverTime();
 	// 定时检测ResourceServer的连接
 	void checkResourceSercerConnIsOverTime();
+	void checkSeckillServerConnIsOverTime();
 private:
 	boost::asio::io_context& ioc_;
 	// 需要放在 acceptor 前初始化
@@ -42,7 +45,8 @@ private:
 	// 存放连接 uuid : ChatServer_CSession
 	std::map<std::string, std::shared_ptr<CSession>> sessions_; 
 	// 存放连接 uuid : ResourceServer_CSession
-	std::map<std::string, std::shared_ptr<CSession>> resource_sessions_; 
+	std::map<std::string, std::shared_ptr<CSession>> resource_sessions_;
+	std::map<std::string, std::shared_ptr<CSession>> seckill_sessions_;
 	// 以上map是共享资源
 	std::mutex mtx_;
 	// 定时器

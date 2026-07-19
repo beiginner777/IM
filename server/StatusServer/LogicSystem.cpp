@@ -110,7 +110,13 @@ void LogicSystem::storeServerInfoInRedis(const Server_Info& info)
 	json["name"] = info.name;
 	json["con_count"] = info.con_count;
 	json["server_type"] = (int)info.server_type;
-	std::string key = (info.server_type == CHAT_SERVER) ? CHATSERVERS : RESOURCESERVERS;
+	std::string key;
+	switch (info.server_type) {
+	case CHAT_SERVER:   key = CHATSERVERS;    break;
+	case RESOURCE_SERVER: key = RESOURCESERVERS; break;
+	case SECKILL_SERVER: key = SECKILLSERVERS; break;
+	default:            key = CHATSERVERS;     break;
+	}
 	RedisManager::getInstance()->HSet(key, info.name, json.toStyledString());
 }
 void LogicSystem::heartCheck(std::shared_ptr<CSession> session, short msgId, std::string msgData)

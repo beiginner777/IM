@@ -12,6 +12,8 @@ using message::GetChatServerReq;
 using message::GetChatServerRsp;
 using message::GetResourceServerReq;
 using message::GetResourceServerRsp;
+using message::GetSeckillServerReq;
+using message::GetSeckillServerRsp;
 using message::StatusService;
 using namespace message;
 class StatusServiceImpl final : public StatusService::Service
@@ -22,6 +24,8 @@ public:
         GetChatServerRsp* reply) override;
     Status GetResourceServer(ServerContext* context, const GetResourceServerReq* request,
         GetResourceServerRsp* reply) override;
+    Status GetSeckillServer(ServerContext* context, const GetSeckillServerReq* request,
+        GetSeckillServerRsp* reply) override;
     // 注入 CServer 指针（在 main 中 CServer 创建后调用）
     void setCServer(CServer* server) { server_ = server; }
 private:
