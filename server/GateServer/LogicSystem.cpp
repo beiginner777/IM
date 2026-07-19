@@ -4,6 +4,7 @@
 #include "MysqlManager.h"
 #include "StatusGrpcClient.h"
 #include "crypto/BCryptHasher.h"
+#include "JWT.h"
 LogicSystem::LogicSystem()
 {
     registerGetHandler();
@@ -334,6 +335,10 @@ void LogicSystem::registerPostHandler()
 		}
 		value["error_code"] = SUCCESS;
 		value["username"] = name;
+		// JWT token（前端存储，后续请求带上）
+		value["token"] = JWT::generateToken(userInfo->uid_, name);
+		// 用户余额（前端充值页面显示）
+		value["balance"] = userInfo->balance_;
 		// SeckillServer 地址（前端 setBaseURL 使用，port 需为数字类型）
 		value["host"] = reply.host();
 		value["port"] = std::atoi(reply.port().c_str());

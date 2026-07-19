@@ -16,6 +16,8 @@ public:
 	~HttpConnection();
 	tcp::socket& getSock() { return sock_; }
 	void start();
+	bool authenticate();  // JWT 验证，成功则设置 uid_
+	int uid() const { return uid_; }
 
 	tcp::socket sock_;
 	net::steady_timer deadline_;
@@ -24,11 +26,11 @@ private:
 	void prase_request();
 	void send_response();
 
-	void resetDeadline();        // 请求完成后重置 60s 空闲超时
-	void closeConnection();      // 清理连接计数 + 关 socket
+	void resetDeadline();
+	void closeConnection();
 	SeckillServer* server_;
-	bool connectionClosed_;      // 防止 closeConnection 重复调用
-	// 接收缓冲区
+	bool connectionClosed_;
+	int uid_{0};  // 认证后的用户 ID
 	boost::beast::flat_buffer buffer_{ 8192 };
 	http::request<http::dynamic_body> request_;
 	http::response<http::dynamic_body> response_;

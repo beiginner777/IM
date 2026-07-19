@@ -2,6 +2,7 @@
 #include "HttpConnection.h"
 #include "LogicSystem.h"
 #include "SeckillServer.h"
+#include "JWT.h"
 
 HttpConnection::HttpConnection(tcp::socket&& sock, SeckillServer* server)
 	: sock_(std::move(sock))
@@ -120,3 +121,13 @@ void HttpConnection::send_response()
 			self->read_request();
 		});
 }
+
+bool HttpConnection::authenticate()
+{
+	auto authIt = request_.find(http::field::authorization);
+	if (authIt == request_.end()) return false;
+	std::string auth = authIt->value().to_string();
+	if (auth.size() < 8 || auth.substr(0, 7) != "Bearer ") return false;
+	return JWT::verify(auth.substr(7), uid_);
+}
+

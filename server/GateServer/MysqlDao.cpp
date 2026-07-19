@@ -90,6 +90,7 @@ int MysqlDao::userLogin(std::string name, std::string password, std::shared_ptr<
             std::string icon_ = res->getString("icon");
             int sex_ = res->getInt("sex");
             std::string nick_ = res->getString("nick");
+            double balance_ = res->getDouble("balance");
             std::cout << "name=" << name_ << std::endl;
             if (name == name_ && BCryptHasher::verifyPassword(password, password_)) {
                 std::cout << "User(" << name << ") login success.\n";
@@ -101,6 +102,7 @@ int MysqlDao::userLogin(std::string name, std::string password, std::shared_ptr<
                 userInfo->icon_ = icon_;
                 userInfo->sex_ = sex_;
                 userInfo->nick_ = nick_;
+                userInfo->balance_ = balance_;
                 return SUCCESS;
             }
             std::cout << "User(" << name << ") password error." << std::endl;
