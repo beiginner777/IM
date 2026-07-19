@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Form, Input, Button, message, Modal } from 'ant-design-vue'
+import { Form, Input, Button, message } from 'ant-design-vue'
 import { UserOutlined, LockOutlined, ThunderboltOutlined } from '@ant-design/icons-vue'
 import { login, setBaseURL } from '../api'
 import { useAuthStore } from '../store/auth'
@@ -40,16 +40,10 @@ async function handleSubmit() {
     // 2. 切换后端地址
     setBaseURL(host, port)
 
-    // 3. 欢迎提示
-    Modal.success({
-      title: '登录成功',
-      content: `欢迎 ${username} 进入秒杀系统！`,
-      okText: '开始抢购',
-      onOk: () => {
-        const redirect = (route.query.redirect as string) || '/products'
-        router.push(redirect)
-      },
-    })
+    // 3. 欢迎提示并跳转
+    const redirect = (route.query.redirect as string) || '/products'
+    message.success(`欢迎 ${username}，登录成功！`, 1.5)
+    router.push(redirect)
   } catch {
     // 错误已由拦截器统一处理（error_msg → message.error）
   } finally {

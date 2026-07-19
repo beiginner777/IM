@@ -59,8 +59,7 @@ int MysqlManager::userLogin(std::string name, std::string password, std::shared_
 {
 	// Bloom pre-check
 	auto bf = getBloomFilter();
-	if (bf && !bf->contains(name))
-	{
+	if (bf && !bf->contains(name)) {
 		return ERROR_USER_NOT_EXIST;
 	}
 	return dao_.userLogin(name, password, userInfo);

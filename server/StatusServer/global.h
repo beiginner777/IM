@@ -53,6 +53,7 @@
 #define USERUIDPREFIX "uid_"
 #define CHATSERVERS "ChatServers"
 #define RESOURCESERVERS "ResourceServers"
+#define SECKILLSERVERS "SeckillServers"
 #define USERBASEINFO "userbaseinfo_"
 #define USERIPPREFIX  "uip_"
 #define LOCKPREFIX "lock_"
@@ -166,7 +167,8 @@ enum ServerType
 {
     None = 0,
     CHAT_SERVER,
-    RESOURCE_SERVER
+    RESOURCE_SERVER,
+    SECKILL_SERVER // 秒杀业务服务器
 };
 struct Server_Info
 {

@@ -13,6 +13,8 @@ using grpc::Status;
 using grpc::ClientContext;
 using message::GetChatServerReq;
 using message::GetChatServerRsp;
+using message::GetSeckillServerReq;
+using message::GetSeckillServerRsp;
 using message::StatusService;
 class StatusConnPool : public SingleTon<StatusConnPool>
 {
@@ -95,5 +97,6 @@ public:
 	~StatusGrpcClient() {
 	}
 	GetChatServerRsp GetChatServer(int uid);
+	GetSeckillServerRsp GetSeckillServer(int uid);
 };
 #endif
