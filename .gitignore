@@ -93,3 +93,4 @@ server/MySQL/slave-data/
 CLAUDE.mdclient/fe/node_modules/
 client/fe/dist/
 client/fe/.vite/
+*.autosave

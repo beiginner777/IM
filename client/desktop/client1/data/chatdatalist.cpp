@@ -524,9 +524,10 @@ void ChatDataModel::slotChangeTransStatus(QString unique_name)
         qDebug() << "文件：" << unique_name << " 继续上传";
         new_state = TRANSFER_STATE::Uploading;
     }
-
-    // 修改UserManager传输状态
     std::shared_ptr<MsgInfo> trans_info = UserManager::GetInstance()->get_trans_file(unique_name);
+    // 修改数据库传输状态
+    emit LoadLocalData::GetInstance()->signalSaveTransferToDb(unique_name, trans_info->current_size_, trans_info->total_size_, new_state, int(TRANSFER_TYPE::Upload),"");
+    // 修改UserManager传输状态
     trans_info->_state = new_state;
     // 修改Model传输状态
     item.file_.transfer_status_ = new_state;
@@ -1165,6 +1166,7 @@ void ChatDataDelegate::drawPicContent(QPainter* p,
     QPoint topLeft = contentRect.center() - QPoint(scaled.width()/2, scaled.height()/2);
     QRect target(topLeft, scaled.size());
     p->drawPixmap(target, scaled);
+
 }
 
 

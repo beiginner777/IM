@@ -878,7 +878,6 @@ void SqliteManager::loadChatMessage(int thread_id)
                                                           CHAT_MSG_TYPE::TEXT_MSG,content,sender_id,recv_id,status,createdTime);
         }else if(message_type == int(CHAT_MSG_TYPE::PIC_MSG)){
             std::shared_ptr<MsgInfo> msg_info;
-            //o do ... 需要将这个信息，保存到 UserManager 的 trans_info/ download_info,如果是上传，那么就执行续传逻辑； 如果是下载，那么就执行 继续下载的逻辑
             int self_uid = UserManager::GetInstance()->getUid();
             if(sender_id == self_uid){
                 // 上传
@@ -901,7 +900,6 @@ void SqliteManager::loadChatMessage(int thread_id)
 
         }else if(message_type == int(CHAT_MSG_TYPE::FILE_MSG)){
             std::shared_ptr<MsgInfo> msg_info;
-            //o do ... 需要将这个信息，保存到 UserManager 的 trans_info/ download_info,如果是上传，那么就执行续传逻辑； 如果是下载，那么就执行 继续下载的逻辑
             int self_uid = UserManager::GetInstance()->getUid();
             if(sender_id == self_uid){
                 // 上传

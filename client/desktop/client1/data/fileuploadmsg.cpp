@@ -365,7 +365,7 @@ void FileUploadMsg::imgChatContinueUpload(REQUEST_ID req_id, int msg_length, QBy
     // 解析返回结果
     QString unique_name = obj["unique_name"].toString();
     QString md5 = obj["md5"].toString();
-    int seq = obj["seq"].toInt();
+    int last_ack_seq = obj["last_ack_seq"].toInt();
     int last_seq = obj["last_seq"].toInt();
     int total_size = obj["total_size"].toInt();
     int trans_size = obj["trans_size"].toInt();
@@ -374,55 +374,28 @@ void FileUploadMsg::imgChatContinueUpload(REQUEST_ID req_id, int msg_length, QBy
     // 查看文件是否存在
     auto msg_info = UserManager::GetInstance()->get_trans_file(unique_name);
     if(msg_info == nullptr){
-        qDebug() << "Cant find unique_name = " << msg_info->unique_name_;
+        qDebug() << "Cant find unique_name = " << unique_name;
         return;
     }
 
-    // 上传完成
-    if(seq == last_seq){
-        qDebug() << "md5 = " << md5 << " unique_name = " << unique_name << " image picture upload success.\n";
+    // last_ack_seq 是服务端连续确认值
+    if(last_ack_seq >= last_seq){
+        qDebug() << "unique_name = " << unique_name << " upload already complete, last_ack_seq=" << last_ack_seq;
+        msg_info->_state = TRANSFER_STATE::Upload_Finish;
+        emit signalUpdateUploadProgress(unique_name);
         return;
     }
 
-    // 继续上传下一个包
-    QFile file(msg_info->text_or_url_);
-    if(!file.open(QIODevice::ReadOnly)){
-        qDebug() << "filepath = " << msg_info->text_or_url_;
-        qDebug() << "文件 " << msg_info->text_or_url_ << " 打开失败";
-        return;
-    }
-
-    QFileInfo file_info(file);
-    QString fileName = file_info.fileName();
-
-    // 读取文件内容并且发送
-    QByteArray buffer;
-    // 将文件偏移到指定的位置
-    file.seek(trans_size);
-    buffer = file.read(MAX_FILE_LEN);
-
-    seq++;
-
-    // 将文件内容转换为 Base64编码（实际上一次传输的文件大小不止是2048，因为base64编码之后，会将数据变大）
-    QString base64Data = buffer.toBase64();
-    //qDebug() << "Send Seq = " << seq << " Data is " << base64Data;
-
-    QJsonObject send_msg;
-    send_msg["uid"] = UserManager::GetInstance()->getUid();
-    send_msg["filename"] = unique_name;
-    send_msg["seq"] = seq;
-    send_msg["lastseq"] = last_seq;
-    send_msg["transferredsize"] = buffer.size() + (seq - 1) * MAX_FILE_LEN;
-    send_msg["totolsize"] = total_size;
-    send_msg["data"] = base64Data;
-    send_msg["md5"] = md5;
-
-    QJsonDocument send_doc(send_msg);
-    QByteArray sendData = send_doc.toJson();
-
-    emit signalSendData(ID_IMAGE_CHAT_MSG_REQ,sendData);
-
-    file.close();
+    // 设置窗口位置：从 last_acked + 1 开始，走滑动窗口
+    msg_info->window_base_ = last_ack_seq + 1;
+    msg_info->last_seq_    = last_seq;
+    msg_info->total_size_  = total_size;
+    msg_info->current_size_= last_ack_seq * MAX_FILE_LEN;
+    msg_info->_state       = TRANSFER_STATE::Uploading;
+    qDebug() << "[Client] resume: unique_name=" << unique_name
+             << " start from seq=" << msg_info->window_base_
+             << " last_seq=" << last_seq;
+    sendWindow(msg_info);
 }
 
 void FileUploadMsg::fileContinueDownload(REQUEST_ID req_id, int msg_length, QByteArray data)
