@@ -109,7 +109,6 @@
     <ClCompile Include="ConfigManager.cpp" />
     <ClCompile Include="crypto\BCryptHasher.cpp" />
     <ClCompile Include="crypto\bcrypt_impl.c" />
-    <ClCompile Include="JWT.cpp" />
     <ClCompile Include="MessageDeduplicator.cpp" />
     <ClCompile Include="RedisLocker.cpp" />
     <ClCompile Include="AlertManager.cpp" />
