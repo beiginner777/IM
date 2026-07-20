@@ -17,6 +17,7 @@
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ClCompile Include="..\common\JWT.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -142,9 +143,7 @@
     <ClCompile Include="message.grpc.pb.cc" />
     <ClCompile Include="message.pb.cc" />
     <ClCompile Include="MysqlDao.cpp" />
-    <ClCompile Include="..mmonJWT.cpp" />
     <ClCompile Include="MysqlManager.cpp" />
-    <ClCompile Include="..mmonJWT.cpp" />
     <ClCompile Include="StatusGrpcClient.cpp" />
   </ItemGroup>
   <ItemGroup>

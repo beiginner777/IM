@@ -17,6 +17,7 @@
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ClCompile Include="..\common\JWT.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -141,7 +142,6 @@
     <ClCompile Include="MsgNode.cpp" />
     <ClCompile Include="MysqlDao.cpp" />
     <ClCompile Include="SeckillServer.cpp" />
-    <ClCompile Include="..mmonJWT.cpp" />
     <ClCompile Include="StatusClientSession.cpp" />
   </ItemGroup>
   <ItemGroup>

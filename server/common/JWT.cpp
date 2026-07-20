@@ -14,7 +14,7 @@ bool JWT::verify(const std::string& token, int& uid, const std::string& username
 	Json::Reader reader;
 	if (!reader.parse(jsonStr, payload)) return false;
 
-	long long exp = payload["exp"].asInt64();
+	long long exp = payload["exp"].asInt();
 	auto now = std::chrono::system_clock::now();
 	auto nowSec = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
 	if (nowSec > exp) {
