@@ -41,6 +41,9 @@
     <ClCompile Include="BloomFilter.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="JWT.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AsioIOContextThreadPool.h">
@@ -71,6 +74,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Defer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="JWT.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

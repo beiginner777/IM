@@ -139,7 +139,9 @@
     <ClCompile Include="LogicSystem.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MsgNode.cpp" />
+    <ClCompile Include="MysqlDao.cpp" />
     <ClCompile Include="SeckillServer.cpp" />
+    <ClCompile Include="..mmonJWT.cpp" />
     <ClCompile Include="StatusClientSession.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -147,6 +149,7 @@
     <ClInclude Include="HttpConnection.h" />
     <ClInclude Include="LogicSystem.h" />
     <ClInclude Include="MsgNode.h" />
+    <ClInclude Include="MysqlDao.h" />
     <ClInclude Include="SeckillServer.h" />
     <ClInclude Include="StatusClientSession.h" />
   </ItemGroup>

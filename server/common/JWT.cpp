@@ -1,13 +1,28 @@
 #include "JWT.h"
+#include "RedisManager.h"
 #include "ConfigManager.h"
+#include <json/json.h>
 
-const std::string& JWT::secret()
+bool JWT::verify(const std::string& token, int& uid, const std::string& username)
 {
-	static std::string s;
-	if (s.empty()) {
-		auto cfg = ConfigManager::getInstance();
-		s = cfg["JWT"]["Secret"];
-		if (s.empty()) s = "im-secret-key-2026";  // 默认值
+	// 查 Redis: "token:{token}" → JSON {uid, username, exp}
+	std::string key = "token:" + token;
+	std::string jsonStr = RedisManager::getInstance()->Get(key, true);
+	if (jsonStr.empty()) return false;
+
+	Json::Value payload;
+	Json::Reader reader;
+	if (!reader.parse(jsonStr, payload)) return false;
+
+	long long exp = payload["exp"].asInt64();
+	auto now = std::chrono::system_clock::now();
+	auto nowSec = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+	if (nowSec > exp) {
+		RedisManager::getInstance()->Del(key);
+		return false;
 	}
-	return s;
+
+	uid = payload["uid"].asInt();
+	if (!username.empty() && payload["username"].asString() != username) return false;
+	return true;
 }

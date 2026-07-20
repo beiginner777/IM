@@ -4,6 +4,7 @@
 #include "global.h"
 #include "SingleTon.h"
 #include "HttpConnection.h"
+#include "MysqlDao.h"
 // 秒杀商品（Mock 阶段存内存，后续任务替换为 Redis 库存 + MySQL 订单 + RabbitMQ）
 struct SeckillProduct
 {
@@ -58,7 +59,6 @@ private:
 	std::vector<OrderRecord> orders_;
 	int nextOrderId_;
 	std::mutex dataMtx_;
-	// DB
-	class MysqlDao* mysqlDao_{nullptr};
+	MysqlDao* mysqlDao_{nullptr};
 };
 #endif

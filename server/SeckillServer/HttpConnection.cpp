@@ -128,6 +128,6 @@ bool HttpConnection::authenticate()
 	if (authIt == request_.end()) return false;
 	std::string auth = authIt->value().to_string();
 	if (auth.size() < 8 || auth.substr(0, 7) != "Bearer ") return false;
-	return JWT::verify(auth.substr(7), uid_);
+	return JWT::verify(auth.substr(7), uid_, "");
 }
 

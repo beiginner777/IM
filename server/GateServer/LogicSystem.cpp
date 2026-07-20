@@ -335,8 +335,16 @@ void LogicSystem::registerPostHandler()
 		}
 		value["error_code"] = SUCCESS;
 		value["username"] = name;
-		// JWT token（前端存储，后续请求带上）
-		value["token"] = JWT::generateToken(userInfo->uid_, name);
+		// JWT token（UUID，Redis 存 payload）
+		std::string token = JWT::generateToken(userInfo->uid_, name);
+		value["token"] = token;
+		// 存 Redis: token:{uuid} → {uid, username, exp}
+		Json::Value tokenPayload;
+		tokenPayload["uid"] = userInfo->uid_;
+		tokenPayload["username"] = name;
+		tokenPayload["exp"] = (Json::Int64)std::chrono::duration_cast<std::chrono::seconds>(
+			(std::chrono::system_clock::now() + std::chrono::hours(24)).time_since_epoch()).count();
+		RedisManager::getInstance()->SetExp("token:" + token, tokenPayload.toStyledString(), JWT::TOKEN_TTL);
 		// 用户余额（前端充值页面显示）
 		value["balance"] = userInfo->balance_;
 		// SeckillServer 地址（前端 setBaseURL 使用，port 需为数字类型）
