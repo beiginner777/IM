@@ -342,7 +342,7 @@ void LogicSystem::registerPostHandler()
 		Json::Value tokenPayload;
 		tokenPayload["uid"] = userInfo->uid_;
 		tokenPayload["username"] = name;
-		tokenPayload["exp"] = (Json::Int64)std::chrono::duration_cast<std::chrono::seconds>(
+		tokenPayload["exp"] = (Json::Int)std::chrono::duration_cast<std::chrono::seconds>(
 			(std::chrono::system_clock::now() + std::chrono::hours(24)).time_since_epoch()).count();
 		RedisManager::getInstance()->SetExp("token:" + token, tokenPayload.toStyledString(), JWT::TOKEN_TTL);
 		// 用户余额（前端充值页面显示）

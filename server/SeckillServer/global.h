@@ -25,6 +25,12 @@
 #include <cassert>
 #include "SingleTon.h"
 #include "ConfigManager.h"
+#include <jdbc/mysql_driver.h>
+#include <jdbc/mysql_connection.h>
+#include <jdbc/cppconn/prepared_statement.h>
+#include <jdbc/cppconn/resultset.h>
+#include <jdbc/cppconn/statement.h>
+#include <jdbc/cppconn/exception.h>
 
 // TCP 消息帧头：[2字节 msg_id][2字节 msg_len]（网络字节序），与 StatusServer 一致
 #define HEAD_TOTOL_LEN 4
