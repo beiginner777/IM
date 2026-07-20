@@ -126,7 +126,7 @@ bool HttpConnection::authenticate()
 {
 	auto authIt = request_.find(http::field::authorization);
 	if (authIt == request_.end()) return false;
-	std::string auth = authIt->value().to_string();
+	std::string auth(authIt->value());
 	if (auth.size() < 8 || auth.substr(0, 7) != "Bearer ") return false;
 	return JWT::verify(auth.substr(7), uid_, "");
 }
