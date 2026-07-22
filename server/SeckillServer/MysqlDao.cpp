@@ -49,7 +49,7 @@ double MysqlDao::getBalance(int uid)
 		auto stmt = conn->con_->createStatement();
 		auto res = stmt->executeQuery("SELECT balance FROM user WHERE uid = " + std::to_string(uid));
 		if (res->next()) {
-			double b = res->getDouble("balance");
+			double b = (double)res->getDouble("balance");
 			returnConn(std::move(conn));
 			return b;
 		}
@@ -105,7 +105,7 @@ std::vector<MysqlDao::Product> MysqlDao::getProducts() {
 		auto res = stmt->executeQuery("SELECT id,name,price,stock,image_url FROM seckill_product ORDER BY id");
 		while (res->next()) {
 			result.push_back({res->getInt("id"), res->getString("name"),
-				res->getDouble("price"), res->getInt("stock"), res->getString("image_url")});
+				(double)res->getDouble("price"), res->getInt("stock"), res->getString("image_url")});
 		}
 	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] getProducts: "<<e.what()<<std::endl; }
 	returnConn(std::move(conn));
@@ -141,7 +141,7 @@ std::vector<MysqlDao::Order> MysqlDao::getOrders() {
 		auto res = stmt->executeQuery("SELECT id,uid,product_id,product_name,price,created_at FROM seckill_order ORDER BY id DESC LIMIT 100");
 		while (res->next()) {
 			result.push_back({res->getInt("id"), res->getInt("uid"), res->getInt("product_id"),
-				res->getString("product_name"), res->getDouble("price"), res->getString("created_at")});
+				res->getString("product_name"), (double)res->getDouble("price"), res->getString("created_at")});
 		}
 	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] getOrders: "<<e.what()<<std::endl; }
 	returnConn(std::move(conn));
