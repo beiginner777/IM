@@ -17,6 +17,7 @@
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ClCompile Include="JWT.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -120,6 +121,7 @@
     <ClInclude Include="Defer.h" />
     <ClInclude Include="AsioIOContextThreadPool.h" />
     <ClInclude Include="ConfigManager.h" />
+    <ClInclude Include="JWT.h" />
     <ClInclude Include="RedisLocker.h" />
     <ClInclude Include="crypto\BCryptHasher.h" />
     <ClInclude Include="MessageDeduplicator.h" />

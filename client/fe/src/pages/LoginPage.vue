@@ -32,10 +32,10 @@ async function handleSubmit() {
       password: formState.password,
     })
 
-    const { username, host, port } = res.data
+    const { username, host, port, token, balance } = res.data
 
-    // 1. 保存用户信息
-    authStore.loginSuccess(username, host, port)
+    // 1. 保存用户信息（含 token + balance）
+    authStore.loginSuccess(username, host, port, token, balance)
 
     // 2. 切换后端地址
     setBaseURL(host, port)

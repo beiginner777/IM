@@ -34,6 +34,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/recharge',
+      name: 'Recharge',
+      component: () => import('../pages/RechargePage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/rank',
       name: 'Rank',
       component: () => import('../pages/RankPage.vue'),

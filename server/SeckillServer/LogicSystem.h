@@ -4,6 +4,7 @@
 #include "global.h"
 #include "SingleTon.h"
 #include "HttpConnection.h"
+#include "MysqlDao.h"
 // 秒杀商品（Mock 阶段存内存，后续任务替换为 Redis 库存 + MySQL 订单 + RabbitMQ）
 struct SeckillProduct
 {
@@ -31,10 +32,11 @@ public:
 	void handlePostRequest(std::shared_ptr<HttpConnection> conn);
 private:
 	void registerGetHandler();
-	// POST /buy/{productId}：路径参数，前缀匹配处理
 	void handleBuy(std::shared_ptr<HttpConnection> conn, int productId);
-	// 统一 JSON 响应
+	void handleRecharge(std::shared_ptr<HttpConnection> conn);
+	void handleGetBalance(std::shared_ptr<HttpConnection> conn);
 	void sendJson(std::shared_ptr<HttpConnection> conn, const Json::Value& value);
+	void sendAuthError(std::shared_ptr<HttpConnection> conn, const std::string& msg);
 
 	using getRequestHandler = std::function<void(std::shared_ptr<HttpConnection>)>;
 	std::map<std::string, getRequestHandler> getHandles_;
@@ -53,9 +55,10 @@ private:
 
 	// ==================== Mock 数据（内存态） ====================
 	std::vector<SeckillProduct> products_;
-	std::map<int, int> buyCount_;          // productId -> 抢购成功次数（排行榜）
-	std::vector<OrderRecord> orders_;      // 抢购记录
+	std::map<int, int> buyCount_;
+	std::vector<OrderRecord> orders_;
 	int nextOrderId_;
 	std::mutex dataMtx_;
+	MysqlDao* mysqlDao_{nullptr};
 };
 #endif

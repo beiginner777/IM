@@ -2,7 +2,7 @@
 #define DATA_H
 #include "global.h"
 struct UserInfo {
-	UserInfo() :name_(""), pwd_(""), uid_(0), email_(""), nick_(""), desc_(""), sex_(0), icon_(""), back_("") {}
+	UserInfo() :name_(""), pwd_(""), uid_(0), email_(""), nick_(""), desc_(""), sex_(0), icon_(""), back_(""), balance_(0.0) {}
 	std::string name_;
 	std::string pwd_;
 	int uid_;
@@ -12,6 +12,7 @@ struct UserInfo {
 	int sex_;
 	std::string icon_;
 	std::string back_;
+	double balance_;
 };
 struct ApplyInfo {
 	ApplyInfo(int uid, std::string name, std::string desc,

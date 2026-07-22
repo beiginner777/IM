@@ -26,6 +26,10 @@ function handleLogout() {
       <div class="nav-right">
         <template v-if="authStore.isLoggedIn">
           <span class="nav-user"><UserOutlined /> {{ authStore.username }}</span>
+          <span class="nav-balance">余额 ¥{{ authStore.balance.toFixed(2) }}</span>
+          <router-link to="/recharge">
+            <Button type="text" style="color: #ffd700">充值</Button>
+          </router-link>
           <router-link to="/products">
             <Button type="text" style="color: rgba(255,255,255,0.7)">商品</Button>
           </router-link>
@@ -87,6 +91,7 @@ body {
   font-size: 16px; color: #fff;
 }
 .nav-user { color: rgba(255,255,255,0.6); font-size: 14px; }
+.nav-balance { color: #ffd700; font-size: 14px; font-weight: 600; }
 
 .app-main { flex: 1; }
 </style>
