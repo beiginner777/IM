@@ -12,7 +12,7 @@ export interface Order { orderId: number; productName: string; time: string; sta
 export const login    = (p: LoginParams)    => request.post<LoginResult>('/login', p)
 export const register = (p: RegisterParams) => request.post<RegisterResult>('/register', p)
 export const getProducts = ()       => request.get<Product[]>('/products')
-export const buyProduct  = (id: number) => request.post<BuyResult>(`/buy/${id}`)
+export const buyProduct  = (id: number, password: string) => request.post<BuyResult>(`/buy/${id}`, { password })
 export const getRank     = ()       => request.get<RankItem[]>('/rank')
 export const getOrders   = (u: string) => request.get<Order[]>('/orders', { params: { username: u } })
 
