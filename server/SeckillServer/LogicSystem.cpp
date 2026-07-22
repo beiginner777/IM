@@ -132,7 +132,7 @@ void LogicSystem::handleRecharge(std::shared_ptr<HttpConnection> conn) {
 	}
 	RedisManager::getInstance()->Del("balance_cache:"+std::to_string(conn->uid()));
 	v["code"]=0; 
-	v["balance"]=newBal;
+	v["balance"] = newBal;
 	sendJson(conn, v);
 }
 
@@ -150,6 +150,11 @@ void LogicSystem::sendAuthError(std::shared_ptr<HttpConnection> conn, const std:
 
 void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn) {
 	std::string target = conn->request_.target();
+	std::cout << "[SeckillServer] GET " << target << std::endl;
+	// 打印 headers
+	for (auto& h : conn->request_) {
+		std::cout << "  " << h.name_string() << ": " << h.value() << std::endl;
+	}
 	prase_get_request(target);
 	if (getHandles_.count(url_)) { getHandles_[url_](conn); }
 	else { conn->response_.result(http::status::not_found); Json::Value v; v["error"]="not found"; sendJson(conn,v); }
@@ -158,6 +163,12 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn) {
 
 void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn) {
 	std::string target = conn->request_.target();
+	std::string bodyStr = beast::buffers_to_string(conn->request_.body().data());
+	std::cout << "[SeckillServer] POST " << target << std::endl;
+	for (auto& h : conn->request_) {
+		std::cout << "  " << h.name_string() << ": " << h.value() << std::endl;
+	}
+	std::cout << "  body: " << bodyStr << std::endl;
 	if (target == "/recharge") { handleRecharge(conn); return; }
 	static const std::string kBuyPrefix = "/buy/";
 	if (target.find(kBuyPrefix) == 0) { handleBuy(conn, atoi(target.substr(kBuyPrefix.size()).c_str())); return; }
