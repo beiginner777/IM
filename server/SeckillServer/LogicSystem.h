@@ -15,8 +15,8 @@ public:
 	void handlePostRequest(std::shared_ptr<HttpConnection> conn);
 private:
 	void registerGetHandler();
-	void handleBuy(std::shared_ptr<HttpConnection> conn, int productId);
-	void handleRecharge(std::shared_ptr<HttpConnection> conn);
+	void handleBuy(std::shared_ptr<HttpConnection> conn, int productId, const std::string& bodyStr);
+	void handleRecharge(std::shared_ptr<HttpConnection> conn, const std::string& bodyStr);
 	void handleGetBalance(std::shared_ptr<HttpConnection> conn);
 	void sendJson(std::shared_ptr<HttpConnection> conn, const Json::Value& value);
 	void sendAuthError(std::shared_ptr<HttpConnection> conn, const std::string& msg);

@@ -58,11 +58,9 @@ void LogicSystem::registerGetHandler() {
 	};
 }
 
-void LogicSystem::handleBuy(std::shared_ptr<HttpConnection> conn, int productId) {
+void LogicSystem::handleBuy(std::shared_ptr<HttpConnection> conn, int productId, const std::string& bodyStr) {
 	Json::Value v;
 	if (!conn->authenticate()) { v["success"]=false; v["message"]="请先登录"; sendJson(conn,v); return; }
-	// 获取密码
-	std::string bodyStr = beast::buffers_to_string(conn->request_.body().data());
 	Json::Value req; Json::Reader reader; reader.parse(bodyStr, req);
 	std::string pwd = req["password"].asString();
 	if (pwd.empty() || !mysqlDao_->verifyPassword(conn->uid(), pwd)) {
@@ -92,15 +90,9 @@ void LogicSystem::handleBuy(std::shared_ptr<HttpConnection> conn, int productId)
 	std::cout<<"[SeckillServer] uid="<<conn->uid()<<" bought "<<it->name<<" balance="<<newBal<<" stock="<<it->stock<<std::endl;
 }
 
-void LogicSystem::handleRecharge(std::shared_ptr<HttpConnection> conn) {
+void LogicSystem::handleRecharge(std::shared_ptr<HttpConnection> conn, const std::string& bodyStr) {
 	Json::Value v;
-	if (!conn->authenticate()) { 
-		v["code"] =  -1; 
-		v["message"] = "请先登录"; 
-		sendJson(conn,v);
-		return; 
-	}
-	std::string bodyStr = beast::buffers_to_string(conn->request_.body().data());
+	if (!conn->authenticate()) { v["code"]=-1; v["message"]="请先登录"; sendJson(conn,v); return; }
 	Json::Value req; Json::Reader reader; reader.parse(bodyStr, req);
 	std::string pwd = req["password"].asString();
 	double amount = req["amount"].asDouble();
@@ -169,9 +161,9 @@ void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn) {
 		std::cout << "  " << h.name_string() << ": " << h.value() << std::endl;
 	}
 	std::cout << "  body: " << bodyStr << std::endl;
-	if (target == "/recharge") { handleRecharge(conn); return; }
+	if (target == "/recharge") { handleRecharge(conn, bodyStr); return; }
 	static const std::string kBuyPrefix = "/buy/";
-	if (target.find(kBuyPrefix) == 0) { handleBuy(conn, atoi(target.substr(kBuyPrefix.size()).c_str())); return; }
+	if (target.find(kBuyPrefix) == 0) { handleBuy(conn, atoi(target.substr(kBuyPrefix.size()).c_str()), bodyStr); return; }
 	conn->response_.result(http::status::not_found); Json::Value v; v["error"]="not found"; sendJson(conn,v);
 }
 
