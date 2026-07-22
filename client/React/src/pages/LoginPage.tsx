@@ -15,8 +15,8 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const res = await login(v)
-      const { username, host, port } = res.data
-      authStore.loginSuccess(username, host, port)
+      const { username, host, port, token, balance } = res.data
+      authStore.loginSuccess(username, host, port, token, balance)
       setBaseURL(host, port)
       message.success(`欢迎 ${username}，登录成功！`, 1.5)
       nav(params.get('redirect') || '/products')

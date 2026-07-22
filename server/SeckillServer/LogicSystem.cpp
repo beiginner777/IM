@@ -94,23 +94,45 @@ void LogicSystem::handleBuy(std::shared_ptr<HttpConnection> conn, int productId)
 
 void LogicSystem::handleRecharge(std::shared_ptr<HttpConnection> conn) {
 	Json::Value v;
-	if (!conn->authenticate()) { v["code"]=-1; v["message"]="请先登录"; sendJson(conn,v); return; }
+	if (!conn->authenticate()) { 
+		v["code"] =  -1; 
+		v["message"] = "请先登录"; 
+		sendJson(conn,v);
+		return; 
+	}
 	std::string bodyStr = beast::buffers_to_string(conn->request_.body().data());
 	Json::Value req; Json::Reader reader; reader.parse(bodyStr, req);
 	std::string pwd = req["password"].asString();
 	double amount = req["amount"].asDouble();
-	if (amount <= 0) { v["code"]=-1; v["message"]="金额无效"; sendJson(conn,v); return; }
+	if (amount <= 0) { 
+		v["code"] = -1; 
+		v["message"] = "金额无效"; 
+		sendJson(conn,v); 
+		return; 
+	}
 	if (pwd.empty() || !mysqlDao_->verifyPassword(conn->uid(), pwd)) {
-		v["code"]=-1; v["message"]="密码错误"; sendJson(conn,v); return;
+		v["code"] = -1; 
+		v["message"] = "密码错误"; 
+		sendJson(conn,v); 
+		return;
 	}
 	double cur = mysqlDao_->getBalance(conn->uid());
-	if (cur < 0) { v["code"]=-1; v["message"]="查询余额失败"; sendJson(conn,v); return; }
+	if (cur < 0) { 
+		v["code"] = -1; 
+		v["message"] = "查询余额失败"; 
+		sendJson(conn,v); 
+		return; 
+	}
 	double newBal = cur + amount;
 	if (!mysqlDao_->updateBalance(conn->uid(), newBal)) {
-		v["code"]=-1; v["message"]="充值失败"; sendJson(conn,v); return;
+		v["code"] = -1; 
+		v["message"] = "充值失败";
+		sendJson(conn,v);
+		return;
 	}
 	RedisManager::getInstance()->Del("balance_cache:"+std::to_string(conn->uid()));
-	v["code"]=0; v["balance"]=newBal;
+	v["code"]=0; 
+	v["balance"]=newBal;
 	sendJson(conn, v);
 }
 
