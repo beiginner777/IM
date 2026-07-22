@@ -75,12 +75,6 @@ void LogicSystem::registerGetHandler() {
 void LogicSystem::handleBuy(std::shared_ptr<HttpConnection> conn, int productId, const std::string& bodyStr) {
 	Json::Value v;
 	if (!conn->authenticate()) { v["success"]=false; v["message"]="请先登录"; sendJson(conn,v); return; }
-	Json::Value req; Json::Reader reader; reader.parse(bodyStr, req);
-	std::string pwd = req["password"].asString();
-	std::cout << "[SeckillServer] buy: uid=" << conn->uid() << " pwd_len=" << pwd.size() << std::endl;
-	if (pwd.empty() || !mysqlDao_->verifyPassword(conn->uid(), pwd)) {
-		v["success"]=false; v["message"]="密码错误"; sendJson(conn,v); return;
-	}
 	// 查余额
 	double balance = mysqlDao_->getBalance(conn->uid());
 	if (balance < 0) { v["success"]=false; v["message"]="查询余额失败"; sendJson(conn,v); return; }

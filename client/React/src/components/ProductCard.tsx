@@ -1,30 +1,25 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Button, Tag, Modal, Input, message } from 'antd'
+import { Card, Button, Tag, message } from 'antd'
 import { ThunderboltOutlined } from '@ant-design/icons'
 import type { Product } from '../api'
 import { buyProduct } from '../api'
 
 export default function ProductCard({ product }: { product: Product }) {
   const [loading, setLoading] = useState(false)
-  const [pwdModal, setPwdModal] = useState(false)
-  const pwdRef = useRef<string>('')
   const nav = useNavigate()
 
-  const handleBuy = () => { setPwdModal(true) }
-
-  const doBuy = async () => {
+  const handleBuy = async () => {
     if (loading) return
     setLoading(true)
     try {
-      const res = await buyProduct(product.id, pwdRef.current)
+      const res = await buyProduct(product.id, '')
       if (res.data.success && res.data.orderId) {
-        setPwdModal(false)
         nav('/order/' + res.data.orderId)
       } else {
         message.error(res.data.message || '创建订单失败')
       }
-    } catch {} finally { setLoading(false) }
+    } catch { message.error('网络错误') } finally { setLoading(false) }
   }
 
   return (
@@ -41,10 +36,6 @@ export default function ProductCard({ product }: { product: Product }) {
         style={{ background: 'linear-gradient(135deg,#667eea,#764ba2)', border: 'none', fontWeight: 700, borderRadius: 10 }}>
         {product.stock === 0 ? '已售罄' : '立即抢购'}
       </Button>
-      <Modal title="确认购买" open={pwdModal} onOk={doBuy} onCancel={()=>setPwdModal(false)} okText="确认购买" cancelText="取消">
-        <div style={{ marginBottom:8 }}>商品: {product.name}  ¥{product.price}</div>
-        <Input.Password placeholder="请输入登录密码" onChange={e=>pwdRef.current=e.target.value} />
-      </Modal>
     </Card>
   )
 }

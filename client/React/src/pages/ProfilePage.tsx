@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, List, Spin, Typography, Tag } from 'antd'
+import { Card, List, Spin, Typography, Tag, Tabs } from 'antd'
 import { UserOutlined, WalletOutlined, ShoppingOutlined } from '@ant-design/icons'
 import request from '../api/request'
 
@@ -30,21 +30,34 @@ export default function ProfilePage() {
             </div>
           </div>
         </Card>
-        <Card title={<span style={{ color:'#fff' }}><ShoppingOutlined /> 我的订单</span>}
-          style={{ background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16 }}
+        <Card style={{ background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:16 }}
           headStyle={{ color:'#fff',borderColor:'rgba(255,255,255,0.08)' }}>
-          <List dataSource={data.orders||[]} locale={{ emptyText:'暂无订单' }}
-            renderItem={(o:any) => {
-              const st = statusMap[o.status] || {color:'default',text:o.status}
-              return (
-                <List.Item style={{ borderColor:'rgba(255,255,255,0.06)',cursor:'pointer' }} onClick={()=>nav('/order/'+o.orderId)}>
-                  <span style={{ color:'#fff' }}>{o.productName}</span>
-                  <Tag color={st.color}>{st.text}</Tag>
-                  <span style={{ color:'#ffd700' }}>¥{o.price}</span>
-                  <span style={{ color:'rgba(255,255,255,0.35)' }}>{o.time}</span>
-                </List.Item>
-              )
-            }} />
+          <Tabs defaultActiveKey="orders" items={[
+            { key:'orders', label:'我的订单', children:(
+              <List dataSource={data.orders||[]} locale={{ emptyText:'暂无订单' }}
+                renderItem={(o:any) => {
+                  const st = statusMap[o.status] || {color:'default',text:o.status}
+                  return (
+                    <List.Item style={{ borderColor:'rgba(255,255,255,0.06)',cursor:'pointer' }} onClick={()=>nav('/order/'+o.orderId)}>
+                      <span style={{ color:'#fff' }}>{o.productName}</span>
+                      <Tag color={st.color}>{st.text}</Tag>
+                      <span style={{ color:'#ffd700' }}>¥{o.price}</span>
+                      <span style={{ color:'rgba(255,255,255,0.35)' }}>{o.time}</span>
+                    </List.Item>
+                  )
+                }} />
+            )},
+            { key:'owned', label:'我的宝贝', children:(
+              <List dataSource={(data.orders||[]).filter((o:any)=>o.status==='paid')} locale={{ emptyText:'暂无宝贝' }}
+                renderItem={(o:any) => (
+                  <List.Item style={{ borderColor:'rgba(255,255,255,0.06)' }}>
+                    <span style={{ color:'#fff' }}>{o.productName}</span>
+                    <span style={{ color:'#ffd700' }}>¥{o.price}</span>
+                    <span style={{ color:'rgba(255,255,255,0.35)' }}>{o.time}</span>
+                  </List.Item>
+                )} />
+            )}
+          ]} />
         </Card>
       </div>
     </div>
