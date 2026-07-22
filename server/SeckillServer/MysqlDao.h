@@ -6,6 +6,8 @@
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <vector>
+#include <map>
 #include <condition_variable>
 
 class MysqlDao {
@@ -15,6 +17,13 @@ public:
 	double getBalance(int uid);
 	bool updateBalance(int uid, double newBalance);
 	bool verifyPassword(int uid, const std::string& password);
+	struct Product { int id; std::string name; double price; int stock; std::string imageUrl; };
+	struct Order { int id; int uid; int productId; std::string productName; double price; std::string time; };
+	std::vector<Product> getProducts();
+	bool updateStock(int productId, int newStock);
+	bool insertOrder(int uid, int productId, const std::string& productName, double price);
+	std::vector<Order> getOrders();
+	std::map<int,int> getBuyCounts();
 
 private:
 	struct SqlConnection {
