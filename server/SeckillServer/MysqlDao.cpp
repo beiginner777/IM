@@ -176,3 +176,14 @@ std::vector<MysqlDao::Order> MysqlDao::getOrdersByUid(int uid) {
 	returnConn(std::move(conn));
 	return result;
 }
+
+std::string MysqlDao::getUsername(int uid) {
+	auto conn = getConn(); if (!conn) return "";
+	try {
+		auto stmt = conn->con_->createStatement();
+		auto res = stmt->executeQuery("SELECT name FROM user WHERE uid="+std::to_string(uid));
+		if (res->next()) { std::string n = res->getString("name"); returnConn(std::move(conn)); return n; }
+	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] getUsername: "<<e.what()<<std::endl; }
+	returnConn(std::move(conn));
+	return "";
+}

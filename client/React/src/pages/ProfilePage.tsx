@@ -23,7 +23,7 @@ export default function ProfilePage() {
               <UserOutlined />
             </div>
             <div>
-              <Typography.Title level={3} style={{ color:'#fff',margin:0 }}>UID: {data.uid}</Typography.Title>
+              <Typography.Title level={3} style={{ color:'#fff',margin:0 }}>{data.username} (UID:{data.uid})</Typography.Title>
               <div style={{ color:'#ffd700',fontSize:20,marginTop:8 }}><WalletOutlined /> 余额 ¥{data.balance?.toFixed(2)}</div>
             </div>
           </div>

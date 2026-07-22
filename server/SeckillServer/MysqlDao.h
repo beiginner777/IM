@@ -17,6 +17,7 @@ public:
 	double getBalance(int uid);
 	bool updateBalance(int uid, double newBalance);
 	bool verifyPassword(int uid, const std::string& password);
+	std::string getUsername(int uid);
 	struct Product { int id; std::string name; double price; int stock; std::string imageUrl; };
 	struct Order { int id; int uid; int productId; std::string productName; double price; std::string time; };
 	std::vector<Product> getProducts();
