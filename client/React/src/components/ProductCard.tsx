@@ -1,15 +1,15 @@
 import { useState, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, Button, Tag, Modal, Input, message } from 'antd'
 import { ThunderboltOutlined } from '@ant-design/icons'
 import type { Product } from '../api'
 import { buyProduct } from '../api'
-import { useProductStore } from '../store/product'
 
 export default function ProductCard({ product }: { product: Product }) {
   const [loading, setLoading] = useState(false)
   const [pwdModal, setPwdModal] = useState(false)
   const pwdRef = useRef<string>('')
-  const decrementStock = useProductStore(s => s.decrementStock)
+  const nav = useNavigate()
 
   const handleBuy = () => { setPwdModal(true) }
 
@@ -18,12 +18,11 @@ export default function ProductCard({ product }: { product: Product }) {
     setLoading(true)
     try {
       const res = await buyProduct(product.id, pwdRef.current)
-      if (res.data.success) {
-        decrementStock(product.id)
+      if (res.data.success && res.data.orderId) {
         setPwdModal(false)
-        Modal.success({ title: '抢购成功！', content: `恭喜抢到 ${product.name}！` })
+        nav('/order/' + res.data.orderId)
       } else {
-        message.error(res.data.message || '抢购失败')
+        message.error(res.data.message || '创建订单失败')
       }
     } catch {} finally { setLoading(false) }
   }

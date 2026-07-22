@@ -57,7 +57,7 @@ void LogicSystem::registerGetHandler() {
 		Json::Value orders(Json::arrayValue);
 		for (auto& o : mysqlDao_->getOrdersByUid(conn->uid())) {
 			Json::Value item; item["orderId"]=o.id; item["productName"]=o.productName;
-			item["price"]=o.price; item["time"]=o.time; orders.append(item);
+			item["price"]=o.price; item["status"]=o.status; item["time"]=o.time; orders.append(item);
 		}
 		v["orders"] = orders;
 		sendJson(conn, v);
