@@ -157,7 +157,7 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn) {
 			else {
 				if (o.status=="unpaid" && o.time.size()>=19) {
 					struct tm tmv={};
-					sscanf(o.time.c_str(),"%d-%d-%d %d:%d:%d",&tmv.tm_year,&tmv.tm_mon,&tmv.tm_mday,&tmv.tm_hour,&tmv.tm_min,&tmv.tm_sec);
+					sscanf_s(o.time.c_str(),"%d-%d-%d %d:%d:%d",&tmv.tm_year,&tmv.tm_mon,&tmv.tm_mday,&tmv.tm_hour,&tmv.tm_min,&tmv.tm_sec);
 					tmv.tm_year-=1900; tmv.tm_mon-=1;
 					if (time(nullptr)-mktime(&tmv) > 1800) { mysqlDao_->cancelOrder(oid, o.uid); o.status="cancelled"; }
 				}
