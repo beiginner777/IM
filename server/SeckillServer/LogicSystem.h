@@ -5,23 +5,6 @@
 #include "SingleTon.h"
 #include "HttpConnection.h"
 #include "MysqlDao.h"
-// 秒杀商品（Mock 阶段存内存，后续任务替换为 Redis 库存 + MySQL 订单 + RabbitMQ）
-struct SeckillProduct
-{
-	int id;
-	std::string name;
-	int price;
-	int stock;
-	std::string imageUrl;
-};
-// 抢购记录（Mock 阶段存内存）
-struct OrderRecord
-{
-	int orderId;
-	std::string productName;
-	std::string time;
-	std::string status;
-};
 class LogicSystem : public SingleTon<LogicSystem>
 {
 	friend class SingleTon<LogicSystem>;
@@ -53,12 +36,6 @@ private:
 	std::map<std::string, std::string> getPrama_;
 	std::string url_;
 
-	// ==================== Mock 数据（内存态） ====================
-	std::vector<SeckillProduct> products_;
-	std::map<int, int> buyCount_;
-	std::vector<OrderRecord> orders_;
-	int nextOrderId_;
-	std::mutex dataMtx_;
 	MysqlDao* mysqlDao_{nullptr};
 };
 #endif

@@ -14,7 +14,7 @@ void LogicSystem::sendJson(std::shared_ptr<HttpConnection> conn, const Json::Val
 	beast::ostream(conn->response_.body()) << value.toStyledString();
 }
 
-LogicSystem::LogicSystem() : nextOrderId_(1), mysqlDao_(new MysqlDao()) {
+LogicSystem::LogicSystem() : mysqlDao_(new MysqlDao()) {
 	registerGetHandler();
 }
 
@@ -23,7 +23,7 @@ LogicSystem::~LogicSystem() { delete mysqlDao_; }
 void LogicSystem::registerGetHandler() {
 	getHandles_["/products"] = [this](std::shared_ptr<HttpConnection> conn) {
 		Json::Value arr(Json::arrayValue);
-		for (const auto& p : products_) {
+		for (const auto& p : mysqlDao_->getProducts()) {
 			Json::Value item; item["id"]=p.id; item["name"]=p.name; item["price"]=p.price;
 			item["stock"]=p.stock; item["imageUrl"]=p.imageUrl; arr.append(item);
 		}
@@ -31,18 +31,20 @@ void LogicSystem::registerGetHandler() {
 	};
 	getHandles_["/rank"] = [this](std::shared_ptr<HttpConnection> conn) {
 		Json::Value arr(Json::arrayValue);
-		for (const auto& kv : buyCount_) {
+		auto counts = mysqlDao_->getBuyCounts();
+		auto products = mysqlDao_->getProducts();
+		for (const auto& kv : counts) {
 			Json::Value item; item["productId"]=kv.first; item["count"]=kv.second;
-			for (auto& p : products_) if(p.id==kv.first) item["productName"]=p.name;
+			for (auto& p : products) if(p.id==kv.first) item["productName"]=p.name;
 			arr.append(item);
 		}
 		sendJson(conn, arr);
 	};
 	getHandles_["/orders"] = [this](std::shared_ptr<HttpConnection> conn) {
 		Json::Value arr(Json::arrayValue);
-		for (auto it=orders_.rbegin(); it!=orders_.rend(); ++it) {
-			Json::Value item; item["orderId"]=it->orderId; item["productName"]=it->productName;
-			item["time"]=it->time; item["status"]=it->status; arr.append(item);
+		for (auto& o : mysqlDao_->getOrders()) {
+			Json::Value item; item["orderId"]=o.id; item["productName"]=o.productName;
+			item["time"]=o.time; item["status"]="成功"; arr.append(item);
 		}
 		sendJson(conn, arr);
 	};
@@ -69,20 +71,18 @@ void LogicSystem::handleBuy(std::shared_ptr<HttpConnection> conn, int productId)
 	// 查余额
 	double balance = mysqlDao_->getBalance(conn->uid());
 	if (balance < 0) { v["success"]=false; v["message"]="查询余额失败"; sendJson(conn,v); return; }
-	// 查商品
-	auto it = std::find_if(products_.begin(), products_.end(), [productId](const SeckillProduct& p){return p.id==productId;});
-	if (it == products_.end()) { v["success"]=false; v["message"]="商品不存在"; sendJson(conn,v); return; }
+	// 查商品 (MySQL)
+	auto products = mysqlDao_->getProducts();
+	auto it = std::find_if(products.begin(), products.end(), [productId](const MysqlDao::Product& p){return p.id==productId;});
+	if (it == products.end()) { v["success"]=false; v["message"]="商品不存在"; sendJson(conn,v); return; }
 	if (it->stock <= 0) { v["success"]=false; v["message"]="已售罄"; sendJson(conn,v); return; }
 	if (balance < it->price) { v["success"]=false; v["message"]="余额不足"; sendJson(conn,v); return; }
-	// 扣余额
 	double newBal = balance - it->price;
 	if (!mysqlDao_->updateBalance(conn->uid(), newBal)) {
 		v["success"]=false; v["message"]="扣款失败"; sendJson(conn,v); return;
 	}
-	// 扣库存
-	it->stock--;
-	buyCount_[productId]++;
-	orders_.push_back({nextOrderId_++, it->name, nowString(), "成功"});
+	mysqlDao_->updateStock(productId, it->stock - 1);
+	mysqlDao_->insertOrder(conn->uid(), productId, it->name, it->price);
 	// 清缓存
 	RedisManager::getInstance()->Del("balance_cache:"+std::to_string(conn->uid()));
 	v["success"] = true;

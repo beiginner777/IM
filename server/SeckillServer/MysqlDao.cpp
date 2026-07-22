@@ -96,3 +96,66 @@ bool MysqlDao::verifyPassword(int uid, const std::string& password)
 	returnConn(std::move(conn));
 	return false;
 }
+
+std::vector<MysqlDao::Product> MysqlDao::getProducts() {
+	std::vector<Product> result;
+	auto conn = getConn(); if (!conn) return result;
+	try {
+		auto stmt = conn->con_->createStatement();
+		auto res = stmt->executeQuery("SELECT id,name,price,stock,image_url FROM seckill_product ORDER BY id");
+		while (res->next()) {
+			result.push_back({res->getInt("id"), res->getString("name"),
+				res->getDouble("price"), res->getInt("stock"), res->getString("image_url")});
+		}
+	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] getProducts: "<<e.what()<<std::endl; }
+	returnConn(std::move(conn));
+	return result;
+}
+
+bool MysqlDao::updateStock(int productId, int newStock) {
+	auto conn = getConn(); if (!conn) return false;
+	try {
+		auto stmt = conn->con_->prepareStatement("UPDATE seckill_product SET stock=? WHERE id=?");
+		stmt->setInt(1, newStock); stmt->setInt(2, productId); stmt->executeUpdate();
+	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] updateStock: "<<e.what()<<std::endl; returnConn(std::move(conn)); return false; }
+	returnConn(std::move(conn));
+	return true;
+}
+
+bool MysqlDao::insertOrder(int uid, int productId, const std::string& productName, double price) {
+	auto conn = getConn(); if (!conn) return false;
+	try {
+		auto stmt = conn->con_->prepareStatement("INSERT INTO seckill_order(uid,product_id,product_name,price) VALUES(?,?,?,?)");
+		stmt->setInt(1,uid); stmt->setInt(2,productId); stmt->setString(3,productName); stmt->setDouble(4,price);
+		stmt->executeUpdate();
+	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] insertOrder: "<<e.what()<<std::endl; returnConn(std::move(conn)); return false; }
+	returnConn(std::move(conn));
+	return true;
+}
+
+std::vector<MysqlDao::Order> MysqlDao::getOrders() {
+	std::vector<Order> result;
+	auto conn = getConn(); if (!conn) return result;
+	try {
+		auto stmt = conn->con_->createStatement();
+		auto res = stmt->executeQuery("SELECT id,uid,product_id,product_name,price,created_at FROM seckill_order ORDER BY id DESC LIMIT 100");
+		while (res->next()) {
+			result.push_back({res->getInt("id"), res->getInt("uid"), res->getInt("product_id"),
+				res->getString("product_name"), res->getDouble("price"), res->getString("created_at")});
+		}
+	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] getOrders: "<<e.what()<<std::endl; }
+	returnConn(std::move(conn));
+	return result;
+}
+
+std::map<int,int> MysqlDao::getBuyCounts() {
+	std::map<int,int> result;
+	auto conn = getConn(); if (!conn) return result;
+	try {
+		auto stmt = conn->con_->createStatement();
+		auto res = stmt->executeQuery("SELECT product_id, COUNT(*) cnt FROM seckill_order GROUP BY product_id");
+		while (res->next()) result[res->getInt("product_id")] = res->getInt("cnt");
+	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] getBuyCounts: "<<e.what()<<std::endl; }
+	returnConn(std::move(conn));
+	return result;
+}
