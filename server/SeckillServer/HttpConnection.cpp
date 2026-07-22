@@ -79,7 +79,7 @@ void HttpConnection::prase_request()
 		// CORS 预检请求：直接放行
 		response_.result(http::status::no_content);
 		response_.set(http::field::access_control_allow_methods, "GET, POST, OPTIONS");
-		response_.set(http::field::access_control_allow_headers, "Content-Type");
+		response_.set(http::field::access_control_allow_headers, "Content-Type, Authorization");
 		response_.set(http::field::access_control_max_age, "86400");
 	}
 	else if (request_.method() == http::verb::get)
