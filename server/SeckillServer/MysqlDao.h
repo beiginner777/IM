@@ -19,10 +19,13 @@ public:
 	bool verifyPassword(int uid, const std::string& password);
 	std::string getUsername(int uid);
 	struct Product { int id; std::string name; double price; int stock; std::string imageUrl; };
-	struct Order { int id; int uid; int productId; std::string productName; double price; std::string time; };
+	struct Order { int id; int uid; int productId; std::string productName; double price; std::string status; std::string recipient; std::string time; };
 	std::vector<Product> getProducts();
 	bool updateStock(int productId, int newStock);
-	bool insertOrder(int uid, int productId, const std::string& productName, double price);
+	int insertOrder(int uid, int productId, const std::string& productName, double price);
+	bool payOrder(int orderId, int uid);
+	bool cancelOrder(int orderId, int uid);
+	Order getOrderById(int orderId);
 	std::vector<Order> getOrders();
 	std::vector<Order> getOrdersByUid(int uid);
 	std::map<int,int> getBuyCounts();

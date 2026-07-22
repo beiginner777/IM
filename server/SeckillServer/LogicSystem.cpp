@@ -90,19 +90,11 @@ void LogicSystem::handleBuy(std::shared_ptr<HttpConnection> conn, int productId,
 	if (it == products.end()) { v["success"]=false; v["message"]="商品不存在"; sendJson(conn,v); return; }
 	if (it->stock <= 0) { v["success"]=false; v["message"]="已售罄"; sendJson(conn,v); return; }
 	if (balance < it->price) { v["success"]=false; v["message"]="余额不足"; sendJson(conn,v); return; }
-	double newBal = balance - it->price;
-	if (!mysqlDao_->updateBalance(conn->uid(), newBal)) {
-		v["success"]=false; v["message"]="扣款失败"; sendJson(conn,v); return;
-	}
-	mysqlDao_->updateStock(productId, it->stock - 1);
-	mysqlDao_->insertOrder(conn->uid(), productId, it->name, it->price);
-	// 清缓存
-	RedisManager::getInstance()->Del("balance_cache:"+std::to_string(conn->uid()));
-	v["success"] = true;
-	v["message"] = "购买成功";
-	v["balance"] = newBal;
+	int orderId = mysqlDao_->insertOrder(conn->uid(), productId, it->name, it->price);
+	if (orderId < 0) { v["success"]=false; v["message"]="创建订单失败"; sendJson(conn,v); return; }
+	v["success"]=true; v["orderId"]=orderId; v["message"]="订单已创建";
 	sendJson(conn, v);
-	std::cout<<"[SeckillServer] uid="<<conn->uid()<<" bought "<<it->name<<" balance="<<newBal<<" stock="<<it->stock<<std::endl;
+	std::cout<<"[SeckillServer] uid="<<conn->uid()<<" order:"<<orderId<<" "<<it->name<<std::endl;
 }
 
 void LogicSystem::handleRecharge(std::shared_ptr<HttpConnection> conn, const std::string& bodyStr) {
@@ -157,14 +149,26 @@ void LogicSystem::sendAuthError(std::shared_ptr<HttpConnection> conn, const std:
 
 void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn) {
 	std::string target = conn->request_.target();
-	std::cout << "[SeckillServer] GET " << target << std::endl;
-	// 打印 headers
-	for (auto& h : conn->request_) {
-		std::cout << "  " << h.name_string() << ": " << h.value() << std::endl;
-	}
 	prase_get_request(target);
-	if (getHandles_.count(url_)) { getHandles_[url_](conn); }
-	else { conn->response_.result(http::status::not_found); Json::Value v; v["error"]="not found"; sendJson(conn,v); }
+	if (getHandles_.count(url_)) { getHandles_[url_](conn); url_=""; getPrama_.clear(); return; }
+	// GET /order/{id}
+	static const std::string kOrderGet = "/order/";
+	if (url_.find(kOrderGet) == 0 && url_.find("/pay")==std::string::npos && url_.find("/cancel")==std::string::npos) {
+		int oid = atoi(url_.substr(kOrderGet.size()).c_str());
+		Json::Value v;
+		if (!conn->authenticate()) { v["error"]="请先登录"; sendJson(conn,v); }
+		else {
+			auto o = mysqlDao_->getOrderById(oid);
+			if (o.id<0) { v["error"]="not found"; sendJson(conn,v); }
+			else {
+				v["id"]=o.id; v["uid"]=o.uid; v["productId"]=o.productId; v["productName"]=o.productName;
+				v["price"]=o.price; v["status"]=o.status; v["time"]=o.time;
+				sendJson(conn, v);
+			}
+		}
+		url_=""; getPrama_.clear(); return;
+	}
+	conn->response_.result(http::status::not_found); Json::Value v; v["error"]="not found"; sendJson(conn,v);
 	url_=""; getPrama_.clear();
 }
 
@@ -179,6 +183,18 @@ void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn) {
 	if (target == "/recharge") { handleRecharge(conn, bodyStr); return; }
 	static const std::string kBuyPrefix = "/buy/";
 	if (target.find(kBuyPrefix) == 0) { handleBuy(conn, atoi(target.substr(kBuyPrefix.size()).c_str()), bodyStr); return; }
+	static const std::string kPayPrefix = "/order/";
+	if (target.find(kPayPrefix) == 0) {
+		std::string rest = target.substr(kPayPrefix.size());
+		if (rest.find("/pay") != std::string::npos) {
+			int oid = atoi(rest.substr(0, rest.find("/pay")).c_str());
+			handlePayOrder(conn, oid, bodyStr);
+		} else if (rest.find("/cancel") != std::string::npos) {
+			int oid = atoi(rest.substr(0, rest.find("/cancel")).c_str());
+			handleCancelOrder(conn, oid);
+		}
+		return;
+	}
 	conn->response_.result(http::status::not_found); Json::Value v; v["error"]="not found"; sendJson(conn,v);
 }
 
@@ -215,4 +231,38 @@ void LogicSystem::prase_get_request(std::string& url) {
 		qs.erase(0,p+1);
 	}
 	if(!qs.empty()){ size_t e=qs.find('='); if(e!=std::string::npos){ k=urlDecode(qs.substr(0,e)); val=urlDecode(qs.substr(e+1)); getPrama_[k]=val; } }
+}
+
+void LogicSystem::handlePayOrder(std::shared_ptr<HttpConnection> conn, int orderId, const std::string& bodyStr) {
+	Json::Value v;
+	if (!conn->authenticate()) { v["success"]=false; v["message"]="请先登录"; sendJson(conn,v); return; }
+	Json::Value req; Json::Reader reader; reader.parse(bodyStr, req);
+	if (!mysqlDao_->verifyPassword(conn->uid(), req["password"].asString())) {
+		v["success"]=false; v["message"]="密码错误"; sendJson(conn,v); return;
+	}
+	auto order = mysqlDao_->getOrderById(orderId);
+	if (order.id<0 || order.uid!=conn->uid()) { v["success"]=false; v["message"]="订单不存在"; sendJson(conn,v); return; }
+	if (order.status!="unpaid") { v["success"]=false; v["message"]="订单状态异常"; sendJson(conn,v); return; }
+	double balance = mysqlDao_->getBalance(conn->uid());
+	if (balance < order.price) { v["success"]=false; v["message"]="余额不足"; sendJson(conn,v); return; }
+	double newBal = balance - order.price;
+	if (!mysqlDao_->updateBalance(conn->uid(), newBal)) { v["success"]=false; v["message"]="扣款失败"; sendJson(conn,v); return; }
+	auto products = mysqlDao_->getProducts();
+	for (auto& p : products) {
+		if (p.id==order.productId) { mysqlDao_->updateStock(p.id, p.stock-1); break; }
+	}
+	mysqlDao_->payOrder(orderId, conn->uid());
+	RedisManager::getInstance()->Del("balance_cache:"+std::to_string(conn->uid()));
+	v["success"]=true; v["message"]="支付成功"; v["balance"]=newBal;
+	sendJson(conn, v);
+}
+
+void LogicSystem::handleCancelOrder(std::shared_ptr<HttpConnection> conn, int orderId) {
+	Json::Value v;
+	if (!conn->authenticate()) { v["success"]=false; v["message"]="请先登录"; sendJson(conn,v); return; }
+	auto order = mysqlDao_->getOrderById(orderId);
+	if (order.id<0 || order.uid!=conn->uid()) { v["success"]=false; v["message"]="订单不存在"; sendJson(conn,v); return; }
+	mysqlDao_->cancelOrder(orderId, conn->uid());
+	v["success"]=true; v["message"]="订单已取消，30分钟后自动删除";
+	sendJson(conn, v);
 }

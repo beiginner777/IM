@@ -123,15 +123,17 @@ bool MysqlDao::updateStock(int productId, int newStock) {
 	return true;
 }
 
-bool MysqlDao::insertOrder(int uid, int productId, const std::string& productName, double price) {
-	auto conn = getConn(); if (!conn) return false;
+int MysqlDao::insertOrder(int uid, int productId, const std::string& productName, double price) {
+	auto conn = getConn(); if (!conn) return -1;
 	try {
-		auto stmt = conn->con_->prepareStatement("INSERT INTO seckill_order(uid,product_id,product_name,price) VALUES(?,?,?,?)");
+		auto stmt = conn->con_->prepareStatement("INSERT INTO seckill_order(uid,product_id,product_name,price,status) VALUES(?,?,?,?,'unpaid')");
 		stmt->setInt(1,uid); stmt->setInt(2,productId); stmt->setString(3,productName); stmt->setDouble(4,price);
 		stmt->executeUpdate();
-	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] insertOrder: "<<e.what()<<std::endl; returnConn(std::move(conn)); return false; }
-	returnConn(std::move(conn));
-	return true;
+		auto rs = conn->con_->createStatement()->executeQuery("SELECT LAST_INSERT_ID()");
+		int id = rs->next() ? rs->getInt(1) : -1;
+		returnConn(std::move(conn));
+		return id;
+	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] insertOrder: "<<e.what()<<std::endl; returnConn(std::move(conn)); return -1; }
 }
 
 std::vector<MysqlDao::Order> MysqlDao::getOrders() {
@@ -139,10 +141,10 @@ std::vector<MysqlDao::Order> MysqlDao::getOrders() {
 	auto conn = getConn(); if (!conn) return result;
 	try {
 		auto stmt = conn->con_->createStatement();
-		auto res = stmt->executeQuery("SELECT id,uid,product_id,product_name,price,created_at FROM seckill_order ORDER BY id DESC LIMIT 100");
+		auto res = stmt->executeQuery("SELECT id,uid,product_id,product_name,price,status,recipient,created_at FROM seckill_order ORDER BY id DESC LIMIT 100");
 		while (res->next()) {
 			result.push_back({res->getInt("id"), res->getInt("uid"), res->getInt("product_id"),
-				res->getString("product_name"), (double)res->getDouble("price"), res->getString("created_at")});
+				res->getString("product_name"), (double)res->getDouble("price"), res->getString("status"), res->getString("recipient"), res->getString("created_at")});
 		}
 	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] getOrders: "<<e.what()<<std::endl; }
 	returnConn(std::move(conn));
@@ -165,12 +167,12 @@ std::vector<MysqlDao::Order> MysqlDao::getOrdersByUid(int uid) {
 	std::vector<Order> result;
 	auto conn = getConn(); if (!conn) return result;
 	try {
-		auto stmt = conn->con_->prepareStatement("SELECT id,uid,product_id,product_name,price,created_at FROM seckill_order WHERE uid=? ORDER BY id DESC");
+		auto stmt = conn->con_->prepareStatement("SELECT id,uid,product_id,product_name,price,status,recipient,created_at FROM seckill_order WHERE uid=? ORDER BY id DESC");
 		stmt->setInt(1, uid);
 		auto res = stmt->executeQuery();
 		while (res->next()) {
 			result.push_back({res->getInt("id"), res->getInt("uid"), res->getInt("product_id"),
-				res->getString("product_name"), (double)res->getDouble("price"), res->getString("created_at")});
+				res->getString("product_name"), (double)res->getDouble("price"), res->getString("status"), res->getString("recipient"), res->getString("created_at")});
 		}
 	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] getOrdersByUid: "<<e.what()<<std::endl; }
 	returnConn(std::move(conn));
@@ -186,4 +188,39 @@ std::string MysqlDao::getUsername(int uid) {
 	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] getUsername: "<<e.what()<<std::endl; }
 	returnConn(std::move(conn));
 	return "";
+}
+
+bool MysqlDao::payOrder(int orderId, int uid) {
+	auto conn = getConn(); if (!conn) return false;
+	try {
+		auto stmt = conn->con_->prepareStatement("UPDATE seckill_order SET status='paid' WHERE id=? AND uid=? AND status='unpaid'");
+		stmt->setInt(1,orderId); stmt->setInt(2,uid); stmt->executeUpdate();
+		returnConn(std::move(conn));
+		return true;
+	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] payOrder: "<<e.what()<<std::endl; returnConn(std::move(conn)); return false; }
+}
+
+bool MysqlDao::cancelOrder(int orderId, int uid) {
+	auto conn = getConn(); if (!conn) return false;
+	try {
+		auto stmt = conn->con_->prepareStatement("UPDATE seckill_order SET status='cancelled',cancelled_at=NOW() WHERE id=? AND uid=?");
+		stmt->setInt(1,orderId); stmt->setInt(2,uid); stmt->executeUpdate();
+		returnConn(std::move(conn));
+		return true;
+	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] cancelOrder: "<<e.what()<<std::endl; returnConn(std::move(conn)); return false; }
+}
+
+MysqlDao::Order MysqlDao::getOrderById(int orderId) {
+	Order o{}; o.id=-1;
+	auto conn = getConn(); if (!conn) return o;
+	try {
+		auto stmt = conn->con_->createStatement();
+		auto res = stmt->executeQuery("SELECT id,uid,product_id,product_name,price,status,recipient,created_at FROM seckill_order WHERE id="+std::to_string(orderId));
+		if (res->next()) {
+			o={res->getInt("id"),res->getInt("uid"),res->getInt("product_id"),res->getString("product_name"),
+			   (double)res->getDouble("price"),res->getString("status"),res->getString("recipient"),res->getString("created_at")};
+		}
+	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] getOrderById: "<<e.what()<<std::endl; }
+	returnConn(std::move(conn));
+	return o;
 }
