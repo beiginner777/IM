@@ -58,7 +58,6 @@ private:
 	std::map<int, int> buyCount_;
 	std::vector<OrderRecord> orders_;
 	int nextOrderId_;
-	int balance_;                           // Mock 余额（单位：元）
 	std::mutex dataMtx_;
 	MysqlDao* mysqlDao_{nullptr};
 };
