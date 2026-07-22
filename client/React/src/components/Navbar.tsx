@@ -1,6 +1,6 @@
 import { useNavigate, Link } from 'react-router-dom'
 import { Button, Space } from 'antd'
-import { ThunderboltOutlined, UserOutlined } from '@ant-design/icons'
+import { ThunderboltOutlined, UserOutlined, WalletOutlined } from '@ant-design/icons'
 import { useAuthStore } from '../store/auth'
 
 export default function Navbar() {
@@ -25,6 +25,7 @@ export default function Navbar() {
             <Button type="text" style={{ color: 'rgba(255,255,255,0.7)' }} onClick={() => nav('/products')}>商品</Button>
             <Button type="text" style={{ color: 'rgba(255,255,255,0.7)' }} onClick={() => nav('/orders')}>订单</Button>
             <Button type="text" style={{ color: 'rgba(255,255,255,0.7)' }} onClick={() => nav('/rank')}>排行</Button>
+            <Button type="text" style={{ color: '#52c41a' }} icon={<WalletOutlined />} onClick={() => nav('/recharge')}>充值</Button>
             <Button type="text" danger onClick={() => { logout(); nav('/login') }}>退出</Button>
           </>
         ) : (
