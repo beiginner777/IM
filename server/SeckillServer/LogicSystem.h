@@ -56,6 +56,7 @@ private:
 	std::map<int, int> buyCount_;          // productId -> 抢购成功次数（排行榜）
 	std::vector<OrderRecord> orders_;      // 抢购记录
 	int nextOrderId_;
+	int balance_;                           // Mock 余额（单位：元）
 	std::mutex dataMtx_;
 };
 #endif

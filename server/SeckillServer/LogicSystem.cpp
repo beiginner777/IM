@@ -17,7 +17,7 @@ void LogicSystem::sendJson(std::shared_ptr<HttpConnection> conn, const Json::Val
 	beast::ostream(response.body()) << value.toStyledString();
 }
 LogicSystem::LogicSystem()
-	: nextOrderId_(1)
+	: nextOrderId_(1), balance_(10000)
 {
 	// Mock 商品数据（后续任务替换为 MySQL 商品表 + Redis 预热库存）
 	products_ = {
@@ -106,6 +106,15 @@ void LogicSystem::registerGetHandler()
 		}
 		sendJson(conn, arr);
 	};
+	// GET /recharge —— 当前余额，前端期望 {balance: number}
+	getHandles_["/recharge"] = [this](std::shared_ptr<HttpConnection> conn) {
+		Json::Value value;
+		{
+			std::lock_guard<std::mutex> lock(dataMtx_);
+			value["balance"] = balance_;
+		}
+		sendJson(conn, value);
+	};
 }
 // POST /buy/{productId}，前端期望 {success: bool, message: string}
 void LogicSystem::handleBuy(std::shared_ptr<HttpConnection> conn, int productId)
@@ -168,6 +177,32 @@ void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn)
 	{
 		int productId = atoi(target.substr(kBuyPrefix.size()).c_str());
 		handleBuy(conn, productId);
+		return;
+	}
+	// POST /recharge —— Mock 充值，body: {amount: number}
+	if (target == "/recharge")
+	{
+		auto& request = conn->request_;
+		auto& response = conn->response_;
+		std::string bodyStr = boost::beast::buffers_to_string(request.body().data());
+		Json::Value root, value;
+		Json::Reader reader;
+		response.set(http::field::content_type, "application/json");
+		if (!reader.parse(bodyStr, root)) {
+			value["error_code"] = ERROE_CODR::ERROR_JSON;
+			value["error_msg"] = "json parse failed";
+			beast::ostream(response.body()) << value.toStyledString();
+			return;
+		}
+		int amount = root.get("amount", 1000).asInt();
+		{
+			std::lock_guard<std::mutex> lock(dataMtx_);
+			balance_ += amount;
+			value["balance"] = balance_;
+			value["message"] = "充值成功";
+		}
+		std::cout << "[SeckillServer] recharge +" << amount << ", balance=" << balance_ << std::endl;
+		beast::ostream(response.body()) << value.toStyledString();
 		return;
 	}
 	std::cout << "Can' not find PostHandler of " << target << std::endl;
