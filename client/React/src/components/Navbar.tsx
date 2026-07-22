@@ -4,7 +4,7 @@ import { ThunderboltOutlined, UserOutlined } from '@ant-design/icons'
 import { useAuthStore } from '../store/auth'
 
 export default function Navbar() {
-  const { isLoggedIn, username, logout } = useAuthStore()
+  const { isLoggedIn, username, balance, logout } = useAuthStore()
   const nav = useNavigate()
 
   return (
@@ -22,6 +22,8 @@ export default function Navbar() {
         {isLoggedIn ? (
           <>
             <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}><UserOutlined /> {username}</span>
+            <span style={{ color: '#ffd700', fontSize: 14, fontWeight: 600 }}>余额 ¥{balance.toFixed(2)}</span>
+            <Button type="text" style={{ color: '#ffd700' }} onClick={() => nav('/recharge')}>充值</Button>
             <Button type="text" style={{ color: 'rgba(255,255,255,0.7)' }} onClick={() => nav('/products')}>商品</Button>
             <Button type="text" style={{ color: 'rgba(255,255,255,0.7)' }} onClick={() => nav('/orders')}>订单</Button>
             <Button type="text" style={{ color: 'rgba(255,255,255,0.7)' }} onClick={() => nav('/rank')}>排行</Button>
