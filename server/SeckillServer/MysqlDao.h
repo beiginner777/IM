@@ -23,6 +23,7 @@ public:
 	bool updateStock(int productId, int newStock);
 	bool insertOrder(int uid, int productId, const std::string& productName, double price);
 	std::vector<Order> getOrders();
+	std::vector<Order> getOrdersByUid(int uid);
 	std::map<int,int> getBuyCounts();
 
 private:

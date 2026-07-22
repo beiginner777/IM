@@ -160,3 +160,19 @@ std::map<int,int> MysqlDao::getBuyCounts() {
 	returnConn(std::move(conn));
 	return result;
 }
+
+std::vector<MysqlDao::Order> MysqlDao::getOrdersByUid(int uid) {
+	std::vector<Order> result;
+	auto conn = getConn(); if (!conn) return result;
+	try {
+		auto stmt = conn->con_->prepareStatement("SELECT id,uid,product_id,product_name,price,created_at FROM seckill_order WHERE uid=? ORDER BY id DESC");
+		stmt->setInt(1, uid);
+		auto res = stmt->executeQuery();
+		while (res->next()) {
+			result.push_back({res->getInt("id"), res->getInt("uid"), res->getInt("product_id"),
+				res->getString("product_name"), (double)res->getDouble("price"), res->getString("created_at")});
+		}
+	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] getOrdersByUid: "<<e.what()<<std::endl; }
+	returnConn(std::move(conn));
+	return result;
+}
