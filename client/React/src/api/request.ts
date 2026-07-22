@@ -1,8 +1,14 @@
 import axios from 'axios'
 import { message } from 'antd'
-import { getServerInfo } from '../utils/token'
+import { getServerInfo, getToken } from '../utils/token'
 
 const request = axios.create({ baseURL: '/api', timeout: 10000, headers: { 'Content-Type': 'application/json' } })
+
+request.interceptors.request.use((config) => {
+  const token = getToken()
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
 
 export function setBaseURL(host: string, port: number) {
   request.defaults.baseURL = `http://${host}:${port}`

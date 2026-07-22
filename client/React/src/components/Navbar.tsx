@@ -22,6 +22,7 @@ export default function Navbar() {
         {isLoggedIn ? (
           <>
             <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}><UserOutlined /> {username}</span>
+            <Button type="text" style={{ color: 'rgba(255,255,255,0.7)' }} onClick={() => nav('/profile')}>我的</Button>
             <Button type="text" style={{ color: 'rgba(255,255,255,0.7)' }} onClick={() => nav('/products')}>商品</Button>
             <Button type="text" style={{ color: 'rgba(255,255,255,0.7)' }} onClick={() => nav('/orders')}>订单</Button>
             <Button type="text" style={{ color: 'rgba(255,255,255,0.7)' }} onClick={() => nav('/rank')}>排行</Button>

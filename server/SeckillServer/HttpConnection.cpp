@@ -79,7 +79,7 @@ void HttpConnection::prase_request()
 		// CORS 预检请求：直接放行
 		response_.result(http::status::no_content);
 		response_.set(http::field::access_control_allow_methods, "GET, POST, OPTIONS");
-		response_.set(http::field::access_control_allow_headers, "Content-Type");
+		response_.set(http::field::access_control_allow_headers, "Content-Type, Authorization");
 		response_.set(http::field::access_control_max_age, "86400");
 	}
 	else if (request_.method() == http::verb::get)
@@ -125,9 +125,13 @@ void HttpConnection::send_response()
 bool HttpConnection::authenticate()
 {
 	auto authIt = request_.find(http::field::authorization);
-	if (authIt == request_.end()) return false;
+	if (authIt == request_.end()) {
+		return false;
+	}
 	std::string auth(authIt->value());
-	if (auth.size() < 8 || auth.substr(0, 7) != "Bearer ") return false;
+	if (auth.size() < 8 || auth.substr(0, 7) != "Bearer ") {
+		return false;
+	}
 	return JWT::verify(auth.substr(7), uid_, "");
 }
 
