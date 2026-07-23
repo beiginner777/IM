@@ -17,7 +17,10 @@ export default function OrderDetailPage() {
 
   const loadOrder = () => request.get('/order/'+id).then(r=>{
     setOrder(r.data)
-    if (r.data.status==='unpaid') setRemain(1800)
+    if (r.data.status==='unpaid' && r.data.time) {
+      const elapsed = Math.floor((Date.now()-new Date(r.data.time).getTime())/1000)
+      setRemain(Math.max(0,1800-elapsed))
+    }
   }).catch(()=>nav('/products'))
 
   useEffect(() => { loadOrder() }, [id])

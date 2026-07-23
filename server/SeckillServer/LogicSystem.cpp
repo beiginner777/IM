@@ -155,7 +155,6 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn) {
 			auto o = mysqlDao_->getOrderById(oid);
 			if (o.id<0) { v["error"]="not found"; sendJson(conn,v); }
 			else {
-				}
 				v["id"]=o.id; v["uid"]=o.uid; v["productId"]=o.productId; v["productName"]=o.productName;
 				v["price"]=o.price; v["status"]=o.status; v["time"]=o.time;
 				sendJson(conn, v);
