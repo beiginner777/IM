@@ -157,6 +157,13 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn) {
 			else {
 				v["id"]=o.id; v["uid"]=o.uid; v["productId"]=o.productId; v["productName"]=o.productName;
 				v["price"]=o.price; v["status"]=o.status; v["time"]=o.time;
+				if (o.status=="unpaid" && o.time.size()>=19) {
+					struct tm tmv={};
+					sscanf_s(o.time.c_str(),"%d-%d-%d %d:%d:%d",&tmv.tm_year,&tmv.tm_mon,&tmv.tm_mday,&tmv.tm_hour,&tmv.tm_min,&tmv.tm_sec);
+					tmv.tm_year-=1900; tmv.tm_mon-=1;
+					int remain = 1800 - (int)(time(nullptr)-mktime(&tmv));
+					v["remainSeconds"] = remain > 0 ? remain : 0;
+				}
 				sendJson(conn, v);
 			}
 		}

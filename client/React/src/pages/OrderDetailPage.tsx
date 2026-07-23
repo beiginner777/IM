@@ -17,9 +17,8 @@ export default function OrderDetailPage() {
 
   const loadOrder = () => request.get('/order/'+id).then(r=>{
     setOrder(r.data)
-    if (r.data.status==='unpaid' && r.data.time) {
-      const elapsed = Math.floor((Date.now()-new Date(r.data.time).getTime())/1000)
-      setRemain(Math.max(0,1800-elapsed))
+    if (r.data.status==='unpaid' && r.data.remainSeconds !== undefined) {
+      setRemain(r.data.remainSeconds)
     }
   }).catch(()=>nav('/products'))
 
