@@ -9,6 +9,7 @@ import OrdersPage from './pages/OrdersPage'
 import RankPage from './pages/RankPage'
 import RechargePage from './pages/RechargePage'
 import ProfilePage from './pages/ProfilePage'
+import OrderDetailPage from './pages/OrderDetailPage'
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/rank" element={<AuthGuard><RankPage /></AuthGuard>} />
         <Route path="/recharge" element={<AuthGuard><RechargePage /></AuthGuard>} />
         <Route path="/profile" element={<AuthGuard><ProfilePage /></AuthGuard>} />
+        <Route path="/order/:id" element={<AuthGuard><OrderDetailPage /></AuthGuard>} />
       </Routes>
     </>
   )

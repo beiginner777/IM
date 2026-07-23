@@ -57,7 +57,7 @@ void LogicSystem::registerGetHandler() {
 		Json::Value orders(Json::arrayValue);
 		for (auto& o : mysqlDao_->getOrdersByUid(conn->uid())) {
 			Json::Value item; item["orderId"]=o.id; item["productName"]=o.productName;
-			item["price"]=o.price; item["time"]=o.time; orders.append(item);
+			item["price"]=o.price; item["status"]=o.status; item["time"]=o.time; orders.append(item);
 		}
 		v["orders"] = orders;
 		sendJson(conn, v);
@@ -75,12 +75,6 @@ void LogicSystem::registerGetHandler() {
 void LogicSystem::handleBuy(std::shared_ptr<HttpConnection> conn, int productId, const std::string& bodyStr) {
 	Json::Value v;
 	if (!conn->authenticate()) { v["success"]=false; v["message"]="请先登录"; sendJson(conn,v); return; }
-	Json::Value req; Json::Reader reader; reader.parse(bodyStr, req);
-	std::string pwd = req["password"].asString();
-	std::cout << "[SeckillServer] buy: uid=" << conn->uid() << " pwd_len=" << pwd.size() << std::endl;
-	if (pwd.empty() || !mysqlDao_->verifyPassword(conn->uid(), pwd)) {
-		v["success"]=false; v["message"]="密码错误"; sendJson(conn,v); return;
-	}
 	// 查余额
 	double balance = mysqlDao_->getBalance(conn->uid());
 	if (balance < 0) { v["success"]=false; v["message"]="查询余额失败"; sendJson(conn,v); return; }
@@ -163,6 +157,13 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn) {
 			else {
 				v["id"]=o.id; v["uid"]=o.uid; v["productId"]=o.productId; v["productName"]=o.productName;
 				v["price"]=o.price; v["status"]=o.status; v["time"]=o.time;
+				if (o.status=="unpaid" && o.time.size()>=19) {
+					struct tm tmv={};
+					sscanf_s(o.time.c_str(),"%d-%d-%d %d:%d:%d",&tmv.tm_year,&tmv.tm_mon,&tmv.tm_mday,&tmv.tm_hour,&tmv.tm_min,&tmv.tm_sec);
+					tmv.tm_year-=1900; tmv.tm_mon-=1;
+					int remain = 1800 - (int)(time(nullptr)-mktime(&tmv));
+					v["remainSeconds"] = remain > 0 ? remain : 0;
+				}
 				sendJson(conn, v);
 			}
 		}

@@ -31,6 +31,9 @@
 #include <jdbc/cppconn/resultset.h>
 #include <jdbc/cppconn/statement.h>
 #include <jdbc/cppconn/exception.h>
+#include <cstdio>
+
+#define _CRT_SECURE_NO_WARNINGS
 
 // TCP 消息帧头：[2字节 msg_id][2字节 msg_len]（网络字节序），与 StatusServer 一致
 #define HEAD_TOTOL_LEN 4
