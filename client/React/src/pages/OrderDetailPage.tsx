@@ -13,7 +13,7 @@ export default function OrderDetailPage() {
   const [pwdModal, setPwdModal] = useState(false)
   const [pwd, setPwd] = useState('')
   const [loading, setLoading] = useState(false)
-  const [remain, setRemain] = useState(1800)
+  const [remain, setRemain] = useState(0)
 
   const loadOrder = () => request.get('/order/'+id).then(r=>{
     setOrder(r.data)
