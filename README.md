@@ -97,3 +97,33 @@
 ## 4.11 MySQL 分表（一致性哈希分片 + 扩容）
 
 ![1782690690788.drawio](drawio/1782690690788.drawio.svg)
+
+---
+
+## 4.12 SeckillServer 秒杀服务
+
+### API 列表
+
+| 方法 | 路径 | 触发场景 |
+|---|---|---|
+| GET | `/products` | 用户进入商品列表页（ProductListPage） |
+| GET | `/rank` | 用户进入排行榜页，前端定时轮询刷新 |
+| GET | `/profile` | 用户进入个人中心（Navbar 点「我的」） |
+| GET | `/balance` | 充值页加载时显示余额 |
+| GET | `/order/{id}` | 抢购后跳转订单详情页，或从个人中心点击订单 |
+| POST | `/buy/{id}` | 商品卡片点击「立即抢购」→ 创建 unpaid 订单 |
+| POST | `/recharge` | 充值页面输入金额+密码 → 确认充值 |
+| POST | `/order/{id}/pay` | 订单详情页输入密码 → 支付（扣款+扣库存） |
+| POST | `/order/{id}/cancel` | 订单详情页点击「取消订单」 |
+
+### 订单状态流转
+
+```
+抢购 → unpaid ──支付──→ paid
+              ├─取消──→ cancelled
+              └─30分钟超时→ 前端按钮消失,无法支付
+```
+
+### 认证
+
+所有写操作（/recharge、/buy/*、/order/*/pay、/order/*/cancel）和读操作（/profile、/balance、/order/*）通过 `Authorization: Bearer <token>` 携带 JWT。token 由 GateServer `/fe_login` 签发，Redis 存储，TTL 24h。
