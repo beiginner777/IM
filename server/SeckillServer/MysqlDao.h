@@ -10,7 +10,8 @@
 #include <map>
 #include <condition_variable>
 
-class MysqlDao {
+class MysqlDao
+{
 public:
 	MysqlDao();
 	~MysqlDao() = default;
@@ -18,8 +19,25 @@ public:
 	bool updateBalance(int uid, double newBalance);
 	bool verifyPassword(int uid, const std::string& password);
 	std::string getUsername(int uid);
-	struct Product { int id; std::string name; double price; int stock; std::string imageUrl; };
-	struct Order { int id; int uid; int productId; std::string productName; double price; std::string status; std::string recipient; std::string time; };
+	struct Product
+	{
+		int id;
+		std::string name;
+		double price;
+		int stock;
+		std::string imageUrl;
+	};
+	struct Order
+	{
+		int id;
+		int uid;
+		int productId;
+		std::string productName;
+		double price;
+		std::string status;
+		std::string recipient;
+		std::string time;
+	};
 	std::vector<Product> getProducts();
 	bool updateStock(int productId, int newStock);
 	int insertOrder(int uid, int productId, const std::string& productName, double price);
@@ -27,10 +45,11 @@ public:
 	bool cancelOrder(int orderId, int uid);
 	Order getOrderById(int orderId);
 	std::vector<Order> getOrdersByUid(int uid);
-	std::map<int,int> getBuyCounts();
+	std::map<int, int> getBuyCounts();
 
 private:
-	struct SqlConnection {
+	struct SqlConnection
+	{
 		std::unique_ptr<sql::Connection> con_;
 		SqlConnection(std::unique_ptr<sql::Connection> c) : con_(std::move(c)) {}
 		SqlConnection(sql::Connection* c) : con_(c) {}
