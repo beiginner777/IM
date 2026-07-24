@@ -352,9 +352,22 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 	sendJson(conn, v);
 }
 
+bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<HttpConnection> conn)
+{
+	std::lock_guard<std::mutex> lock(rateLimitMtx_);
+	if (!globalBucket_.consume(1)) { sendAuthError(conn, "server busy"); return false; }
+	int uid = conn->uid();
+	if (uid <= 0) return true; // 未认证，跳过单用户限流
+	auto it = userBuckets_.find(uid);
+	if (it == userBuckets_.end()) { userBuckets_.emplace(uid, TokenBucket(5.0, 10.0)); it = userBuckets_.find(uid); }
+	if (!it->second.consume(1)) { sendAuthError(conn, "发送过于频繁"); return false; }
+	return RedisManager::getInstance()->checkRateLimit(uid, 100);
+}
+
 void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn)
 {
 	std::string target = conn->request_.target();
+	if (!tryAcquireRateLimit(conn)) return;
 	PostParams p;
 	p.body = beast::buffers_to_string(conn->request_.body().data());
 	p.url = target;

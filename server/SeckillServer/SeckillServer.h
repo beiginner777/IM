@@ -27,5 +27,7 @@ private:
 	std::shared_ptr<StatusClientSession> statusSession_;
 	std::mutex sessionMtx_;
 	std::atomic_bool heartbeatRunning_;
+	std::atomic_int currentConnections_{0};
+	int maxConnections_{500};
 };
 #endif

@@ -5,6 +5,8 @@
 #include "SingleTon.h"
 #include "HttpConnection.h"
 #include "MysqlDao.h"
+#include "TokenBucket.h"
+#include <unordered_map>
 struct GetParams
 {
 	std::string url;
@@ -33,6 +35,7 @@ private:
 	void registerPostHandler();
 	void sendJson(std::shared_ptr<HttpConnection> conn, const Json::Value& value);
 	void sendAuthError(std::shared_ptr<HttpConnection> conn, const std::string& msg);
+	bool tryAcquireRateLimit(std::shared_ptr<HttpConnection> conn);
 
 	using getRequestHandler = std::function<void(std::shared_ptr<HttpConnection>, const GetParams&)>;
 	using postRequestHandler = std::function<void(std::shared_ptr<HttpConnection>, const PostParams&)>;
@@ -46,5 +49,8 @@ private:
 	std::string url_;
 
 	MysqlDao* mysqlDao_{nullptr};
+	TokenBucket globalBucket_{3000.0, 5000.0};                // 全局 QPS（SeckillServer 级）
+	std::unordered_map<int, TokenBucket> userBuckets_;        // uid → bucket
+	std::mutex rateLimitMtx_;
 };
 #endif
