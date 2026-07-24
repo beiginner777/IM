@@ -11,16 +11,18 @@ class SeckillServer;
 class HttpConnection : public std::enable_shared_from_this<HttpConnection>
 {
 	friend class LogicSystem;
+
 public:
 	HttpConnection(tcp::socket&& sock, SeckillServer* server);
 	~HttpConnection();
 	tcp::socket& getSock() { return sock_; }
 	void start();
-	bool authenticate();  // JWT 验证，成功则设置 uid_
+	bool authenticate(); // JWT 验证，成功则设置 uid_
 	int uid() const { return uid_; }
 
 	tcp::socket sock_;
 	net::steady_timer deadline_;
+
 private:
 	void read_request();
 	void prase_request();
@@ -30,8 +32,8 @@ private:
 	void closeConnection();
 	SeckillServer* server_;
 	bool connectionClosed_;
-	int uid_{0};  // 认证后的用户 ID
-	boost::beast::flat_buffer buffer_{ 8192 };
+	int uid_{0}; // 认证后的用户 ID
+	boost::beast::flat_buffer buffer_{8192};
 	http::request<http::dynamic_body> request_;
 	http::response<http::dynamic_body> response_;
 };

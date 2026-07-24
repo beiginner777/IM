@@ -4,11 +4,10 @@
 #include "RedisLocker.h"
 #include "CServer.h"
 #include "CSession.h"
-// 从指定 sessions 中选出连接数最少的 Server（静态工具函数）
-static Server_Info getLeastLoadedServer(
-	const std::map<std::string, std::shared_ptr<CSession>>& sessions,
-	ServerType expectedType,
-	const std::string& redisKey);
+// 从指定 sessions 中选出连接数最少的 Server，全满返回空
+static Server_Info getLeastLoadedServer(const std::map<std::string, std::shared_ptr<CSession>>& sessions,
+                                        ServerType expectedType, const std::string& redisKey, int maxConns);
+
 StatusServiceImpl::StatusServiceImpl()
 {
 	// 不再从 config.ini 加载 ChatServer 列表
@@ -22,8 +21,13 @@ Status StatusServiceImpl::GetChatServer(ServerContext* context, const GetChatSer
 		reply->set_error(ERROR_RPC);
 		return Status::OK;
 	}
-	Server_Info selected =
-	        getLeastLoadedServer(server_->getSessions(), ServerType::CHAT_SERVER, CHATSERVERS);
+	auto cfg = ConfigManager::getInstance();
+	Server_Info selected = getLeastLoadedServer(
+		server_->getSessions(),
+		ServerType::CHAT_SERVER, 
+		CHATSERVERS, 
+		atoi(cfg["Limits"]["ChatMaxConns"].c_str())
+	);
 	if (selected.name.empty())
 	{
 		std::cerr << "[GetChatServer] No available ChatServer" << std::endl;
@@ -44,10 +48,13 @@ Status StatusServiceImpl::GetResourceServer(ServerContext* context, const GetRes
 		reply->set_error(ERROR_RPC);
 		return Status::OK;
 	}
+	auto cfg = ConfigManager::getInstance();
 	Server_Info selected = getLeastLoadedServer(
 		server_->getResourceSessions(),
 		ServerType::RESOURCE_SERVER,
-		RESOURCESERVERS);
+		RESOURCESERVERS, 
+		atoi(cfg["Limits"]["ResourceMaxConns"].c_str())
+	);
 	if (selected.name.empty()) {
 		std::cerr << "[GetResourceServer] No available ResourceServer" << std::endl;
 		reply->set_error(ERROR_RPC);
@@ -69,10 +76,13 @@ Status StatusServiceImpl::GetSeckillServer(ServerContext* context, const GetSeck
 		reply->set_error(ERROR_RPC);
 		return Status::OK;
 	}
+	auto cfg = ConfigManager::getInstance();
 	Server_Info selected = getLeastLoadedServer(
 		server_->getSeckillSessions(),
 		ServerType::SECKILL_SERVER,
-		SECKILLSERVERS);
+		SECKILLSERVERS, 
+		atoi(cfg["Limits"]["SeckillMaxConns"].c_str())
+	);
 	if (selected.name.empty()) {
 		std::cerr << "[GetSeckillServer] No available SeckillServer" << std::endl;
 		reply->set_error(ERROR_RPC);
@@ -90,7 +100,8 @@ Status StatusServiceImpl::GetSeckillServer(ServerContext* context, const GetSeck
 static Server_Info getLeastLoadedServer(
 	const std::map<std::string, std::shared_ptr<CSession>>& sessions,
 	ServerType expectedType,
-	const std::string& redisKey)
+	const std::string& redisKey,
+	int maxConns)
 {
 	Server_Info best;
 	best.con_count = INT_MAX;
@@ -98,7 +109,6 @@ static Server_Info getLeastLoadedServer(
 		auto session = kv.second;
 		Server_Info info = session->GetServerInfo();
 		if (info.server_type != expectedType) continue;
-		// 从 Redis 读取该 Server 的最新连接数（JSON 格式）
 		std::string jsonStr = RedisManager::getInstance()->HGet(redisKey, info.name);
 		int con_count = 0;
 		if (!jsonStr.empty()) {
@@ -111,11 +121,13 @@ static Server_Info getLeastLoadedServer(
 		std::cout << "[LeastLoaded] " << info.name << " (" << info.host << ":" << info.port
 		          << ") con_count=" << con_count << std::endl;
 		if (con_count < best.con_count) {
-			best.host = info.host;
-			best.port = info.port;
-			best.name = info.name;
-			best.con_count = con_count;
+			best.host = info.host; best.port = info.port; best.name = info.name; best.con_count = con_count;
 		}
+	}
+	// 如果最优实例也超过限制 → 全满，返回空（触发"服务器繁忙"）
+	if (best.con_count >= maxConns) {
+		std::cerr << "[StatusServer] All servers full (max=" << maxConns << "), returning error" << std::endl;
+		return Server_Info();
 	}
 	return best;
 }
