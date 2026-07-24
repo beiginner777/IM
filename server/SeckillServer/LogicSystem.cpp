@@ -327,6 +327,9 @@ void LogicSystem::registerPostHandler()
 // ==================== URL 解析 + 前缀路由 ====================
 void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 {
+	if (!tryAcquireRateLimit(conn)) {
+		return;
+	}
 	std::string target = conn->request_.target();
 	GetParams p;
 	prase_get_request(target);
@@ -366,8 +369,10 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<HttpConnection> conn)
 
 void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn)
 {
+	if (!tryAcquireRateLimit(conn)){
+		return;
+	}
 	std::string target = conn->request_.target();
-	if (!tryAcquireRateLimit(conn)) return;
 	PostParams p;
 	p.body = beast::buffers_to_string(conn->request_.body().data());
 	p.url = target;
