@@ -26,7 +26,6 @@ public:
 	bool payOrder(int orderId, int uid);
 	bool cancelOrder(int orderId, int uid);
 	Order getOrderById(int orderId);
-	std::vector<Order> getOrders();
 	std::vector<Order> getOrdersByUid(int uid);
 	std::map<int,int> getBuyCounts();
 

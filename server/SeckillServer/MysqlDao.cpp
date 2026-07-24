@@ -136,16 +136,6 @@ int MysqlDao::insertOrder(int uid, int productId, const std::string& productName
 	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] insertOrder: "<<e.what()<<std::endl; returnConn(std::move(conn)); return -1; }
 }
 
-std::vector<MysqlDao::Order> MysqlDao::getOrders() {
-	std::vector<Order> result;
-	auto conn = getConn(); if (!conn) return result;
-	try {
-		auto stmt = conn->con_->createStatement();
-		auto res = stmt->executeQuery("SELECT id,uid,product_id,product_name,price,status,recipient,created_at FROM seckill_order ORDER BY id DESC LIMIT 100");
-		while (res->next()) {
-			result.push_back({res->getInt("id"), res->getInt("uid"), res->getInt("product_id"),
-				res->getString("product_name"), (double)res->getDouble("price"), res->getString("status"), res->getString("recipient"), res->getString("created_at")});
-		}
 	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] getOrders: "<<e.what()<<std::endl; }
 	returnConn(std::move(conn));
 	return result;

@@ -40,14 +40,6 @@ void LogicSystem::registerGetHandler() {
 		}
 		sendJson(conn, arr);
 	};
-	getHandles_["/orders"] = [this](std::shared_ptr<HttpConnection> conn) {
-		Json::Value arr(Json::arrayValue);
-		for (auto& o : mysqlDao_->getOrders()) {
-			Json::Value item; item["orderId"]=o.id; item["productName"]=o.productName;
-			item["time"]=o.time; item["status"]="成功"; arr.append(item);
-		}
-		sendJson(conn, arr);
-	};
 	getHandles_["/profile"] = [this](std::shared_ptr<HttpConnection> conn) {
 		Json::Value v;
 		if (!conn->authenticate()) { v["error"]="请先登录"; sendJson(conn,v); return; }
