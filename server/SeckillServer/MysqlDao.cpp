@@ -136,10 +136,6 @@ int MysqlDao::insertOrder(int uid, int productId, const std::string& productName
 	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] insertOrder: "<<e.what()<<std::endl; returnConn(std::move(conn)); return -1; }
 }
 
-	} catch(sql::SQLException& e) { std::cerr<<"[MysqlDao] getOrders: "<<e.what()<<std::endl; }
-	returnConn(std::move(conn));
-	return result;
-}
 
 std::map<int,int> MysqlDao::getBuyCounts() {
 	std::map<int,int> result;
