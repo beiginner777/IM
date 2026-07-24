@@ -46,6 +46,7 @@ public:
 	Order getOrderById(int orderId);
 	std::vector<Order> getOrdersByUid(int uid);
 	std::map<int, int> getBuyCounts();
+	std::vector<MysqlDao::Order> getOrders();
 
 private:
 	struct SqlConnection

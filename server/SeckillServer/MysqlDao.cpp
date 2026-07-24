@@ -192,22 +192,18 @@ int MysqlDao::insertOrder(int uid, int productId, const std::string& productName
 }
 
 
-std::map<int, int> MysqlDao::getBuyCounts()
+std::map<int, std::pair<int,std::string>> MysqlDao::getBuyCountsWithTime()
 {
-	std::map<int, int> result;
+	std::map<int, std::pair<int,std::string>> result;
 	auto conn = getConn();
-	if (!conn)
-		return result;
-	try
-	{
+	if (!conn) return result;
+	try {
 		auto stmt = conn->con_->createStatement();
-		auto res = stmt->executeQuery("SELECT product_id, COUNT(*) cnt FROM seckill_order GROUP BY product_id");
+		auto res = stmt->executeQuery("SELECT product_id, COUNT(*) cnt, MAX(created_at) last_t FROM seckill_order WHERE status='paid' GROUP BY product_id");
 		while (res->next())
-			result[res->getInt("product_id")] = res->getInt("cnt");
-	}
-	catch (sql::SQLException& e)
-	{
-		std::cerr << "[MysqlDao] getBuyCounts: " << e.what() << std::endl;
+			result[res->getInt("product_id")] = {res->getInt("cnt"), res->getString("last_t")};
+	} catch (sql::SQLException& e) {
+		std::cerr << "[MysqlDao] getBuyCountsWithTime: " << e.what() << std::endl;
 	}
 	returnConn(std::move(conn));
 	return result;
@@ -342,4 +338,30 @@ MysqlDao::Order MysqlDao::getOrderById(int orderId)
 	}
 	returnConn(std::move(conn));
 	return o;
+}
+
+std::vector<MysqlDao::Order> MysqlDao::getOrders()
+{
+	std::vector<Order> result;
+	auto conn = getConn();
+	if (!conn)
+		return result;
+	try
+	{
+		auto stmt = conn->con_->createStatement();
+		auto res = stmt->executeQuery("SELECT id,uid,product_id,product_name,price,status,recipient,created_at FROM "
+		                              "seckill_order ORDER BY id DESC LIMIT 100");
+		while (res->next())
+		{
+			result.push_back({res->getInt("id"), res->getInt("uid"), res->getInt("product_id"),
+			                  res->getString("product_name"), (double) res->getDouble("price"),
+			                  res->getString("status"), res->getString("recipient"), res->getString("created_at")});
+		}
+	}
+	catch (sql::SQLException& e)
+	{
+		std::cerr << "[MysqlDao] getOrders: " << e.what() << std::endl;
+	}
+	returnConn(std::move(conn));
+	return result;
 }

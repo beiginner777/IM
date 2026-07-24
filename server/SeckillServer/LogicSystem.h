@@ -13,6 +13,7 @@ struct GetParams
 };
 struct PostParams
 {
+	std::string url;
 	std::string body;
 	int pathId = 0;
 };

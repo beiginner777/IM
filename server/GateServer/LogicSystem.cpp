@@ -274,21 +274,24 @@ void LogicSystem::registerPostHandler()
 		std::string bodyStr = boost::beast::buffers_to_string(body.data());
 		std::cout << "receive post body = " << bodyStr << std::endl;
 		response.set(http::field::content_type, "application/json");
+		Json::Value value;
+		value["error_code"] = SUCCESS;
+		Defer defer([&]() { 
+			beast::ostream(response.body()) << value.toStyledString(); 
+			});
 		Json::Value root;
 		Json::Reader reader;
-		Json::Value value;
 		// json解析失败
 		if (!reader.parse(bodyStr, root))
 		{
 			value["error_code"] = ERROE_CODR::ERROR_JSON;
 			value["error_msg"] = "json prase failed !";
-			beast::ostream(response.body()) << value.toStyledString();
 			return;
 		}
 		// 用户的登录信息
 		std::string name = root["username"].asString();
 		std::string password = root["password"].asString();
-		std::cout << "[fe_login] name = " << name << std::endl;
+		std::cout << "[fe_login] username = " << name << ", passwd = " << password << std::endl;
 		// 数据库校验用户名密码（bcrypt）
 		std::shared_ptr<UserInfo> userInfo = std::make_shared<UserInfo>();
 		int returnCode = MysqlManager::getInstance()->userLogin(name, password, userInfo);
@@ -296,31 +299,19 @@ void LogicSystem::registerPostHandler()
 		{
 			value["error_code"] = ERROR_USER_NOT_EXIST;
 			value["error_msg"] = "用户不存在";
-			beast::ostream(response.body()) << value.toStyledString();
 			return;
 		}
 		else if (returnCode == ERROR_PASSWORD)
 		{
 			value["error_code"] = ERROR_PASSWORD;
 			value["error_msg"] = "密码错误";
-			beast::ostream(response.body()) << value.toStyledString();
 			return;
 		}
 		else if (returnCode == ERROR_LOGIN)
 		{
-			// SQL 执行异常
+			// 其他非用户侧错误（如 MySQL 连接池拿不到连接返回的 ERROR_REGISTER，获取SQL执行抛出失败），
 			value["error_code"] = ERROR_LOGIN;
 			value["error_msg"] = "服务繁忙，请稍后重试";
-			beast::ostream(response.body()) << value.toStyledString();
-			return;
-		}
-		else if (returnCode != SUCCESS)
-		{
-			// 其他非用户侧错误（如 MySQL 连接池拿不到连接返回的 ERROR_REGISTER），
-			// 统一按服务繁忙处理，防止穿透到成功分支
-			value["error_code"] = returnCode;
-			value["error_msg"] = "服务繁忙，请稍后重试";
-			beast::ostream(response.body()) << value.toStyledString();
 			return;
 		}
 		// 查询状态服务器Status分配一个SeckillServer
@@ -333,7 +324,6 @@ void LogicSystem::registerPostHandler()
 			beast::ostream(response.body()) << value.toStyledString();
 			return;
 		}
-		value["error_code"] = SUCCESS;
 		value["username"] = name;
 		// JWT token（UUID，Redis 存 payload）
 		std::string token = JWT::generateToken(userInfo->uid_, name);
@@ -344,13 +334,13 @@ void LogicSystem::registerPostHandler()
 		tokenPayload["username"] = name;
 		tokenPayload["exp"] = (Json::Int)std::chrono::duration_cast<std::chrono::seconds>(
 			(std::chrono::system_clock::now() + std::chrono::hours(24)).time_since_epoch()).count();
+		// 将Token存入 Redis，设置过期时间为 24 小时
 		RedisManager::getInstance()->SetExp("token:" + token, tokenPayload.toStyledString(), JWT::TOKEN_TTL);
 		// 用户余额（前端充值页面显示）
 		value["balance"] = userInfo->balance_;
 		// SeckillServer 地址（前端 setBaseURL 使用，port 需为数字类型）
 		value["host"] = reply.host();
 		value["port"] = std::atoi(reply.port().c_str());
-		beast::ostream(response.body()) << value.toStyledString();
 	};
 }
 

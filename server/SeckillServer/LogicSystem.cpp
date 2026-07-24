@@ -30,6 +30,21 @@ LogicSystem::~LogicSystem()
 // ==================== GET handlers ====================
 void LogicSystem::registerGetHandler()
 {
+	getHandles_["/orders"] = [this](auto conn, auto&)
+	{
+		Json::Value arr(Json::arrayValue);
+		for (auto& o : mysqlDao_->getOrders())
+		{
+			Json::Value i;
+			i["orderId"] = o.id;
+			i["productName"] = o.productName;
+			i["time"] = o.time;
+			i["status"] = o.status;
+			arr.append(i);
+		}
+		sendJson(conn, arr);
+	};
+
 	getHandles_["/products"] = [this](auto conn, auto&)
 	{
 		Json::Value arr(Json::arrayValue);
@@ -48,16 +63,18 @@ void LogicSystem::registerGetHandler()
 	getHandles_["/rank"] = [this](auto conn, auto&)
 	{
 		Json::Value arr(Json::arrayValue);
-		auto counts = mysqlDao_->getBuyCounts();
 		auto products = mysqlDao_->getProducts();
-		for (auto& kv : counts)
-		{
+		auto raw = mysqlDao_->getBuyCountsWithTime();
+		std::vector<std::tuple<int,int,std::string>> sorted;
+		for (auto& kv : raw) sorted.push_back({kv.first, kv.second.first, kv.second.second});
+		std::sort(sorted.begin(), sorted.end(), [](auto& a, auto& b) {
+			if (std::get<1>(a) != std::get<1>(b)) return std::get<1>(a) > std::get<1>(b);
+			return std::get<2>(a) > std::get<2>(b);
+		});
+		for (auto& [pid, cnt, tm] : sorted) {
 			Json::Value i;
-			i["productId"] = kv.first;
-			i["count"] = kv.second;
-			for (auto& p : products)
-				if (p.id == kv.first)
-					i["productName"] = p.name;
+			i["productId"] = pid; i["count"] = cnt;
+			for (auto& p : products) if (p.id == pid) { i["productName"] = p.name; break; }
 			arr.append(i);
 		}
 		sendJson(conn, arr);
@@ -134,6 +151,20 @@ void LogicSystem::registerGetHandler()
 			v["remainSeconds"] = remain > 0 ? remain : 0;
 		}
 		sendJson(conn, v);
+	};
+	getHandles_["/orders"] = [this](auto conn, auto& p)
+	{
+		Json::Value arr(Json::arrayValue);
+		for (auto& o : mysqlDao_->getOrders())
+		{
+			Json::Value item;
+			item["orderId"] = o.id;
+			item["productName"] = o.productName;
+			item["time"] = o.time;
+			item["status"] = "成功";
+			arr.append(item);
+		}
+		sendJson(conn, arr);
 	};
 }
 
@@ -302,12 +333,16 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 	getPrama_.clear();
 	if (p.url.find("/order/") == 0)
 		p.pathId = atoi(p.url.substr(7).c_str());
-	for (auto& [prefix, handler] : getHandles_)
+	for (auto& kv : getHandles_)
+	{
+		auto prefix = kv.first;
+		auto handler = kv.second;
 		if (p.url.find(prefix) == 0)
 		{
 			handler(conn, p);
 			return;
 		}
+	}
 	conn->response_.result(http::status::not_found);
 	Json::Value v;
 	v["error"] = "not found";
@@ -324,12 +359,16 @@ void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn)
 		p.pathId = atoi(target.substr(7).c_str());
 	else if (target.find("/buy/") == 0)
 		p.pathId = atoi(target.substr(5).c_str());
-	for (auto& [prefix, handler] : postHandles_)
+	for (auto& kv : postHandles_)
+	{
+		auto prefix = kv.first;
+		auto handler = kv.second;
 		if (target.find(prefix) == 0)
 		{
 			handler(conn, p);
 			return;
 		}
+	}
 	conn->response_.result(http::status::not_found);
 	Json::Value v;
 	v["error"] = "not found";
