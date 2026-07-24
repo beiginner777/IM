@@ -191,7 +191,6 @@ int MysqlDao::insertOrder(int uid, int productId, const std::string& productName
 	}
 }
 
-
 std::map<int, std::pair<int,std::string>> MysqlDao::getBuyCountsWithTime()
 {
 	std::map<int, std::pair<int,std::string>> result;

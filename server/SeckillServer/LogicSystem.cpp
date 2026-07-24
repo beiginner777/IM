@@ -60,7 +60,7 @@ void LogicSystem::registerGetHandler()
 		}
 		sendJson(conn, arr);
 	};
-	getHandles_["/rank"] = [this](auto conn, auto&)
+	getHandles_["/rank"] = [this](auto conn, auto& p)
 	{
 		Json::Value arr(Json::arrayValue);
 		auto products = mysqlDao_->getProducts();
@@ -71,7 +71,10 @@ void LogicSystem::registerGetHandler()
 			if (std::get<1>(a) != std::get<1>(b)) return std::get<1>(a) > std::get<1>(b);
 			return std::get<2>(a) > std::get<2>(b);
 		});
-		for (auto& [pid, cnt, tm] : sorted) {
+		for (auto& t : sorted) {
+			auto pid = std::get<0>(t);
+			auto cnt = std::get<1>(t);
+			auto tm = std::get<2>(t);
 			Json::Value i;
 			i["productId"] = pid; i["count"] = cnt;
 			for (auto& p : products) if (p.id == pid) { i["productName"] = p.name; break; }

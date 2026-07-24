@@ -45,8 +45,8 @@ public:
 	bool cancelOrder(int orderId, int uid);
 	Order getOrderById(int orderId);
 	std::vector<Order> getOrdersByUid(int uid);
-	std::map<int, int> getBuyCounts();
 	std::vector<MysqlDao::Order> getOrders();
+	std::map<int, std::pair<int, std::string>> getBuyCountsWithTime();
 
 private:
 	struct SqlConnection

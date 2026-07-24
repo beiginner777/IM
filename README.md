@@ -108,6 +108,7 @@
 |---|---|---|
 | GET | `/products` | 用户进入商品列表页（ProductListPage） |
 | GET | `/rank` | 用户进入排行榜页，前端定时轮询刷新 |
+| GET | `/orders` | Navbar 点击「订单」，查看全部抢购记录（OrdersPage） |
 | GET | `/profile` | 用户进入个人中心（Navbar 点「我的」） |
 | GET | `/balance` | 充值页加载时显示余额 |
 | GET | `/order/{id}` | 抢购后跳转订单详情页，或从个人中心点击订单 |
