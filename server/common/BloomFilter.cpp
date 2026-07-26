@@ -59,7 +59,7 @@ bool BloomFilter::contains(const std::string& key) const
 		}
 	}
 	if (localResult) return true;
-	// 本地 miss → 查 Redis BITMAP（GateServer 可能刚写了新用户）
+	// 本地 miss → 查 Redis BITMAP（AuthServer 可能刚写了新用户）
 	auto redis = RedisManager::getInstance();
 	if (redis) {
 		bool redisResult = true;

@@ -7,7 +7,7 @@
 - 订单管理（创建 / 支付 / 取消，30 分钟超时）
 - 排行榜统计
 - 个人中心（我的订单 / 已购宝贝）
-- JWT 认证（与 GateServer 共享密钥）
+- JWT 认证（与 AuthServer 共享密钥）
 
 ## 文件
 
@@ -72,11 +72,11 @@ Client (React) ──HTTP──→ SeckillServer (充值/秒杀/订单)
                            ├── Redis（token 验证 + 库存）
                            └── MySQL（余额 + 订单持久化）
 
-GateServer ──JWT 签发──→  Client 携 token 访问 SeckillServer
+AuthServer ──JWT 签发──→  Client 携 token 访问 SeckillServer
 ```
 
 ## 注意
-- 端口默认 8100（GateServer 8080，ResourceServer 9090）
+- 端口默认 8100（AuthServer 8080，ResourceServer 9090）
 - `MysqlDao` 自行管理连接池（`tcp://host:port` 格式），未使用 common 的 MysqlManager
 - JWT 为 Redis 存储模式（UUID token → Redis GET 验证），密钥通过 `config.ini [JWT] Secret` 配置
 - 排行榜只统计已支付订单（`WHERE status='paid'`），按购买数量降序，同数量按最近购买时间降序

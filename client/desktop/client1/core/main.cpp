@@ -23,15 +23,15 @@ int main(int argc, char *argv[])
     QString config_path = QDir::toNativeSeparators(app_path + QDir::separator() + config_name);
     // 将配置加载到环境当中
     QSettings settings(config_path,QSettings::IniFormat);
-    GateServerHost = settings.value("GateServer/Host").toString();
-    GateServerPort = settings.value("GateServer/Port").toString();
-    QString GateServerScheme = settings.value("GateServer/Scheme", "http").toString();
-    // 拼接网关服务器地址（支持 http/https 配置）
-    Gate_Url_Prefix = GateServerScheme + "://" + GateServerHost + ":" + GateServerPort;
-    qDebug() << "GateServerAddr = " << Gate_Url_Prefix;
+    AuthServerHost = settings.value("AuthServer/Host").toString();
+    AuthServerPort = settings.value("AuthServer/Port").toString();
+    QString AuthServerScheme = settings.value("AuthServer/Scheme", "http").toString();
+    // 拼接认证服务器地址（Nginx 统一入口，支持 http/https 配置）
+    Auth_Url_Prefix = AuthServerScheme + "://" + AuthServerHost + ":" + AuthServerPort;
+    qDebug() << "AuthServerAddr = " << Auth_Url_Prefix;
 
     // dev 环境忽略自签证书错误（仅 HTTPS 时生效，生产环境必须移除）
-    if (GateServerScheme == "https") {
+    if (AuthServerScheme == "https") {
         // 获取当前的全局默认 SSL 配置
         QSslConfiguration sslConfig = QSslConfiguration::defaultConfiguration();
         // 将对端证书验证模式设置为“不验证”

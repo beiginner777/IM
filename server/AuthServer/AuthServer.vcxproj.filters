@@ -21,7 +21,7 @@
     <ClCompile Include="ConfigManager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="GateServer.cpp">
+    <ClCompile Include="AuthServer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="HttpConnection.cpp">
@@ -62,7 +62,7 @@
     <ClInclude Include="ConfigManager.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="GateServer.h">
+    <ClInclude Include="AuthServer.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="global.h">

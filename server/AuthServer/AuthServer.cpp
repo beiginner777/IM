@@ -1,17 +1,17 @@
-﻿#include "GateServer.h"
+﻿#include "AuthServer.h"
 #include "HttpConnection.h"
-GateServer::GateServer(boost::asio::io_context& ioc, unsigned int port) 
+AuthServer::AuthServer(boost::asio::io_context& ioc, unsigned int port) 
 	: ioc_(ioc)
 	, acceptor_(ioc, tcp::endpoint(tcp::v4(), port))
 {
-	std::cout << "GateServer starts,listening on port: " << port << std::endl;
+	std::cout << "AuthServer starts,listening on port: " << port << std::endl;
 }
-GateServer::~GateServer()
+AuthServer::~AuthServer()
 {
 	acceptor_.close();  // 停止接受新连接
 }
 
-void GateServer::start()
+void AuthServer::start()
 {
     boost::asio::io_context& ioc = AsioIOContextThreadPool::getInstance()->getIOContext();
     auto socket = std::make_shared<tcp::socket>(ioc);

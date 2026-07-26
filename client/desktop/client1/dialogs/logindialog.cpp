@@ -238,7 +238,7 @@ void LoginDialog::on_login_button_clicked()
     /*QJsonObject obj;
     obj["username"] = ui->user_lineedit->text();
     obj["password"] = ui->password_lineedit->text();
-    HttpManager::GetInstance()->sendPostRequest(QUrl(Gate_Url_Prefix + loginAddr),obj,ID_LOGIN,LOGINMOD);*/
+    HttpManager::GetInstance()->sendPostRequest(QUrl(Auth_Url_Prefix + loginAddr),obj,ID_LOGIN,LOGINMOD);*/
 }
 
 void LoginDialog::handleSignals(QString res, ERRORCODE err, REQUEST_ID req_id)

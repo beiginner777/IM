@@ -3,7 +3,7 @@
 
 #include "global.h"
 class StatusClientSession;
-// HTTP acceptor + 心跳定时器（参考 GateServer，增加向 StatusServer 注册和心跳的逻辑）
+// HTTP acceptor + 心跳定时器（参考 AuthServer，增加向 StatusServer 注册和心跳的逻辑）
 class SeckillServer : public std::enable_shared_from_this<SeckillServer>
 {
 public:

@@ -13,7 +13,7 @@ GetChatServerRsp StatusGrpcClient::GetChatServer(int uid)
     std::unique_ptr<StatusService::Stub> stub = std::move(StatusConnPool::getInstance()->getConnection());
     Status status = stub->GetChatServer(&context, request, &reply);
     
-	std::cout << "[GateServer]: " << "receive ChatServer(" << reply.host() << ":" << reply.port() << ") for client whose uid = " << uid << " from StatusServer.\n";
+	std::cout << "[AuthServer]: " << "receive ChatServer(" << reply.host() << ":" << reply.port() << ") for client whose uid = " << uid << " from StatusServer.\n";
 	if (status.ok()) {
 		std::cout << "gRpc connect StatusServer Success ! \n";
 		StatusConnPool::getInstance()->returnConnection(std::move(stub));
@@ -46,7 +46,7 @@ GetSeckillServerRsp StatusGrpcClient::GetSeckillServer(int uid)
 	}
 	Status status = stub->GetSeckillServer(&context, request, &reply);
 
-	std::cout << "[GateServer]: " << "receive SeckillServer(" << reply.host() << ":" << reply.port() << ") for client whose uid = " << uid << " from StatusServer.\n";
+	std::cout << "[AuthServer]: " << "receive SeckillServer(" << reply.host() << ":" << reply.port() << ") for client whose uid = " << uid << " from StatusServer.\n";
 	if (status.ok()) {
 		std::cout << "gRpc connect StatusServer Success ! \n";
 		StatusConnPool::getInstance()->returnConnection(std::move(stub));

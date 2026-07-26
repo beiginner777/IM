@@ -143,9 +143,9 @@ const int FILE_ICON_HEIGHT = 100;
 // 重连的最大次数
 const int MAX_RECONNECT_TIMES = 10;
 
-extern QString Gate_Url_Prefix;
-extern QString GateServerHost;
-extern QString GateServerPort;
+extern QString Auth_Url_Prefix;
+extern QString AuthServerHost;
+extern QString AuthServerPort;
 extern QString getVerifyCodeAddr;
 extern QString registerUserAddr;
 extern QString loginAddr;
