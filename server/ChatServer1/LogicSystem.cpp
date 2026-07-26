@@ -8,6 +8,7 @@
 #include "ChatGrpcClient.h"
 #include "CServer.h"
 #include "utils.h"
+#include "JWT.h"
 #include "BatchMessageWriter.h"
 #include "LogicWorker.h"
 
@@ -433,22 +434,22 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 	std::string token = root["token"].asString();
 	std::cout << "uid = " << uid << " request login ChatServer,token = " << token << std::endl;
 	Json::Value value;
-	/* std::string TokenValue = RedisManager::getInstance()->Get(USERUIDPREFIX + std::to_string(uid));
-	if (TokenValue == "")
-	{
-		value["code"] = ERROR_INVALIDUID;
-		value["message"] = "uid does not exists.";
-		session->Send(value.toStyledString(), msgId, uuid);
-		return;
-	}
-	if (TokenValue !=  USERTOKENPREFIX + token)
+	// JWT 验签（HMAC-SHA256，纯 CPU，不查 Redis）
+	int verifiedUid = 0;
+	if (!JWT::verify(token, verifiedUid))
 	{
 		value["code"] = ERROR_INVALIDTOKEN;
-		value["message"] = "Token does not exists.";
+		value["message"] = "Token 无效或已过期，请重新登录";
 		session->Send(value.toStyledString(), msgId, uuid);
 		return;
 	}
-	*/
+	if (verifiedUid != uid)
+	{
+		value["code"] = ERROR_INVALIDUID;
+		value["message"] = "Token 与用户不匹配";
+		session->Send(value.toStyledString(), msgId, uuid);
+		return;
+	}
 	std::string lock_key = LOCKPREFIX + std::to_string(uid);
 	std::string identifier = RedisManager::getInstance()->acqueireLock(lock_key, LOCK_TIMEOUT, ACQUIRE_TIMEOUT);
 	std::string ip = RedisManager::getInstance()->Get(USERIPPREFIX + std::to_string(uid));

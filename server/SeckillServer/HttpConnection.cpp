@@ -134,5 +134,5 @@ bool HttpConnection::authenticate()
 	{
 		return false;
 	}
-	return JWT::verify(auth.substr(7), uid_, "");
+	return JWT::verify(auth.substr(7), uid_);
 }

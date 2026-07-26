@@ -7,6 +7,7 @@
 #include "FileSystem.h"
 #include "FileWorker.h"
 #include "DownloadWorker.h"
+#include "JWT.h"
 LogicWorker::LogicWorker()
 	: b_stop_(false)
 {
@@ -104,7 +105,13 @@ void LogicWorker::uploadHeadIcon(std::shared_ptr<CSession> session, short msgId,
 	std::string fullPath = uploadPath + "/" + fileName;
 	if (seq == 1)
 	{
-		// 第一个包验证token是否正确 to do ...
+		// 第一个包：JWT 验签
+	int verifiedUid = 0;
+	if (!JWT::verify(token, verifiedUid) || verifiedUid != uid)
+	{
+		std::cout << "[ResourceServer] JWT verify failed: uid=" << uid << std::endl;
+		return;
+	}
 		//构造数据存储
 		auto file_info = std::make_shared<FileInfo>();
 		file_info->uid_ = uid;
@@ -178,7 +185,13 @@ void LogicWorker::uploadFile(std::shared_ptr<CSession> session, short msgId, std
 	if (seq == 1) 
 	{
 		session->setUserId(uid);
-		// 第一个包验证token是否正确 to do ...
+		// 第一个包：JWT 验签
+	int verifiedUid = 0;
+	if (!JWT::verify(token, verifiedUid) || verifiedUid != uid)
+	{
+		std::cout << "[ResourceServer] JWT verify failed: uid=" << uid << std::endl;
+		return;
+	}
 		//构造数据存储
 		auto file_info = std::make_shared<FileInfo>();
 		file_info->uid_ = uid;
@@ -275,7 +288,13 @@ void LogicWorker::downloadFile(std::shared_ptr<CSession> session, short msgId, s
 	auto cfg = ConfigManager::getInstance();
 	if (seq == 1)
 	{
-		// 第一个包验证token是否正确 to do ...
+		// 第一个包：JWT 验签
+	int verifiedUid = 0;
+	if (!JWT::verify(token, verifiedUid) || verifiedUid != uid)
+	{
+		std::cout << "[ResourceServer] JWT verify failed: uid=" << uid << std::endl;
+		return;
+	}
 		
 	}
 	else

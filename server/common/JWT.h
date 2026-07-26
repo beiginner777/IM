@@ -1,27 +1,26 @@
 #ifndef JWT_H
 #define JWT_H
 #include <string>
-#include <boost/uuid/uuid_io.hpp>
-#include <boost/uuid/uuid_generators.hpp>
-#include <chrono>
+#include <cstdint>
 
-// 简化 JWT：UUID token + Redis 存 payload（无 OpenSSL 依赖）
-// token = random UUID, Redis: "token:{uuid}" → {uid, username, exp}
+// 真实 JWT：HMAC-SHA256 签名，自包含 claims
+// 验签纯 CPU 运算，不查 Redis。吊销通过 Redis 黑名单（jwt:revoked:{uid}）
 class JWT
 {
 public:
-	// 生成 token（返回 UUID 字符串）
-	static std::string generateToken(int uid, const std::string& username)
-	{
-		auto a_uuid = boost::uuids::random_generator()();
-		return boost::uuids::to_string(a_uuid);
-	}
+    // 签发 JWT token（header.payload.signature），exp = 当前时间 + TTL
+    static std::string generateToken(int uid, const std::string& username);
 
-	// 验证 token（查 Redis），成功则提取 uid
-	static bool verify(const std::string& token, int& uid, const std::string& username);
+    // 验签 + 提取 uid。不查 Redis（除非走黑名单检查）
+    static bool verify(const std::string& token, int& uid);
 
-	// Redis 存储的 TTL（秒）
-	static constexpr int TOKEN_TTL = 86400; // 24h
+    // 吊销某个 uid 的所有旧 token（改密码/封号时调用）
+    // Redis: SET "jwt:revoked:{uid}" = now_epoch
+    static void revoke(int uid);
+
+    // 检查 uid 是否已被吊销（iat < revoked_at → token 在吊销前签发 → 失效）
+    static bool isRevoked(int uid, int64_t iat);
+
+    static constexpr int TOKEN_TTL = 86400; // 24h
 };
-
 #endif
