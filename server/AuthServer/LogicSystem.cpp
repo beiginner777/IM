@@ -255,7 +255,7 @@ void LogicSystem::registerPostHandler()
 		value["code"] = SUCCESS;
 		value["message"] = "Succeed to find suitable ChatServer";
 		value["uid"] = userInfo->uid_;
-		value["token"] = JWT::generateToken(userInfo->uid_, name);
+		value["token"] = JWT::generateToken(userInfo->uid_, name, JWT::CLIENT_DESKTOP);
 		// ChatServer
 		value["host"] = reply.host();
 		value["port"] = reply.port();
@@ -288,11 +288,12 @@ void LogicSystem::registerPostHandler()
 				MysqlManager::getInstance()->updateLastLoginIp(userInfo->uid_, clientIp);
 			}
 			// 3. 踢旧 TCP session
-			std::string sessionKey = "user_session:" + std::to_string(userInfo->uid_);
+			std::string sessionKey = "user_session:desktop:" + std::to_string(userInfo->uid_);
 			std::string oldServer = RedisManager::getInstance()->Get(sessionKey);
 			if (!oldServer.empty() && oldServer != reply.name()) {
 				KickUserClient::getInstance()->NotifyKickUser(oldServer, userInfo->uid_);
 			}
+			JWT::revoke(userInfo->uid_, JWT::CLIENT_DESKTOP);
 			// 4. 记录新 session
 			RedisManager::getInstance()->Set(sessionKey, reply.name());
 		}
@@ -352,7 +353,7 @@ void LogicSystem::registerPostHandler()
 		// Nginx 统一入口地址（不再调 StatusServer 分配 SeckillServer，由 Nginx 做负载均衡）
 		value["username"] = name;
 		// JWT token（HMAC-SHA256 自包含，不需要存 Redis）
-		std::string token = JWT::generateToken(userInfo->uid_, name);
+		std::string token = JWT::generateToken(userInfo->uid_, name, JWT::CLIENT_WEB);
 		value["token"] = token;
 
 		// 异地登录检测 + 吊销旧 token
@@ -379,7 +380,7 @@ void LogicSystem::registerPostHandler()
 				MysqlManager::getInstance()->updateLastLoginIp(userInfo->uid_, clientIp);
 			}
 			// 3. 吊销旧 JWT（Web 端无 TCP session，靠黑名单让旧 token 失效）
-			JWT::revoke(userInfo->uid_);
+			JWT::revoke(userInfo->uid_, JWT::CLIENT_WEB);
 		}
 
 		// 用户余额（前端充值页面显示）

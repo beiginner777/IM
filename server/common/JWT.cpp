@@ -116,7 +116,8 @@ static std::string compactJson(const Json::Value& v)
 }
 
 // ==================== Public API ====================
-std::string JWT::generateToken(int uid, const std::string& username)
+std::string JWT::generateToken(int uid, const std::string& username,
+                                 const std::string& clientType)
 {
     auto now = std::chrono::system_clock::now();
     auto nowSec = std::chrono::duration_cast<std::chrono::seconds>(
@@ -133,6 +134,7 @@ std::string JWT::generateToken(int uid, const std::string& username)
     Json::Value payload;
     payload["uid"] = uid;
     payload["username"] = username;
+    payload["client_type"] = clientType;
     payload["iat"] = (int)nowSec;
     payload["exp"] = (int)(nowSec + TOKEN_TTL);
     std::string payloadB64 = base64UrlEncode(
@@ -181,28 +183,31 @@ bool JWT::verify(const std::string& token, int& uid)
     if (nowSec > payload["exp"].asInt())
         return false;
 
-    // 5. 检查黑名单
+    // 5. 检查黑名单（key 由 payload 里的 client_type 决定）
     int tokenUid = payload["uid"].asInt();
     int64_t iat = payload["iat"].asInt();
-    if (isRevoked(tokenUid, iat))
+    std::string clientType = payload.get("client_type", "").asString();
+    if (clientType.empty()) clientType = CLIENT_WEB; // 兼容旧 token
+    if (isRevoked(tokenUid, iat, clientType))
         return false;
 
     uid = tokenUid;
     return true;
 }
 
-void JWT::revoke(int uid)
+void JWT::revoke(int uid, const std::string& clientType)
 {
     auto nowSec = std::chrono::duration_cast<std::chrono::seconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
     RedisManager::getInstance()->Set(
-        "jwt:revoked:" + std::to_string(uid), std::to_string(nowSec));
+        "jwt:revoked:" + clientType + ":" + std::to_string(uid),
+        std::to_string(nowSec));
 }
 
-bool JWT::isRevoked(int uid, int64_t iat)
+bool JWT::isRevoked(int uid, int64_t iat, const std::string& clientType)
 {
     std::string val = RedisManager::getInstance()->Get(
-        "jwt:revoked:" + std::to_string(uid));
+        "jwt:revoked:" + clientType + ":" + std::to_string(uid));
     if (val.empty()) return false;
     int64_t revokedAt = std::stoll(val);
     return iat < revokedAt;
