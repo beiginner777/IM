@@ -4,7 +4,7 @@
 管理和监控所有 ChatServer 实例的状态。负责：
 - 接收 ChatServer 的心跳上报
 - 维护可用 ChatServer 列表（Redis 中）
-- 供 GateServer 查询可用 ChatServer 地址
+- 供 AuthServer 查询可用 ChatServer 地址
 - 检测 ChatServer 超时下线
 
 ## 文件
@@ -17,7 +17,7 @@
 | `CSession.h/cpp` | TCP 连接管理：`SetServerInfo()`、`GetServerInfo()`、心跳检测 |
 | `LogicSystem.h/cpp` | 业务逻辑：`registerService()`、`heartCheck()`、`storeServerInfoInRedis()` |
 | `MsgNode.h/cpp` | 消息节点（协议层，使用 `short` 类型） |
-| `StatusServiceImpl.h/cpp` | gRPC 服务端实现：供 GateServer 查询 ChatServer 列表 |
+| `StatusServiceImpl.h/cpp` | gRPC 服务端实现：供 AuthServer 查询 ChatServer 列表 |
 | `config.ini` | 配置文件 |
 
 ## 依赖
@@ -26,7 +26,7 @@
 StatusServer
  ├── common.lib
  ├── Redis（存储 ChatServer 列表和心跳时间）
- └── gRPC（供 GateServer 查询）
+ └── gRPC（供 AuthServer 查询）
 ```
 
 ## 与其他服务的关系
@@ -34,7 +34,7 @@ StatusServer
 ```
 ChatServer1 ──TCP──→ StatusServer（心跳上报）
 ChatServer2 ──TCP──→ StatusServer（心跳上报）
-GateServer  ──gRPC─→ StatusServer（查询可用 ChatServer 列表）
+AuthServer  ──gRPC─→ StatusServer（查询可用 ChatServer 列表）
 ```
 
 ## 注意

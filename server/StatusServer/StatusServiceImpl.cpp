@@ -38,7 +38,7 @@ Status StatusServiceImpl::GetChatServer(ServerContext* context, const GetChatSer
 	reply->set_port(selected.port);
 	reply->set_error(SUCCESS);
 	std::cout << "[GetChatServer] Return " << selected.name << " (" << selected.host << ":" << selected.port << ")"
-	          << " con_count=" << selected.con_count << " for " << "GateServer" << std::endl;
+	          << " con_count=" << selected.con_count << " for " << "AuthServer" << std::endl;
 	return Status::OK;
 }
 Status StatusServiceImpl::GetResourceServer(ServerContext* context, const GetResourceServerReq* request, GetResourceServerRsp* reply)

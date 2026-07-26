@@ -7,7 +7,7 @@
 
 | 文件 | 说明 |
 |------|------|
-| `httpmanager.h/cpp` | HTTP 请求管理器（单例）。负责向 GateServer 发送 POST 请求：获取验证码、注册用户、登录校验。结果通过信号异步返回 |
+| `httpmanager.h/cpp` | HTTP 请求管理器（单例）。负责向 AuthServer 发送 POST 请求（通过 Nginx 入口）：获取验证码、注册用户、登录校验。结果通过信号异步返回 |
 | `tcpmsg.h/cpp` | **TCP 消息核心**（单例）。与 ChatServer 维持长连接，处理消息收发、编解码、回调分发。注册了 20+ 种消息类型的回调函数。支持断线重连、心跳检测 |
 | `tcpthread.h/cpp` | 网络线程管理。启动 3 个独立 QThread：TCP 聊天线程 (`TcpMsg`)、文件传输线程 (`FileUploadMsg`)、本地数据库线程 (`LoadLocalData`)，确保网络 IO 不阻塞 UI |
 

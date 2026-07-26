@@ -7,7 +7,7 @@
 
 # 二、各服务架构图
 
-## 2.1 GateServer
+## 2.1 AuthServer
 ![1782687112256.drawio](drawio/1782687112256.drawio.svg)
 
 ---
@@ -127,4 +127,4 @@
 
 ### 认证
 
-所有写操作（/recharge、/buy/*、/order/*/pay、/order/*/cancel）和读操作（/profile、/balance、/order/*）通过 `Authorization: Bearer <token>` 携带 JWT。token 由 GateServer `/fe_login` 签发，Redis 存储，TTL 24h。
+所有写操作（/recharge、/buy/*、/order/*/pay、/order/*/cancel）和读操作（/profile、/balance、/order/*）通过 `Authorization: Bearer <token>` 携带 JWT。token 由 AuthServer `/fe_login` 签发，Redis 存储，TTL 24h。

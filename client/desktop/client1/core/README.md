@@ -9,7 +9,7 @@
 | 文件 | 说明 |
 |------|------|
 | `main.cpp` | 应用程序入口，加载 `config.ini`，启动网络线程，创建 `MainWindow` |
-| `global.h` / `global.cpp` | **全局头文件**（被几乎所有文件 include）。定义所有枚举（`REQUEST_ID`, `ERRORCODE`, `ChatUIMode` 等）、全局常量、全局变量（`Gate_Url_Prefix`）、工具函数（`showTip`, `registerMetaType`, `returnPixMapByUrl` 等） |
+| `global.h` / `global.cpp` | **全局头文件**（被几乎所有文件 include）。定义所有枚举（`REQUEST_ID`, `ERRORCODE`, `ChatUIMode` 等）、全局常量、全局变量（`Auth_Url_Prefix`）、工具函数（`showTip`, `registerMetaType`, `returnPixMapByUrl` 等） |
 | `singleton.h` | 模板单例工具类 (`SingleTon<T>`)，被 `HttpManager`, `TcpMsg`, `FileUploadMsg`, `LoadLocalData`, `UserManager` 等使用 |
 | `mainwindow.h/cpp/ui` | 主窗口容器，管理三个核心对话框的生命周期和切换：`LoginDialog` → `RegisterDialog` → `ChatDialog` |
 | `userdata.h/cpp` | 共享数据结构定义：`SearchInfo`, `ApplyInfo`, `FriendInfo`, `UserInfo`, `ChatDataBase`, `TextChatData`, `ImageDataBase`, `ChatMessage`, `DownloadFileInfo` 等 |

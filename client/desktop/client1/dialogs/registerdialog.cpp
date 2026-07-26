@@ -119,7 +119,7 @@ void RegisterDialog::on_confirm_button_clicked()
     jsonObj["email"] = ui->email_lineedit->text();
     jsonObj["password"] = ui->password_lineedit->text();
     jsonObj["name"] = ui->user_lineedit->text();
-    HttpManager::GetInstance()->sendPostRequest(QUrl(Gate_Url_Prefix  + registerUserAddr),jsonObj,ID_REG_USER,MODULES::REGISTERMOD);
+    HttpManager::GetInstance()->sendPostRequest(QUrl(Auth_Url_Prefix  + registerUserAddr),jsonObj,ID_REG_USER,MODULES::REGISTERMOD);
 }
 
 // 处理发送过来的信号 并且 执行逻辑
@@ -263,7 +263,7 @@ void RegisterDialog::on_get_button_clicked()
     // 发送验证码
     QJsonObject jsonObj;
     jsonObj["email"] = ui->email_lineedit->text();
-    HttpManager::GetInstance()->sendPostRequest(QUrl(Gate_Url_Prefix + getVerifyCodeAddr),jsonObj,REQUEST_ID::ID_GET_VERIFY_CODE,MODULES::REGISTERMOD);
+    HttpManager::GetInstance()->sendPostRequest(QUrl(Auth_Url_Prefix + getVerifyCodeAddr),jsonObj,REQUEST_ID::ID_GET_VERIFY_CODE,MODULES::REGISTERMOD);
     qDebug() << "sendPostRequest at " << __FILE__ << ":" << __LINE__ << ":" << __FUNCTION__ << endl;
 }
 

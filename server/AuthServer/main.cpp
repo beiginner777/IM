@@ -1,5 +1,5 @@
 #include "global.h"
-#include "GateServer.h"
+#include "AuthServer.h"
 #include "ConfigManager.h"
 #include "RedisManager.h"
 #include "MysqlManager.h"
@@ -11,7 +11,7 @@ int main()
         net::io_context ioc{ 1 };
         net::signal_set signals(ioc, SIGINT, SIGTERM);
         signals.async_wait([&ioc](const boost::system::error_code& ec, int) { ioc.stop(); });
-        std::shared_ptr<GateServer> server = std::make_shared<GateServer>(ioc, PORT);
+        std::shared_ptr<AuthServer> server = std::make_shared<AuthServer>(ioc, PORT);
         server->start();
         ioc.run();
     }

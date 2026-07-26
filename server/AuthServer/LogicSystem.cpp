@@ -45,7 +45,7 @@ LogicSystem::~LogicSystem()
 
 void LogicSystem::registerGetHandler()
 {
-//	// 前端静态文件目录（相对 GateServer 项目目录: server/GateServer/）
+//	// 前端静态文件目录（相对 AuthServer 项目目录: server/AuthServer/）
 //	static const std::string kFeDist = "../../client/React/dist";
 //
 //	// 响应 index.html 的通用 lambda
@@ -314,16 +314,7 @@ void LogicSystem::registerPostHandler()
 			value["error_msg"] = "服务繁忙，请稍后重试";
 			return;
 		}
-		// 查询状态服务器Status分配一个SeckillServer
-		StatusGrpcClient client;
-		auto reply = client.GetSeckillServer(userInfo->uid_);
-		if (reply.error()) {
-			std::cout << " grpc failed to connect StatusServer: get SeckillServer failed, error is " << reply.error() << std::endl;
-			value["error_code"] = ERROR_RPC_CON_STATUSSERVER;
-			value["error_msg"] = "无法分配秒杀服务器，请稍后重试";
-			beast::ostream(response.body()) << value.toStyledString();
-			return;
-		}
+		// Nginx 统一入口地址（不再调 StatusServer 分配 SeckillServer，由 Nginx 做负载均衡）
 		value["username"] = name;
 		// JWT token（UUID，Redis 存 payload）
 		std::string token = JWT::generateToken(userInfo->uid_, name);
@@ -338,9 +329,12 @@ void LogicSystem::registerPostHandler()
 		RedisManager::getInstance()->SetExp("token:" + token, tokenPayload.toStyledString(), JWT::TOKEN_TTL);
 		// 用户余额（前端充值页面显示）
 		value["balance"] = userInfo->balance_;
-		// SeckillServer 地址（前端 setBaseURL 使用，port 需为数字类型）
-		value["host"] = reply.host();
-		value["port"] = std::atoi(reply.port().c_str());
+		// 返回 Nginx 统一入口地址（前端 setBaseURL 使用，Nginx 做反向代理 + 限流）
+		{
+			auto cfg = ConfigManager::getInstance();
+			value["host"] = cfg["Nginx"]["Host"];
+			value["port"] = std::atoi(cfg["Nginx"]["Port"].c_str());
+		}
 	};
 }
 
@@ -353,7 +347,7 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 	// 作为静态文件返回
 	static const std::string kFeDist = "../../client/React/dist";
 	std::string filePath = kFeDist + url_;
-	std::cout << "[GateServer] filePath = " << filePath << std::endl;
+	std::cout << "[AuthServer] filePath = " << filePath << std::endl;
 	std::ifstream file(filePath, std::ios::binary);
 	auto& response = conn->response_;
 	auto isSuffix = [](const std::string& s, const std::string& sfx) {
@@ -395,7 +389,7 @@ void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn)
 {
 	std::string target = conn->request_.target();
 
-	// /api/* 路由映射到 GateServer 内部 handler
+	// /api/* 路由映射到 AuthServer 内部 handler
 	if (target.find("/api/") == 0) {
 		if (target == "/api/login")    target = "/fe_login"; // Web前端登录，与桌面端 /loginAddr 区分
 		if (target == "/api/register") target = "/registerUserAddr";

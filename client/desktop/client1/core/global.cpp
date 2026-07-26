@@ -9,10 +9,10 @@
 #include "data/usermanager.h"
 #include "data/loadlocaldata.h"
 
-// 网管服务器的地址
-QString Gate_Url_Prefix = "127.0.0.1";
-QString GateServerHost;
-QString GateServerPort;
+// 认证服务器地址（通过 Nginx 入口，Nginx 转发到 AuthServer）
+QString Auth_Url_Prefix = "127.0.0.1";
+QString AuthServerHost;
+QString AuthServerPort;
 // 获取验证码的地址
 QString getVerifyCodeAddr = "/getVerifyCode";
 // 注册用户的地址

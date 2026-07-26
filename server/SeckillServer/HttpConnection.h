@@ -3,7 +3,7 @@
 
 #include "global.h"
 class SeckillServer;
-// HTTP 连接（参考 GateServer，增加 CORS + Keep-Alive 支持）：
+// HTTP 连接（参考 AuthServer，增加 CORS + Keep-Alive 支持）：
 // - 前端登录后 setBaseURL 直接跨端口访问本服务，浏览器会发 OPTIONS 预检
 // - 所有响应统一带 Access-Control-Allow-Origin 头
 // - keep_alive(true)：服务端不主动关连接，客户端可复用，TIME-WAIT 转移到客户端侧
