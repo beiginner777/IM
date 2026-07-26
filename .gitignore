@@ -95,3 +95,8 @@ client/fe/dist/
 client/fe/.vite/
 *.autosave
 enc_temp_folder/
+
+# ============================================
+# 工具 / Tools
+# ============================================
+tools/
