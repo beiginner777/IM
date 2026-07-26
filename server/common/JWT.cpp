@@ -105,13 +105,14 @@ static std::string binToHex(const std::vector<unsigned char>& data)
     return oss.str();
 }
 
-// ==================== 生成普通 JSON（压缩格式，无换行） ====================
+// ==================== 生成紧凑 JSON（无换行） ====================
 static std::string compactJson(const Json::Value& v)
 {
-    Json::StreamWriterBuilder builder;
-    builder["indentation"] = "";
-    builder["emitUTF8"] = true;
-    return Json::writeString(builder, v);
+    Json::FastWriter writer;
+    std::string s = writer.write(v);
+    // FastWriter 末尾有一个换行，去掉
+    if (!s.empty() && s.back() == '\n') s.pop_back();
+    return s;
 }
 
 // ==================== Public API ====================
@@ -132,8 +133,8 @@ std::string JWT::generateToken(int uid, const std::string& username)
     Json::Value payload;
     payload["uid"] = uid;
     payload["username"] = username;
-    payload["iat"] = (Json::Int64)nowSec;
-    payload["exp"] = (Json::Int64)(nowSec + TOKEN_TTL);
+    payload["iat"] = (int)nowSec;
+    payload["exp"] = (int)(nowSec + TOKEN_TTL);
     std::string payloadB64 = base64UrlEncode(
         std::vector<unsigned char>(compactJson(payload).begin(), compactJson(payload).end()));
 
@@ -177,12 +178,12 @@ bool JWT::verify(const std::string& token, int& uid)
     // 4. 检查过期
     auto nowSec = std::chrono::duration_cast<std::chrono::seconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
-    if (nowSec > payload["exp"].asInt64())
+    if (nowSec > payload["exp"].asInt())
         return false;
 
     // 5. 检查黑名单
     int tokenUid = payload["uid"].asInt();
-    int64_t iat = payload["iat"].asInt64();
+    int64_t iat = payload["iat"].asInt();
     if (isRevoked(tokenUid, iat))
         return false;
 
