@@ -5,6 +5,7 @@
 #include "StatusGrpcClient.h"
 #include "crypto/BCryptHasher.h"
 #include "JWT.h"
+#include "ChatGrpcClient.h"
 LogicSystem::LogicSystem()
 {
     registerGetHandler();
@@ -262,6 +263,40 @@ void LogicSystem::registerPostHandler()
 		ConfigManager cfg;
 		value["res_host"] = cfg["ResourceServer"]["Host"];
 		value["res_port"] = cfg["ResourceServer"]["Port"];
+
+		// 异地登录检测 + 踢旧设备
+		{
+			// 1. 获取客户端 IP（Nginx 代理，从 X-Forwarded-For 取）
+			std::string clientIp;
+			auto xff = request.find("X-Forwarded-For");
+			if (xff != request.end()) {
+				std::string xffStr(xff->value());
+				auto comma = xffStr.find(',');
+				clientIp = (comma != std::string::npos) ? xffStr.substr(0, comma) : xffStr;
+			}
+			// 2. IP 变化检测
+			if (!clientIp.empty()) {
+				std::string lastIp = MysqlManager::getInstance()->getLastLoginIp(userInfo->uid_);
+				if (!lastIp.empty()) {
+					auto dot1 = lastIp.rfind('.');
+					auto dot2 = clientIp.rfind('.');
+					if (dot1 != std::string::npos && dot2 != std::string::npos) {
+						if (lastIp.substr(0, dot1) != clientIp.substr(0, dot2))
+							value["warning"] = "异地登录提醒：上次 " + lastIp + "，本次 " + clientIp;
+					}
+				}
+				MysqlManager::getInstance()->updateLastLoginIp(userInfo->uid_, clientIp);
+			}
+			// 3. 踢旧 TCP session
+			std::string sessionKey = "user_session:" + std::to_string(userInfo->uid_);
+			std::string oldServer = RedisManager::getInstance()->Get(sessionKey);
+			if (!oldServer.empty() && oldServer != reply.name()) {
+				KickUserClient::getInstance()->NotifyKickUser(oldServer, userInfo->uid_);
+			}
+			// 4. 记录新 session
+			RedisManager::getInstance()->Set(sessionKey, reply.name());
+		}
+
 		beast::ostream(response.body()) << value.toStyledString();
 		//std::cout << "return message1 = " << boost::beast::buffers_to_string(response.body().data()) << std::endl;
 	};
@@ -319,6 +354,34 @@ void LogicSystem::registerPostHandler()
 		// JWT token（HMAC-SHA256 自包含，不需要存 Redis）
 		std::string token = JWT::generateToken(userInfo->uid_, name);
 		value["token"] = token;
+
+		// 异地登录检测 + 吊销旧 token
+		{
+			// 1. 获取客户端 IP
+			std::string clientIp;
+			auto xff = request.find("X-Forwarded-For");
+			if (xff != request.end()) {
+				std::string xffStr(xff->value());
+				auto comma = xffStr.find(',');
+				clientIp = (comma != std::string::npos) ? xffStr.substr(0, comma) : xffStr;
+			}
+			// 2. IP 变化检测
+			if (!clientIp.empty()) {
+				std::string lastIp = MysqlManager::getInstance()->getLastLoginIp(userInfo->uid_);
+				if (!lastIp.empty()) {
+					auto dot1 = lastIp.rfind('.');
+					auto dot2 = clientIp.rfind('.');
+					if (dot1 != std::string::npos && dot2 != std::string::npos) {
+						if (lastIp.substr(0, dot1) != clientIp.substr(0, dot2))
+							value["warning"] = "异地登录提醒：上次 " + lastIp + "，本次 " + clientIp;
+					}
+				}
+				MysqlManager::getInstance()->updateLastLoginIp(userInfo->uid_, clientIp);
+			}
+			// 3. 吊销旧 JWT（Web 端无 TCP session，靠黑名单让旧 token 失效）
+			JWT::revoke(userInfo->uid_);
+		}
+
 		// 用户余额（前端充值页面显示）
 		value["balance"] = userInfo->balance_;
 		// 返回 Nginx 统一入口地址（前端 setBaseURL 使用，Nginx 做反向代理 + 限流）

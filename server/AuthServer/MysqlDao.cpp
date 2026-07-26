@@ -119,3 +119,38 @@ int MysqlDao::userLogin(std::string name, std::string password, std::shared_ptr<
         return ERROR_LOGIN;
     }
 }
+
+std::string MysqlDao::getLastLoginIp(int uid)
+{
+	std::unique_ptr<SqlConnection> conn = pool_->getConnection();
+	if (conn == nullptr) return "";
+	Defer defer([this, &conn]() { pool_->returnConnection(std::move(conn)); });
+	try {
+		std::unique_ptr<sql::PreparedStatement> stmt(
+			conn->con_->prepareStatement("SELECT last_login_ip FROM user WHERE uid = ?"));
+		stmt->setInt(1, uid);
+		std::unique_ptr<sql::ResultSet> res(stmt->executeQuery());
+		if (res->next()) return res->getString("last_login_ip");
+	}
+	catch (sql::SQLException& e) {
+		std::cerr << "[getLastLoginIp] error: " << e.what() << std::endl;
+	}
+	return "";
+}
+
+void MysqlDao::updateLastLoginIp(int uid, const std::string& ip)
+{
+	std::unique_ptr<SqlConnection> conn = pool_->getConnection();
+	if (conn == nullptr) return;
+	Defer defer([this, &conn]() { pool_->returnConnection(std::move(conn)); });
+	try {
+		std::unique_ptr<sql::PreparedStatement> stmt(
+			conn->con_->prepareStatement("UPDATE user SET last_login_ip = ? WHERE uid = ?"));
+		stmt->setString(1, ip);
+		stmt->setInt(2, uid);
+		stmt->execute();
+	}
+	catch (sql::SQLException& e) {
+		std::cerr << "[updateLastLoginIp] error: " << e.what() << std::endl;
+	}
+}
