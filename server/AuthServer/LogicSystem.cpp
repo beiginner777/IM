@@ -6,20 +6,6 @@
 #include "crypto/BCryptHasher.h"
 #include "JWT.h"
 #include "ChatGrpcClient.h"
-#include <sstream>
-
-// 通过 host:port 反查 config.ini 中的 ChatServer 名字
-static std::string findServerName(const std::string& host, const std::string& port) {
-	auto cfg = ConfigManager::getInstance();
-	std::string list = cfg["ChatServers"]["List"];
-	std::stringstream ss(list);
-	std::string name;
-	while (std::getline(ss, name, ',')) {
-		if (cfg[name]["Host"] == host && cfg[name]["Port"] == port)
-			return name;
-	}
-	return host + ":" + port; // fallback
-}
 
 LogicSystem::LogicSystem()
 {
@@ -312,12 +298,12 @@ void LogicSystem::registerPostHandler()
 			// 3. 踢旧 TCP session
 			std::string sessionKey = "user_session:desktop:" + std::to_string(userInfo->uid_);
 			std::string oldServer = RedisManager::getInstance()->Get(sessionKey);
-			if (!oldServer.empty() && oldServer != findServerName(reply.host(), reply.port())) {
+			if (!oldServer.empty() && oldServer != reply.name()) {
 				KickUserClient::getInstance()->NotifyKickUser(oldServer, userInfo->uid_);
 			}
 			JWT::revoke(userInfo->uid_, JWT::CLIENT_DESKTOP);
 			// 4. 记录新 session
-			RedisManager::getInstance()->Set(sessionKey, findServerName(reply.host(), reply.port()));
+			RedisManager::getInstance()->Set(sessionKey, reply.name());
 		}
 
 		beast::ostream(response.body()) << value.toStyledString();
