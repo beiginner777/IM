@@ -254,7 +254,7 @@ void LogicSystem::registerPostHandler()
 		value["code"] = SUCCESS;
 		value["message"] = "Succeed to find suitable ChatServer";
 		value["uid"] = userInfo->uid_;
-		value["token"] = reply.token();
+		value["token"] = JWT::generateToken(userInfo->uid_, name);
 		// ChatServer
 		value["host"] = reply.host();
 		value["port"] = reply.port();
@@ -316,17 +316,9 @@ void LogicSystem::registerPostHandler()
 		}
 		// Nginx 统一入口地址（不再调 StatusServer 分配 SeckillServer，由 Nginx 做负载均衡）
 		value["username"] = name;
-		// JWT token（UUID，Redis 存 payload）
+		// JWT token（HMAC-SHA256 自包含，不需要存 Redis）
 		std::string token = JWT::generateToken(userInfo->uid_, name);
 		value["token"] = token;
-		// 存 Redis: token:{uuid} → {uid, username, exp}
-		Json::Value tokenPayload;
-		tokenPayload["uid"] = userInfo->uid_;
-		tokenPayload["username"] = name;
-		tokenPayload["exp"] = (Json::Int)std::chrono::duration_cast<std::chrono::seconds>(
-			(std::chrono::system_clock::now() + std::chrono::hours(24)).time_since_epoch()).count();
-		// 将Token存入 Redis，设置过期时间为 24 小时
-		RedisManager::getInstance()->SetExp("token:" + token, tokenPayload.toStyledString(), JWT::TOKEN_TTL);
 		// 用户余额（前端充值页面显示）
 		value["balance"] = userInfo->balance_;
 		// 返回 Nginx 统一入口地址（前端 setBaseURL 使用，Nginx 做反向代理 + 限流）
