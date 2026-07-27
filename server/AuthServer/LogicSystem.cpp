@@ -6,6 +6,21 @@
 #include "crypto/BCryptHasher.h"
 #include "JWT.h"
 #include "ChatGrpcClient.h"
+#include <sstream>
+
+// 通过 host:port 反查 config.ini 中的 ChatServer 名字
+static std::string findServerName(const std::string& host, const std::string& port) {
+	auto cfg = ConfigManager::getInstance();
+	std::string list = cfg["ChatServers"]["List"];
+	std::stringstream ss(list);
+	std::string name;
+	while (std::getline(ss, name, ',')) {
+		if (cfg[name]["Host"] == host && cfg[name]["Port"] == port)
+			return name;
+	}
+	return host + ":" + port; // fallback
+}
+
 LogicSystem::LogicSystem()
 {
     registerGetHandler();
@@ -274,6 +289,13 @@ void LogicSystem::registerPostHandler()
 				auto comma = xffStr.find(',');
 				clientIp = (comma != std::string::npos) ? xffStr.substr(0, comma) : xffStr;
 			}
+				// clientIp 为空说明 Nginx 未正确设置 X-Forwarded-For，拒绝登录
+				if (clientIp.empty()) {
+					value["code"] = ERROR_LOGIN;
+					value["message"] = "无法获取客户端IP";
+					beast::ostream(response.body()) << value.toStyledString();
+					return;
+				}
 			// 2. IP 变化检测
 			if (!clientIp.empty()) {
 				std::string lastIp = MysqlManager::getInstance()->getLastLoginIp(userInfo->uid_);
@@ -290,12 +312,12 @@ void LogicSystem::registerPostHandler()
 			// 3. 踢旧 TCP session
 			std::string sessionKey = "user_session:desktop:" + std::to_string(userInfo->uid_);
 			std::string oldServer = RedisManager::getInstance()->Get(sessionKey);
-			if (!oldServer.empty() && oldServer != reply.name()) {
+			if (!oldServer.empty() && oldServer != findServerName(reply.host(), reply.port())) {
 				KickUserClient::getInstance()->NotifyKickUser(oldServer, userInfo->uid_);
 			}
 			JWT::revoke(userInfo->uid_, JWT::CLIENT_DESKTOP);
 			// 4. 记录新 session
-			RedisManager::getInstance()->Set(sessionKey, reply.name());
+			RedisManager::getInstance()->Set(sessionKey, findServerName(reply.host(), reply.port()));
 		}
 
 		beast::ostream(response.body()) << value.toStyledString();
@@ -366,6 +388,13 @@ void LogicSystem::registerPostHandler()
 				auto comma = xffStr.find(',');
 				clientIp = (comma != std::string::npos) ? xffStr.substr(0, comma) : xffStr;
 			}
+				// clientIp 为空说明 Nginx 未正确设置 X-Forwarded-For，拒绝登录
+				if (clientIp.empty()) {
+					value["code"] = ERROR_LOGIN;
+					value["message"] = "无法获取客户端IP";
+					beast::ostream(response.body()) << value.toStyledString();
+					return;
+				}
 			// 2. IP 变化检测
 			if (!clientIp.empty()) {
 				std::string lastIp = MysqlManager::getInstance()->getLastLoginIp(userInfo->uid_);

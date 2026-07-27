@@ -206,8 +206,9 @@ void JWT::revoke(int uid, const std::string& clientType)
 
 bool JWT::isRevoked(int uid, int64_t iat, const std::string& clientType)
 {
+    // 强制读 Master，保证读到最新的黑名单（刚 revoke 的 key 可能还没同步到 Slave）
     std::string val = RedisManager::getInstance()->Get(
-        "jwt:revoked:" + clientType + ":" + std::to_string(uid));
+        "jwt:revoked:" + clientType + ":" + std::to_string(uid), true);
     if (val.empty()) return false;
     int64_t revokedAt = std::stoll(val);
     return iat < revokedAt;
