@@ -435,6 +435,7 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 	std::cout << "uid = " << uid << " request login ChatServer,token = " << token << std::endl;
 	Json::Value value;
 	// JWT 验签（HMAC-SHA256，纯 CPU，不查 Redis）
+	// 踢旧设备逻辑已移到 AuthServer（登录时统一处理）
 	int verifiedUid = 0;
 	if (!JWT::verify(token, verifiedUid))
 	{
@@ -450,24 +451,7 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 		session->Send(value.toStyledString(), msgId, uuid);
 		return;
 	}
-	std::string lock_key = LOCKPREFIX + std::to_string(uid);
-	std::string identifier = RedisManager::getInstance()->acqueireLock(lock_key, LOCK_TIMEOUT, ACQUIRE_TIMEOUT);
-	std::string ip = RedisManager::getInstance()->Get(USERIPPREFIX + std::to_string(uid));
 	auto cfg = ConfigManager::getInstance();
-	if (ip == "") {
-	}
-	else if (ip == cfg["SelfServer"]["Name"]) {
-		auto oldSession = UserManager::getInstance()->GetSession(uid);
-		if (oldSession) {
-			oldSession->notifyOffLine(uid);
-			std::cout << "old session = " << oldSession->getUuid() << std::endl;
-		}
-	}
-	else {
-		KickUserReq req;
-		req.set_uid(uid);
-		ChatGrpcClient::getInstance()->NotifyKickUser(ip, req);
-	}
 	std::string uid_str = std::to_string(uid);
 	if (!getUserByUid(uid_str, value)) {
 		session->Send(value.toStyledString(), ID_CHAT_LOGIN_RSP, uuid);
@@ -511,9 +495,6 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 	//UserManager::getInstance()->printSessions();
 	UserManager::getInstance()->addSession(uid, session);
 	session->Send(value.toStyledString(), ID_CHAT_LOGIN_RSP, uuid);
-	//std::cout << "after user login: " << std::endl;
-	//UserManager::getInstance()->printSessions();
-	RedisManager::getInstance()->releaseLock(lock_key, identifier);
 }
 
 void LogicSystem::authAccess(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)

@@ -5,6 +5,9 @@
 #include "StatusGrpcClient.h"
 #include "crypto/BCryptHasher.h"
 #include "JWT.h"
+#include "ChatGrpcClient.h"
+#include "AlertManager.h"
+
 LogicSystem::LogicSystem()
 {
     registerGetHandler();
@@ -254,7 +257,7 @@ void LogicSystem::registerPostHandler()
 		value["code"] = SUCCESS;
 		value["message"] = "Succeed to find suitable ChatServer";
 		value["uid"] = userInfo->uid_;
-		value["token"] = JWT::generateToken(userInfo->uid_, name);
+		value["token"] = JWT::generateToken(userInfo->uid_, name, JWT::CLIENT_DESKTOP);
 		// ChatServer
 		value["host"] = reply.host();
 		value["port"] = reply.port();
@@ -262,6 +265,51 @@ void LogicSystem::registerPostHandler()
 		ConfigManager cfg;
 		value["res_host"] = cfg["ResourceServer"]["Host"];
 		value["res_port"] = cfg["ResourceServer"]["Port"];
+
+		// 异地登录检测 + 踢旧设备
+		{
+			// 1. 获取客户端 IP（Nginx 代理，从 X-Forwarded-For 取）
+			std::string clientIp;
+			auto xff = request.find("X-Forwarded-For");
+			if (xff != request.end()) {
+				std::string xffStr(xff->value());
+				auto comma = xffStr.find(',');
+				clientIp = (comma != std::string::npos) ? xffStr.substr(0, comma) : xffStr;
+			}
+			// clientIp 为空说明 Nginx 未正确设置 X-Forwarded-For，拒绝登录
+			if (clientIp.empty()) {
+				value["code"] = ERROR_LOGIN;
+				value["message"] = "无法获取客户端IP";
+				beast::ostream(response.body()) << value.toStyledString();
+				return;
+			}
+			// 2. IP 变化检测
+			if (!clientIp.empty()) {
+				std::string lastIp = MysqlManager::getInstance()->getLastLoginIp(userInfo->uid_);
+				if (!lastIp.empty()) {
+					auto dot1 = lastIp.rfind('.');
+					auto dot2 = clientIp.rfind('.');
+					if (dot1 != std::string::npos && dot2 != std::string::npos) {
+						if (lastIp.substr(0, dot1) != clientIp.substr(0, dot2))
+							value["warning"] = "异地登录提醒：上次 " + lastIp + "，本次 " + clientIp;
+								AlertManager::getInstance()->warn(
+									"异地登录: uid=" + std::to_string(userInfo->uid_)
+									+ " ip=" + clientIp);
+					}
+				}
+				MysqlManager::getInstance()->updateLastLoginIp(userInfo->uid_, clientIp);
+			}
+			// 3. 踢旧 TCP session
+			std::string user_ip_key = USERIPPREFIX + std::to_string(userInfo->uid_);
+			std::string oldServer = RedisManager::getInstance()->Get(user_ip_key);
+			if (!oldServer.empty() && oldServer != reply.name()) {
+				KickUserClient::getInstance()->NotifyKickUser(oldServer, userInfo->uid_);
+			}
+			JWT::revoke(userInfo->uid_, JWT::CLIENT_DESKTOP);
+			// 4. 记录新 session
+			RedisManager::getInstance()->Set(user_ip_key, reply.name());
+		}
+
 		beast::ostream(response.body()) << value.toStyledString();
 		//std::cout << "return message1 = " << boost::beast::buffers_to_string(response.body().data()) << std::endl;
 	};
@@ -317,8 +365,46 @@ void LogicSystem::registerPostHandler()
 		// Nginx 统一入口地址（不再调 StatusServer 分配 SeckillServer，由 Nginx 做负载均衡）
 		value["username"] = name;
 		// JWT token（HMAC-SHA256 自包含，不需要存 Redis）
-		std::string token = JWT::generateToken(userInfo->uid_, name);
+		std::string token = JWT::generateToken(userInfo->uid_, name, JWT::CLIENT_WEB);
 		value["token"] = token;
+
+		// 异地登录检测 + 吊销旧 token
+		{
+			// 1. 获取客户端 IP
+			std::string clientIp;
+			auto xff = request.find("X-Forwarded-For");
+			if (xff != request.end()) {
+				std::string xffStr(xff->value());
+				auto comma = xffStr.find(',');
+				clientIp = (comma != std::string::npos) ? xffStr.substr(0, comma) : xffStr;
+			}
+			// clientIp 为空说明 Nginx 未正确设置 X-Forwarded-For，拒绝登录
+			if (clientIp.empty()) {
+				value["code"] = ERROR_LOGIN;
+				value["message"] = "无法获取客户端IP";
+				beast::ostream(response.body()) << value.toStyledString();
+				return;
+			}
+			// 2. IP 变化检测
+			if (!clientIp.empty()) {
+				std::string lastIp = MysqlManager::getInstance()->getLastLoginIp(userInfo->uid_);
+				if (!lastIp.empty()) {
+					auto dot1 = lastIp.rfind('.');
+					auto dot2 = clientIp.rfind('.');
+					if (dot1 != std::string::npos && dot2 != std::string::npos) {
+						if (lastIp.substr(0, dot1) != clientIp.substr(0, dot2))
+							value["warning"] = "异地登录提醒：上次 " + lastIp + "，本次 " + clientIp;
+								AlertManager::getInstance()->warn(
+									"异地登录: uid=" + std::to_string(userInfo->uid_)
+									+ " ip=" + clientIp);
+					}
+				}
+				MysqlManager::getInstance()->updateLastLoginIp(userInfo->uid_, clientIp);
+			}
+			// 3. 吊销旧 JWT（Web 端无 TCP session，靠黑名单让旧 token 失效）
+			JWT::revoke(userInfo->uid_, JWT::CLIENT_WEB);
+		}
+
 		// 用户余额（前端充值页面显示）
 		value["balance"] = userInfo->balance_;
 		// 返回 Nginx 统一入口地址（前端 setBaseURL 使用，Nginx 做反向代理 + 限流）

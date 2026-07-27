@@ -17,6 +17,8 @@ public:
 	std::shared_ptr<BloomFilter> getBloomFilter() { return bloomFilter_; }
 	int registerUser(const std::string& name, const std::string& email, const std::string& password);
 	int userLogin(std::string name, std::string password, std::shared_ptr<UserInfo> userInfo);
+	std::string getLastLoginIp(int uid) { return dao_.getLastLoginIp(uid); }
+	void updateLastLoginIp(int uid, const std::string& ip) { dao_.updateLastLoginIp(uid, ip); }
 private:
 	MysqlManager() {}
 	MysqlDao dao_;

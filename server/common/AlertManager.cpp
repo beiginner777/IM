@@ -47,6 +47,7 @@ void AlertManager::info(const std::string& msg)
 
 void AlertManager::warn(const std::string& msg)
 {
+	// TODO: 向用户邮箱发送警告通知（异地登录检测触发时调用）
 	if (logger_) logger_->warn(msg);
 }
 

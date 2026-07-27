@@ -217,6 +217,8 @@ public:
 	~MysqlDao();
 	int registerUser(const std::string& name, const std::string& email, const std::string& password);
 	int userLogin(std::string name, std::string password, std::shared_ptr<UserInfo> userInfo);
+	std::string getLastLoginIp(int uid);
+	void updateLastLoginIp(int uid, const std::string& ip);
 private:
 	std::unique_ptr<MysqlConnPool> pool_;
 };
