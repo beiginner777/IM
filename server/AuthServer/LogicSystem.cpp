@@ -6,6 +6,7 @@
 #include "crypto/BCryptHasher.h"
 #include "JWT.h"
 #include "ChatGrpcClient.h"
+#include "AlertManager.h"
 
 LogicSystem::LogicSystem()
 {
@@ -291,6 +292,9 @@ void LogicSystem::registerPostHandler()
 					if (dot1 != std::string::npos && dot2 != std::string::npos) {
 						if (lastIp.substr(0, dot1) != clientIp.substr(0, dot2))
 							value["warning"] = "异地登录提醒：上次 " + lastIp + "，本次 " + clientIp;
+								AlertManager::getInstance()->warn(
+									"异地登录: uid=" + std::to_string(userInfo->uid_)
+									+ " ip=" + clientIp);
 					}
 				}
 				MysqlManager::getInstance()->updateLastLoginIp(userInfo->uid_, clientIp);
@@ -390,6 +394,9 @@ void LogicSystem::registerPostHandler()
 					if (dot1 != std::string::npos && dot2 != std::string::npos) {
 						if (lastIp.substr(0, dot1) != clientIp.substr(0, dot2))
 							value["warning"] = "异地登录提醒：上次 " + lastIp + "，本次 " + clientIp;
+								AlertManager::getInstance()->warn(
+									"异地登录: uid=" + std::to_string(userInfo->uid_)
+									+ " ip=" + clientIp);
 					}
 				}
 				MysqlManager::getInstance()->updateLastLoginIp(userInfo->uid_, clientIp);
