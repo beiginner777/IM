@@ -7,11 +7,11 @@ C_DEFINES = -DBOOST_SYSTEM_DYN_LINK -DBOOST_SYSTEM_NO_LIB
 
 C_INCLUDES = -I/mnt/e/File/jerry/IM/server/common -I/mnt/e/File/jerry/IM/server -I/usr/include/jsoncpp
 
-C_FLAGS = -O3 -DNDEBUG
+C_FLAGS = 
 
 CXX_DEFINES = -DBOOST_SYSTEM_DYN_LINK -DBOOST_SYSTEM_NO_LIB
 
 CXX_INCLUDES = -I/mnt/e/File/jerry/IM/server/common -I/mnt/e/File/jerry/IM/server -I/usr/include/jsoncpp
 
-CXX_FLAGS =  -pthread -O3 -DNDEBUG -std=gnu++17
+CXX_FLAGS =  -pthread -std=gnu++17
 

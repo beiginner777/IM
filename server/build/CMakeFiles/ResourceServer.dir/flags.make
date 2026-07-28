@@ -6,5 +6,5 @@ CXX_DEFINES = -DBOOST_SYSTEM_DYN_LINK -DBOOST_SYSTEM_NO_LIB
 
 CXX_INCLUDES = -I/mnt/e/File/jerry/IM/server/ResourceServer -I/mnt/e/File/jerry/IM/server/common -I/mnt/e/File/jerry/IM/server -I/usr/include/jsoncpp
 
-CXX_FLAGS =  -pthread -O3 -DNDEBUG -std=gnu++17 -pthread
+CXX_FLAGS =  -pthread -std=gnu++17 -pthread
 
