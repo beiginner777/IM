@@ -15,6 +15,8 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/mnt/e/File/jerry/IM/server/SeckillServer/SeckillServer.cpp" "CMakeFiles/SeckillServer.dir/SeckillServer/SeckillServer.cpp.o" "gcc" "CMakeFiles/SeckillServer.dir/SeckillServer/SeckillServer.cpp.o.d"
   "/mnt/e/File/jerry/IM/server/SeckillServer/StatusClientSession.cpp" "CMakeFiles/SeckillServer.dir/SeckillServer/StatusClientSession.cpp.o" "gcc" "CMakeFiles/SeckillServer.dir/SeckillServer/StatusClientSession.cpp.o.d"
   "/mnt/e/File/jerry/IM/server/SeckillServer/main.cpp" "CMakeFiles/SeckillServer.dir/SeckillServer/main.cpp.o" "gcc" "CMakeFiles/SeckillServer.dir/SeckillServer/main.cpp.o.d"
+  "/mnt/e/File/jerry/IM/server/SeckillServer/message.grpc.pb.cc" "CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.o" "gcc" "CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.o.d"
+  "/mnt/e/File/jerry/IM/server/SeckillServer/message.pb.cc" "CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.o" "gcc" "CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.o.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

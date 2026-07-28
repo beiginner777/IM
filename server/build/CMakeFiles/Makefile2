@@ -93,7 +93,7 @@ clean: CMakeFiles/SeckillServer.dir/clean
 CMakeFiles/im_common.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/im_common.dir/build.make CMakeFiles/im_common.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/im_common.dir/build.make CMakeFiles/im_common.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/mnt/e/File/jerry/IM/server/build/CMakeFiles --progress-num=78,79,80,81,82,83,84,85,86,87,88,89 "Built target im_common"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/mnt/e/File/jerry/IM/server/build/CMakeFiles --progress-num=80,81,82,83,84,85,86,87,88,89,90,91 "Built target im_common"
 .PHONY : CMakeFiles/im_common.dir/all
 
 # Build rule for subdir invocation for target.
@@ -145,7 +145,7 @@ CMakeFiles/AuthServer.dir/clean:
 CMakeFiles/StatusServer.dir/all: CMakeFiles/im_common.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/StatusServer.dir/build.make CMakeFiles/StatusServer.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/StatusServer.dir/build.make CMakeFiles/StatusServer.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/mnt/e/File/jerry/IM/server/build/CMakeFiles --progress-num=68,69,70,71,72,73,74,75,76,77 "Built target StatusServer"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/mnt/e/File/jerry/IM/server/build/CMakeFiles --progress-num=70,71,72,73,74,75,76,77,78,79 "Built target StatusServer"
 .PHONY : CMakeFiles/StatusServer.dir/all
 
 # Build rule for subdir invocation for target.
@@ -249,12 +249,12 @@ CMakeFiles/ResourceServer.dir/clean:
 CMakeFiles/SeckillServer.dir/all: CMakeFiles/im_common.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/SeckillServer.dir/build.make CMakeFiles/SeckillServer.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/SeckillServer.dir/build.make CMakeFiles/SeckillServer.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/mnt/e/File/jerry/IM/server/build/CMakeFiles --progress-num=60,61,62,63,64,65,66,67 "Built target SeckillServer"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/mnt/e/File/jerry/IM/server/build/CMakeFiles --progress-num=60,61,62,63,64,65,66,67,68,69 "Built target SeckillServer"
 .PHONY : CMakeFiles/SeckillServer.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/SeckillServer.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/e/File/jerry/IM/server/build/CMakeFiles 20
+	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/e/File/jerry/IM/server/build/CMakeFiles 22
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/SeckillServer.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/e/File/jerry/IM/server/build/CMakeFiles 0
 .PHONY : CMakeFiles/SeckillServer.dir/rule

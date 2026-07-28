@@ -277,9 +277,6 @@ PROTOBUF_LIB:FILEPATH=/mnt/e/File/DownloadFromGithub/protobuf/bin/libprotobuf.a
 //Path to a program.
 PROTOC_EXE:FILEPATH=/usr/bin/protoc
 
-//The directory containing a CMake configuration file for Protobuf.
-Protobuf_DIR:PATH=Protobuf_DIR-NOTFOUND
-
 //Path to a library.
 Protobuf_LIBRARY_DEBUG:FILEPATH=/mnt/e/File/DownloadFromGithub/protobuf/bin/libprotobuf.a
 

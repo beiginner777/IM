@@ -1,8 +1,6 @@
 #ifndef MYSQLDAO_SECKILL_H
 #define MYSQLDAO_SECKILL_H
 #include "global.h"
-#include <jdbc/mysql_connection.h>
-#include <jdbc/mysql_driver.h>
 #include <memory>
 #include <mutex>
 #include <queue>

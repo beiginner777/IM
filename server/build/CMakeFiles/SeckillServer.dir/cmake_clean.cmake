@@ -13,6 +13,10 @@ file(REMOVE_RECURSE
   "CMakeFiles/SeckillServer.dir/SeckillServer/StatusClientSession.cpp.o.d"
   "CMakeFiles/SeckillServer.dir/SeckillServer/main.cpp.o"
   "CMakeFiles/SeckillServer.dir/SeckillServer/main.cpp.o.d"
+  "CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.o"
+  "CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.o.d"
+  "CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.o"
+  "CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.o.d"
   "SeckillServer"
   "SeckillServer.pdb"
 )

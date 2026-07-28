@@ -167,6 +167,34 @@ CMakeFiles/SeckillServer.dir/SeckillServer/main.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/SeckillServer.dir/SeckillServer/main.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /mnt/e/File/jerry/IM/server/SeckillServer/main.cpp -o CMakeFiles/SeckillServer.dir/SeckillServer/main.cpp.s
 
+CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.o: CMakeFiles/SeckillServer.dir/flags.make
+CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.o: /mnt/e/File/jerry/IM/server/SeckillServer/message.grpc.pb.cc
+CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.o: CMakeFiles/SeckillServer.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/mnt/e/File/jerry/IM/server/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.o -MF CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.o.d -o CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.o -c /mnt/e/File/jerry/IM/server/SeckillServer/message.grpc.pb.cc
+
+CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /mnt/e/File/jerry/IM/server/SeckillServer/message.grpc.pb.cc > CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.i
+
+CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /mnt/e/File/jerry/IM/server/SeckillServer/message.grpc.pb.cc -o CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.s
+
+CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.o: CMakeFiles/SeckillServer.dir/flags.make
+CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.o: /mnt/e/File/jerry/IM/server/SeckillServer/message.pb.cc
+CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.o: CMakeFiles/SeckillServer.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/mnt/e/File/jerry/IM/server/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.o -MF CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.o.d -o CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.o -c /mnt/e/File/jerry/IM/server/SeckillServer/message.pb.cc
+
+CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /mnt/e/File/jerry/IM/server/SeckillServer/message.pb.cc > CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.i
+
+CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /mnt/e/File/jerry/IM/server/SeckillServer/message.pb.cc -o CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.s
+
 # Object files for target SeckillServer
 SeckillServer_OBJECTS = \
 "CMakeFiles/SeckillServer.dir/SeckillServer/HttpConnection.cpp.o" \
@@ -175,7 +203,9 @@ SeckillServer_OBJECTS = \
 "CMakeFiles/SeckillServer.dir/SeckillServer/MysqlDao.cpp.o" \
 "CMakeFiles/SeckillServer.dir/SeckillServer/SeckillServer.cpp.o" \
 "CMakeFiles/SeckillServer.dir/SeckillServer/StatusClientSession.cpp.o" \
-"CMakeFiles/SeckillServer.dir/SeckillServer/main.cpp.o"
+"CMakeFiles/SeckillServer.dir/SeckillServer/main.cpp.o" \
+"CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.o" \
+"CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.o"
 
 # External object files for target SeckillServer
 SeckillServer_EXTERNAL_OBJECTS =
@@ -187,6 +217,8 @@ SeckillServer: CMakeFiles/SeckillServer.dir/SeckillServer/MysqlDao.cpp.o
 SeckillServer: CMakeFiles/SeckillServer.dir/SeckillServer/SeckillServer.cpp.o
 SeckillServer: CMakeFiles/SeckillServer.dir/SeckillServer/StatusClientSession.cpp.o
 SeckillServer: CMakeFiles/SeckillServer.dir/SeckillServer/main.cpp.o
+SeckillServer: CMakeFiles/SeckillServer.dir/SeckillServer/message.grpc.pb.cc.o
+SeckillServer: CMakeFiles/SeckillServer.dir/SeckillServer/message.pb.cc.o
 SeckillServer: CMakeFiles/SeckillServer.dir/build.make
 SeckillServer: libim_common.a
 SeckillServer: /usr/lib/x86_64-linux-gnu/libgrpc++.so.1.51.1
@@ -252,7 +284,7 @@ SeckillServer: /usr/lib/x86_64-linux-gnu/libcrypto.so
 SeckillServer: /mnt/e/File/DownloadFromGithub/protobuf/bin/libprotobuf.a
 SeckillServer: /usr/lib/x86_64-linux-gnu/libfmt.so
 SeckillServer: CMakeFiles/SeckillServer.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/mnt/e/File/jerry/IM/server/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Linking CXX executable SeckillServer"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/mnt/e/File/jerry/IM/server/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Linking CXX executable SeckillServer"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/SeckillServer.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
