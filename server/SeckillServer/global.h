@@ -25,12 +25,21 @@
 #include <cassert>
 #include "SingleTon.h"
 #include "ConfigManager.h"
+#ifdef _WIN32
 #include <jdbc/mysql_driver.h>
 #include <jdbc/mysql_connection.h>
 #include <jdbc/cppconn/prepared_statement.h>
 #include <jdbc/cppconn/resultset.h>
 #include <jdbc/cppconn/statement.h>
 #include <jdbc/cppconn/exception.h>
+#else
+#include <mysql_driver.h>
+#include <mysql_connection.h>
+#include <cppconn/prepared_statement.h>
+#include <cppconn/resultset.h>
+#include <cppconn/statement.h>
+#include <cppconn/exception.h>
+#endif
 #include <cstdio>
 
 #define _CRT_SECURE_NO_WARNINGS

@@ -9,50 +9,81 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
-find_package(Protobuf REQUIRED)
-find_package(gRPC CONFIG REQUIRED)
-find_package(JsonCpp REQUIRED)
 
-# MySQL Connector/C++ (如果 apt 装的 libmysqlcppconn-dev)
+# Protobuf (手动找，apt 装的 libprotobuf-dev 无 cmake config)
+find_library(PROTOBUF_LIB protobuf)
+find_path(PROTOBUF_INCLUDE_DIR google/protobuf/message.h)
+if(NOT PROTOBUF_LIB OR NOT PROTOBUF_INCLUDE_DIR)
+    message(FATAL_ERROR "protobuf not found. apt install libprotobuf-dev")
+endif()
+find_program(PROTOC_EXE protoc)
+
+find_package(gRPC CONFIG REQUIRED)
+
+# JsonCpp (apt 装的 libjsoncpp-dev，headers 在 /usr/include/jsoncpp)
+find_library(JSONCPP_LIB jsoncpp)
+find_path(JSONCPP_INCLUDE_DIR json/json.h
+    HINTS /usr/include/jsoncpp)
+if(NOT JSONCPP_LIB OR NOT JSONCPP_INCLUDE_DIR)
+    message(FATAL_ERROR "jsoncpp not found. apt install libjsoncpp-dev")
+endif()
+
+# MySQL Connector/C++
 find_library(MYSQLCPP_LIB mysqlcppconn)
 find_path(MYSQL_INCLUDE_DIR cppconn/driver.h)
 if(NOT MYSQLCPP_LIB)
     message(FATAL_ERROR "mysqlcppconn not found. apt install libmysqlcppconn-dev")
 endif()
 
-# ==================== Proto 搜索路径 ====================
-# 每个服务的 message.proto/grpc 是用 protoc 预编译的 .pb.cc/.grpc.pb.cc
-# Docker 构建时重新生成, 开发时直接用预编译的
+# hiredis
+find_library(HIREDIS_LIB hiredis)
+find_path(HIREDIS_INCLUDE_DIR hiredis/hiredis.h)
+if(NOT HIREDIS_LIB OR NOT HIREDIS_INCLUDE_DIR)
+    message(FATAL_ERROR "hiredis not found. apt install libhiredis-dev")
+endif()
+
+# spdlog (header-only)
+find_path(SPDLOG_INCLUDE_DIR spdlog/spdlog.h)
+if(NOT SPDLOG_INCLUDE_DIR)
+    message(FATAL_ERROR "spdlog not found. apt install libspdlog-dev")
+endif()
+
+# fmt
+find_library(FMT_LIB fmt)
+if(NOT FMT_LIB)
+    message(FATAL_ERROR "fmt not found. apt install libfmt-dev")
+endif()
 
 # ==================== common 静态库 ====================
 file(GLOB COMMON_SRC
-    common/*.cpp
-    common/crypto/*.cpp
-    common/crypto/*.c
+    common/*.cpp common/*.cc
+    common/crypto/*.cpp common/crypto/*.c
 )
-list(FILTER COMMON_SRC EXCLUDE REGEX ".*_test\\.cpp$") # 排除测试文件
+list(FILTER COMMON_SRC EXCLUDE REGEX ".*_test\\.cpp$")
 
 add_library(im_common STATIC ${COMMON_SRC})
 target_include_directories(im_common PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/common
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${MYSQL_INCLUDE_DIR}
-    ${JSONCPP_INCLUDE_DIRS}
+    ${JSONCPP_INCLUDE_DIR}
+    ${HIREDIS_INCLUDE_DIR}
+    ${SPDLOG_INCLUDE_DIR}
+    ${PROTOBUF_INCLUDE_DIR}
 )
 target_link_libraries(im_common PUBLIC
     Boost::system
     OpenSSL::Crypto
     Threads::Threads
     ${MYSQLCPP_LIB}
-    jsoncpp
+    ${JSONCPP_LIB}
+    ${HIREDIS_LIB}
+    ${FMT_LIB}
 )
 
 # ==================== 宏：构建服务 ====================
 function(add_im_service NAME)
-    cmake_parse_arguments(ARG "" "PROTO_DIR" "" ${ARGN})
-
-    file(GLOB_RECURSE SRC "${NAME}/*.cpp")
-    # 排除 _test.cpp 和 .pb.cc/.grpc.pb.cc(单独添加)
+    file(GLOB_RECURSE SRC "${NAME}/*.cpp" "${NAME}/*.cc")
     list(FILTER SRC EXCLUDE REGEX ".*_test\\.cpp$")
 
     add_executable(${NAME} ${SRC})
@@ -61,12 +92,14 @@ function(add_im_service NAME)
         ${CMAKE_CURRENT_SOURCE_DIR}/common
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${MYSQL_INCLUDE_DIR}
+        ${JSONCPP_INCLUDE_DIR}
     )
     target_link_libraries(${NAME} PRIVATE
         im_common
         gRPC::grpc++
         gRPC::grpc
-        protobuf::libprotobuf
+        ${PROTOBUF_LIB}
+        ${FMT_LIB}
     )
 endfunction()
 

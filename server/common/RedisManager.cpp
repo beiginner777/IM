@@ -2,6 +2,7 @@
 #include "RedisLocker.h"
 #include "Defer.h"
 #include <sstream>
+#include <cstring>
 std::string RedisManager::Get(const std::string& key, bool forceMaster)
 {
 	auto connect_ = getConn(forceMaster);

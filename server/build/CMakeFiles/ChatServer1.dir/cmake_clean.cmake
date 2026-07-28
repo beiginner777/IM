@@ -1,0 +1,41 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/ChatServer1.dir/ChatServer1/BatchMessageWriter.cpp.o"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/BatchMessageWriter.cpp.o.d"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/CServer.cpp.o"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/CServer.cpp.o.d"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/CSession.cpp.o"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/CSession.cpp.o.d"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/ChatGrpcClient.cpp.o"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/ChatGrpcClient.cpp.o.d"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/ChatServiceImpl.cpp.o"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/ChatServiceImpl.cpp.o.d"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/LogicSystem.cpp.o"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/LogicSystem.cpp.o.d"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/LogicWorker.cpp.o"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/LogicWorker.cpp.o.d"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/MsgNode.cpp.o"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/MsgNode.cpp.o.d"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/MysqlDao.cpp.o"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/MysqlDao.cpp.o.d"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/MysqlManager.cpp.o"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/MysqlManager.cpp.o.d"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/StatusGrpcClient.cpp.o"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/StatusGrpcClient.cpp.o.d"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/UserManager.cpp.o"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/UserManager.cpp.o.d"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/main.cpp.o"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/main.cpp.o.d"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/message.grpc.pb.cc.o"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/message.grpc.pb.cc.o.d"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/message.pb.cc.o"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/message.pb.cc.o.d"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/utils.cpp.o"
+  "CMakeFiles/ChatServer1.dir/ChatServer1/utils.cpp.o.d"
+  "ChatServer1"
+  "ChatServer1.pdb"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang CXX)
+  include(CMakeFiles/ChatServer1.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()
