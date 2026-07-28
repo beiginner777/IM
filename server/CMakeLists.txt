@@ -99,7 +99,6 @@ function(add_im_service NAME)
         im_common
         gRPC::grpc++
         gRPC::grpc
-        ${PROTOBUF_LIB}
         ${FMT_LIB}
     )
 endfunction()
