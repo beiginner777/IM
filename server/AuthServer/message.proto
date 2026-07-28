@@ -36,6 +36,7 @@ message GetChatServerRsp {
   string host = 2;
   string port = 3;
   string token = 4;
+  string name = 5;
 }
 
 message GetResourceServerReq {
