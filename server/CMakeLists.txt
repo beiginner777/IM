@@ -10,9 +10,12 @@ find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 
-# Protobuf (手动找，apt 装的 libprotobuf-dev 无 cmake config)
-find_library(PROTOBUF_LIB protobuf)
-find_path(PROTOBUF_INCLUDE_DIR google/protobuf/message.h)
+# Protobuf (强制用系统路径，不碰 /mnt 下的 Windows 版本)
+find_library(PROTOBUF_LIB protobuf
+    PATHS /usr/lib/x86_64-linux-gnu /usr/lib
+    NO_DEFAULT_PATH)
+find_path(PROTOBUF_INCLUDE_DIR google/protobuf/message.h
+    PATHS /usr/include)
 if(NOT PROTOBUF_LIB OR NOT PROTOBUF_INCLUDE_DIR)
     message(FATAL_ERROR "protobuf not found. apt install libprotobuf-dev")
 endif()
