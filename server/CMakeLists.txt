@@ -23,36 +23,40 @@ find_program(PROTOC_EXE protoc)
 
 find_package(gRPC CONFIG REQUIRED)
 
+# 所有 find_library/find_path 加 PATHS 限制，防止从 /mnt 找 Windows 版本
+set(LINUX_LIB_PATHS /usr/lib/x86_64-linux-gnu /usr/lib)
+set(LINUX_INC_PATHS /usr/include /usr/local/include)
+
 # JsonCpp (apt 装的 libjsoncpp-dev，headers 在 /usr/include/jsoncpp)
-find_library(JSONCPP_LIB jsoncpp)
+find_library(JSONCPP_LIB jsoncpp PATHS ${LINUX_LIB_PATHS} NO_DEFAULT_PATH)
 find_path(JSONCPP_INCLUDE_DIR json/json.h
-    HINTS /usr/include/jsoncpp)
+    PATHS /usr/include/jsoncpp ${LINUX_INC_PATHS})
 if(NOT JSONCPP_LIB OR NOT JSONCPP_INCLUDE_DIR)
     message(FATAL_ERROR "jsoncpp not found. apt install libjsoncpp-dev")
 endif()
 
 # MySQL Connector/C++
-find_library(MYSQLCPP_LIB mysqlcppconn)
-find_path(MYSQL_INCLUDE_DIR cppconn/driver.h)
+find_library(MYSQLCPP_LIB mysqlcppconn PATHS ${LINUX_LIB_PATHS} NO_DEFAULT_PATH)
+find_path(MYSQL_INCLUDE_DIR cppconn/driver.h PATHS ${LINUX_INC_PATHS})
 if(NOT MYSQLCPP_LIB)
     message(FATAL_ERROR "mysqlcppconn not found. apt install libmysqlcppconn-dev")
 endif()
 
 # hiredis
-find_library(HIREDIS_LIB hiredis)
-find_path(HIREDIS_INCLUDE_DIR hiredis/hiredis.h)
+find_library(HIREDIS_LIB hiredis PATHS ${LINUX_LIB_PATHS} NO_DEFAULT_PATH)
+find_path(HIREDIS_INCLUDE_DIR hiredis/hiredis.h PATHS ${LINUX_INC_PATHS})
 if(NOT HIREDIS_LIB OR NOT HIREDIS_INCLUDE_DIR)
     message(FATAL_ERROR "hiredis not found. apt install libhiredis-dev")
 endif()
 
 # spdlog (header-only)
-find_path(SPDLOG_INCLUDE_DIR spdlog/spdlog.h)
+find_path(SPDLOG_INCLUDE_DIR spdlog/spdlog.h PATHS ${LINUX_INC_PATHS})
 if(NOT SPDLOG_INCLUDE_DIR)
     message(FATAL_ERROR "spdlog not found. apt install libspdlog-dev")
 endif()
 
 # fmt
-find_library(FMT_LIB fmt)
+find_library(FMT_LIB fmt PATHS ${LINUX_LIB_PATHS} NO_DEFAULT_PATH)
 if(NOT FMT_LIB)
     message(FATAL_ERROR "fmt not found. apt install libfmt-dev")
 endif()
