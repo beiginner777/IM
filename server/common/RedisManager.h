@@ -234,6 +234,8 @@ public:
 	bool Auth(const std::string& password);
 	bool LPush(const std::string& key, const std::string& value);
 	std::string LPop(const std::string& key);
+	// WAIT 同步复制：阻塞直到至少 numreplicas 个从节点确认复制完成（防 Master 宕机丢消息）
+	bool wait(int numreplicas, int timeoutMs);
 	bool RPush(const std::string& key, const std::string& value);
 	std::string RPop(const std::string& key);
 	bool HSet(const std::string& key, const std::string& hkey, const std::string& value);
@@ -249,6 +251,10 @@ public:
 	bool releaseLock(const std::string& lockName, const std::string& lockValue);
 	// 分布式限流：Redis Lua 固定窗口 INCR + EXPIRE
 	bool checkRateLimit(int uid, int limit = 10);
+	// 通用 Lua 脚本执行（原子操作），返回整数结果（-1 表示执行失败）
+	long long evalLuaInt(const std::string& script,
+	                     const std::vector<std::string>& keys,
+	                     const std::vector<std::string>& args);
 	bool pushOfflineMessage(int uid, const std::string& message);
 	std::vector<std::string> popOfflineMessages(int uid);
 	// Distributed message ID generation

@@ -162,6 +162,8 @@ void LogicSystem::registerPostHandler()
 		if (returnCode >= 0)
 		{
 			std::cout << "User " << name << "register success." << std::endl;
+			// 主动删除可能存在的空值缓存（防止注册后搜索不到自己）
+			RedisManager::getInstance()->Del("user_null:" + name);
 			Json::Value value;
 			value["code"] = SUCCESS;
 			value["message"] = "register success.";

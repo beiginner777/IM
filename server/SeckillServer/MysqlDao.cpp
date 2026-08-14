@@ -127,7 +127,11 @@ std::vector<MysqlDao::Product> MysqlDao::getProducts()
 	try
 	{
 		auto stmt = conn->con_->createStatement();
-		auto res = stmt->executeQuery("SELECT id,name,price,stock,image_url FROM seckill_product ORDER BY id");
+		// stock 字段语义 = 初始库存（永不扣减），实时库存 = stock - paid 订单数（订单数反推）
+		auto res = stmt->executeQuery(
+			"SELECT p.id, p.name, p.price, "
+			"(p.stock - COALESCE((SELECT COUNT(*) FROM seckill_order o WHERE o.product_id = p.id AND o.status='paid'), 0)) AS stock, "
+			"p.image_url FROM seckill_product p ORDER BY p.id");
 		while (res->next())
 		{
 			result.push_back({res->getInt("id"), res->getString("name"), (double) res->getDouble("price"),
@@ -140,6 +144,29 @@ std::vector<MysqlDao::Product> MysqlDao::getProducts()
 	}
 	returnConn(std::move(conn));
 	return result;
+}
+
+int MysqlDao::getPaidCount(int productId)
+{
+	auto conn = getConn();
+	if (!conn)
+		return 0;
+	int count = 0;
+	try
+	{
+		auto stmt = conn->con_->prepareStatement(
+			"SELECT COUNT(*) FROM seckill_order WHERE product_id=? AND status='paid'");
+		stmt->setInt(1, productId);
+		auto res = stmt->executeQuery();
+		if (res->next())
+			count = res->getInt(1);
+	}
+	catch (sql::SQLException& e)
+	{
+		std::cerr << "[MysqlDao] getPaidCount: " << e.what() << std::endl;
+	}
+	returnConn(std::move(conn));
+	return count;
 }
 
 bool MysqlDao::updateStock(int productId, int newStock)

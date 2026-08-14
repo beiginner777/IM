@@ -38,6 +38,8 @@ public:
 	};
 	std::vector<Product> getProducts();
 	bool updateStock(int productId, int newStock);
+	// 已支付订单数（库存由订单数反推：实时库存 = 初始库存 - paid数）
+	int getPaidCount(int productId);
 	int insertOrder(int uid, int productId, const std::string& productName, double price);
 	bool payOrder(int orderId, int uid);
 	bool cancelOrder(int orderId, int uid);

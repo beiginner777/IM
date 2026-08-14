@@ -3,6 +3,7 @@
 #include "ConfigManager.h"
 #include "CServer.h"
 #include "AsioIOContextThreadPool.h"
+#include "MetricsServer.h"
 int main()
 {
 	// io_context 负责新用户连接，AsioIOContextThreadPool 负责通信 + StatusServer 心跳
@@ -17,6 +18,9 @@ int main()
 	// CServer 构造时会连接 StatusServer 并发送 ID_REGISTER_REQ
 	// 收到 ID_REGISTER_RSP 后自动调用 startReceiceConnections() 开始接收客户端连接
 	CServer s(ioc, port);
+	// 暴露监控指标（Prometheus /metrics 端点）
+	auto metrics = std::make_shared<MetricsServer>(ioc, 9102);
+	metrics->start();
 	ioc.run();
 	return 0;
 }

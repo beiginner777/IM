@@ -7,6 +7,8 @@
 #include "ChatServiceImpl.h"
 #include "BatchMessageWriter.h"
 #include "MysqlManager.h"
+#include "MetricsServer.h"
+#include "DynamicConfig.h"
 // to do ...
 // ������ uid_ token_ uip_ ��ʱ����Ҫ�����Լ����ù���ʱ�䡣
 // ��Ҫͬʱ���� tcp���� �� rpc����
@@ -41,6 +43,11 @@ int main()
 		MysqlManager::getInstance()->initBloomFilter();
 		// 启动异步批量写入线程
 		BatchMessageWriter::getInstance()->start();
+		// 启动动态配置中心（Redis Hash 配置 + 定期拉取）
+		DynamicConfig::getInstance()->startPolling();
+		// 暴露监控指标（Prometheus /metrics 端点）
+		auto metrics = std::make_shared<MetricsServer>(ioc, 9101);
+		metrics->start();
 		signals.async_wait([&ioc, &server, &s](auto, auto) {
 			std::cout << "io_context is stop." << std::endl;
 			s->cancelTimer();
