@@ -43,7 +43,7 @@ private:
     void loadAll();      // 全量拉取 HGetAll（用 HGet 逐个读）
     void pollWorker();   // 后台线程：每 30s 检查 version，变了就 reload
 
-    std::mutex mtx_;
+    mutable std::mutex mtx_;
     bool   enableBloom_     = false;
     bool   enableNullCache_ = true;
     double bloomThreshold_  = 0.30;

@@ -154,8 +154,13 @@ void LogicSystem::registerGetHandler()
 		if (o.status == "unpaid" && o.time.size() >= 19)
 		{
 			struct tm t = {};
+#ifdef _WIN32
 			sscanf_s(o.time.c_str(), "%d-%d-%d %d:%d:%d", &t.tm_year, &t.tm_mon, &t.tm_mday, &t.tm_hour, &t.tm_min,
 			         &t.tm_sec);
+#else
+			sscanf(o.time.c_str(), "%d-%d-%d %d:%d:%d", &t.tm_year, &t.tm_mon, &t.tm_mday, &t.tm_hour, &t.tm_min,
+			       &t.tm_sec);
+#endif
 			t.tm_year -= 1900;
 			t.tm_mon -= 1;
 			int remain = 1800 - (int) (time(nullptr) - mktime(&t));
