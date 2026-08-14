@@ -7,6 +7,7 @@
 #include "JWT.h"
 #include "ChatGrpcClient.h"
 #include "AlertManager.h"
+#include "MetricsRegistry.h"
 
 LogicSystem::LogicSystem()
 {
@@ -422,6 +423,15 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 	// 解码出来 URL放在 url_变量当中;  然后将 键值对 放在getPrama_中
 	prase_get_request(target);
 	std::cout << "prase url = " << url_ << std::endl;
+
+	// /metrics 端点（Prometheus 监控指标）
+	if (url_ == "/metrics") {
+		conn->response_.set(http::field::content_type, "text/plain; version=0.0.4");
+		beast::ostream(conn->response_.body()) << MetricsRegistry::getInstance()->render();
+		url_ = "";
+		getPrama_.clear();
+		return;
+	}
 	// 作为静态文件返回
 	static const std::string kFeDist = "../../client/React/dist";
 	std::string filePath = kFeDist + url_;

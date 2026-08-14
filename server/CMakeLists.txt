@@ -55,6 +55,9 @@ if(NOT FMT_LIB)
     message(FATAL_ERROR "fmt not found. apt install libfmt-dev")
 endif()
 
+# 所有可执行文件输出到 server/bin/
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
+
 # ==================== common 静态库 ====================
 file(GLOB COMMON_SRC
     common/*.cpp common/*.cc

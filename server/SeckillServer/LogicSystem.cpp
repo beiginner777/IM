@@ -3,6 +3,7 @@
 #include "JWT.h"
 #include "crypto/BCryptHasher.h"
 #include "RedisManager.h"
+#include "MetricsRegistry.h"
 
 void LogicSystem::sendJson(std::shared_ptr<HttpConnection> conn, const Json::Value& v)
 {
@@ -30,6 +31,13 @@ LogicSystem::~LogicSystem()
 // ==================== GET handlers ====================
 void LogicSystem::registerGetHandler()
 {
+	// Prometheus 监控指标端点（文本格式，非 JSON）
+	getHandles_["/metrics"] = [this](auto conn, auto&)
+	{
+		conn->response_.set(http::field::content_type, "text/plain; version=0.0.4");
+		beast::ostream(conn->response_.body()) << MetricsRegistry::getInstance()->render();
+	};
+
 	getHandles_["/orders"] = [this](auto conn, auto&)
 	{
 		Json::Value arr(Json::arrayValue);
@@ -327,6 +335,7 @@ void LogicSystem::registerPostHandler()
 // ==================== URL 解析 + 前缀路由 ====================
 void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 {
+	MetricsRegistry::getInstance()->incCounter("im_http_request_total");
 	if (!tryAcquireRateLimit(conn)) {
 		return;
 	}
@@ -369,6 +378,7 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<HttpConnection> conn)
 
 void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn)
 {
+	MetricsRegistry::getInstance()->incCounter("im_http_request_total");
 	if (!tryAcquireRateLimit(conn)){
 		return;
 	}

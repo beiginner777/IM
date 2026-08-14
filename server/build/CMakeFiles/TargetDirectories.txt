@@ -1,9 +1,0 @@
-/mnt/e/File/jerry/IM/server/build/CMakeFiles/im_common.dir
-/mnt/e/File/jerry/IM/server/build/CMakeFiles/AuthServer.dir
-/mnt/e/File/jerry/IM/server/build/CMakeFiles/StatusServer.dir
-/mnt/e/File/jerry/IM/server/build/CMakeFiles/ChatServer1.dir
-/mnt/e/File/jerry/IM/server/build/CMakeFiles/ChatServer2.dir
-/mnt/e/File/jerry/IM/server/build/CMakeFiles/ResourceServer.dir
-/mnt/e/File/jerry/IM/server/build/CMakeFiles/SeckillServer.dir
-/mnt/e/File/jerry/IM/server/build/CMakeFiles/edit_cache.dir
-/mnt/e/File/jerry/IM/server/build/CMakeFiles/rebuild_cache.dir
