@@ -1,5 +1,6 @@
 #include "MysqlManager.h"
 #include "DynamicConfig.h"
+#include "RedisManager.h"
 // 启动时构建布隆过滤器：优先从 Redis 恢复，没有则从 MySQL 全量加载
 void MysqlManager::initBloomFilter()
 {
@@ -62,16 +63,16 @@ int MysqlManager::addFriendRelation(int fromuid, int touid, int& thread_id1,int&
 }
 std::shared_ptr<UserInfo> MysqlManager::getUserByUid(int uid, bool forceMaster)
 {
-	auto& cfg = DynamicConfig::getInstance();
+	auto cfg = DynamicConfig::getInstance();
 
 	// 开关1：布隆过滤器（穿透率超阈值后人工开启）
-	if (cfg.enableBloom()) {
+	if (cfg->enableBloom()) {
 		if (bloomFilter_ && !bloomFilter_->contains((uint64_t)uid)) {
 			return nullptr;
 		}
 	}
 	// 开关2：缓存空值（小规模时用，布隆开启后可关闭）
-	else if (cfg.enableNullCache()) {
+	else if (cfg->enableNullCache()) {
 		std::string nullKey = "user_null:" + std::to_string(uid);
 		if (RedisManager::getInstance()->ExistsKey(nullKey)) {
 			return nullptr;  // 命中空值缓存，直接返回不存在
@@ -81,23 +82,23 @@ std::shared_ptr<UserInfo> MysqlManager::getUserByUid(int uid, bool forceMaster)
 	auto result = dao_.getUserByUid(uid, forceMaster);
 
 	// 查询确实不存在 → 写缓存空值（短 TTL，防穿透）
-	if (!result && cfg.enableNullCache()) {
+	if (!result && cfg->enableNullCache()) {
 		RedisManager::getInstance()->SetExp("user_null:" + std::to_string(uid), "1", 300);
 	}
 	return result;
 }
 std::shared_ptr<UserInfo> MysqlManager::getUserByName(std::string name, bool forceMaster)
 {
-	auto& cfg = DynamicConfig::getInstance();
+	auto cfg = DynamicConfig::getInstance();
 
 	// 开关1：布隆过滤器（穿透率超阈值后人工开启）
-	if (cfg.enableBloom()) {
+	if (cfg->enableBloom()) {
 		if (bloomFilter_ && !bloomFilter_->contains(name)) {
 			return nullptr;
 		}
 	}
 	// 开关2：缓存空值（小规模时用，布隆开启后可关闭）
-	else if (cfg.enableNullCache()) {
+	else if (cfg->enableNullCache()) {
 		std::string nullKey = "user_null:" + name;
 		if (RedisManager::getInstance()->ExistsKey(nullKey)) {
 			return nullptr;
@@ -106,7 +107,7 @@ std::shared_ptr<UserInfo> MysqlManager::getUserByName(std::string name, bool for
 
 	auto result = dao_.getUserByName(name, forceMaster);
 
-	if (!result && cfg.enableNullCache()) {
+	if (!result && cfg->enableNullCache()) {
 		RedisManager::getInstance()->SetExp("user_null:" + name, "1", 300);
 	}
 	return result;
