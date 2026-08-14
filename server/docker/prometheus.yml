@@ -1,0 +1,17 @@
+# Prometheus 配置 —— IM 系统监控
+# 拉取各服务的 /metrics 端点
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'im_servers'
+    static_configs:
+      - targets:
+          - 'authserver:8080'        # AuthServer /metrics
+          - 'seckillserver:8101'     # SeckillServer /metrics
+          - 'chatserver1:9100'       # ChatServer1 /metrics
+          - 'chatserver2:9101'       # ChatServer2 /metrics
+          - 'resourceserver:9102'    # ResourceServer /metrics
+          - 'statusserver:9103'      # StatusServer /metrics
