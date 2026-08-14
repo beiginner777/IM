@@ -5,22 +5,15 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
-# ==================== 强制只搜索 Linux 系统路径 ====================
-set(CMAKE_FIND_ROOT_PATH /usr /usr/local)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
-
 # ==================== 依赖 ====================
 find_package(Boost REQUIRED COMPONENTS system filesystem)
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 
-# Protobuf
-find_package(Protobuf REQUIRED)
-
-# gRPC
-find_package(gRPC CONFIG REQUIRED)
+# gRPC + Protobuf：Ubuntu 22.04 的 gRPC 1.30 无 cmake config，改用 pkg-config
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GRPC REQUIRED grpc++ grpc)
+pkg_check_modules(PROTOBUF REQUIRED protobuf)
 
 # JsonCpp
 find_library(JSONCPP_LIB jsoncpp PATHS /usr/lib/x86_64-linux-gnu)
@@ -73,7 +66,7 @@ target_include_directories(im_common PUBLIC
     ${JSONCPP_INCLUDE_DIR}
     ${HIREDIS_INCLUDE_DIR}
     ${SPDLOG_INCLUDE_DIR}
-    ${Protobuf_INCLUDE_DIRS}
+    ${PROTOBUF_INCLUDE_DIRS}
 )
 target_link_libraries(im_common PUBLIC
     Boost::system
@@ -84,7 +77,7 @@ target_link_libraries(im_common PUBLIC
     ${JSONCPP_LIB}
     ${HIREDIS_LIB}
     ${FMT_LIB}
-    ${Protobuf_LIBRARIES}
+    ${PROTOBUF_LIBRARIES}
 )
 
 # ==================== 宏：构建服务 ====================
@@ -99,13 +92,13 @@ function(add_im_service NAME)
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${MYSQL_INCLUDE_DIR}
         ${JSONCPP_INCLUDE_DIR}
-        ${Protobuf_INCLUDE_DIRS}
+        ${PROTOBUF_INCLUDE_DIRS}
+        ${GRPC_INCLUDE_DIRS}
     )
     target_link_libraries(${NAME} PRIVATE
         im_common
-        gRPC::grpc++
-        gRPC::grpc
-        ${Protobuf_LIBRARIES}
+        ${GRPC_LIBRARIES}
+        ${PROTOBUF_LIBRARIES}
         ${FMT_LIB}
     )
 endfunction()
