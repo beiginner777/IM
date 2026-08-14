@@ -1,0 +1,173 @@
+version: "3.8"
+
+services:
+  # ==================== 基础设施 ====================
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8100:8100"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - authserver
+      - seckillserver
+    networks:
+      - im-net
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: JerryChat
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ../MySQL/dump.sql:/docker-entrypoint-initdb.d/dump.sql:ro
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - im-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    command: redis-server --requirepass 123456
+    volumes:
+      - redis-data:/data
+    networks:
+      - im-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "123456", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== 业务服务 ====================
+
+  statusserver:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: im-server
+    command: /app/StatusServer /app/config/StatusServer.ini
+    ports:
+      - "50052:50052"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - im-net
+
+  authserver:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: im-server
+    command: /app/AuthServer /app/config/AuthServer.ini
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      statusserver:
+        condition: service_started
+    networks:
+      - im-net
+
+  chatserver1:
+    image: im-server
+    command: /app/ChatServer1 /app/config/ChatServer1.ini
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      statusserver:
+        condition: service_started
+    networks:
+      - im-net
+
+  chatserver2:
+    image: im-server
+    command: /app/ChatServer2 /app/config/ChatServer2.ini
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      statusserver:
+        condition: service_started
+    networks:
+      - im-net
+
+  resourceserver:
+    image: im-server
+    command: /app/ResourceServer /app/config/ResourceServer.ini
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      statusserver:
+        condition: service_started
+    networks:
+      - im-net
+
+  seckillserver:
+    image: im-server
+    command: /app/SeckillServer /app/config/SeckillServer.ini
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - im-net
+
+  # ==================== 监控 ====================
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    depends_on:
+      - authserver
+      - seckillserver
+      - chatserver1
+      - chatserver2
+      - resourceserver
+      - statusserver
+    networks:
+      - im-net
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    networks:
+      - im-net
+
+volumes:
+  mysql-data:
+  redis-data:
+
+networks:
+  im-net:
+    driver: bridge
