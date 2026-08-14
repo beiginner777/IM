@@ -15,6 +15,7 @@ std::string ConfigManager::configPath_;
 static void loadIni(const std::string& path,
                     std::map<std::string, SectionInfo>& data)
 {
+    std::cout << "[ConfigManager] loading config.ini from: " << path << std::endl;
     boost::property_tree::ptree pt;
     boost::property_tree::read_ini(path, pt);
     for (const auto& sec : pt) {
