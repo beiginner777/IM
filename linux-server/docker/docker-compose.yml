@@ -15,7 +15,9 @@ services:
     networks:
       - im-net
 
-  mysql:
+  # ---------- MySQL 主从 ----------
+
+  mysql-master:
     image: mysql:8.0
     environment:
       MYSQL_ROOT_PASSWORD: 123456
@@ -23,7 +25,8 @@ services:
     ports:
       - "3307:3306"
     volumes:
-      - mysql-data:/var/lib/mysql
+      - mysql-master-data:/var/lib/mysql
+      - ../MySQL/master.cnf:/etc/mysql/conf.d/master.cnf:ro
       - ../MySQL/dump.sql:/docker-entrypoint-initdb.d/dump.sql:ro
     command: --default-authentication-plugin=mysql_native_password
     networks:
@@ -34,13 +37,31 @@ services:
       timeout: 5s
       retries: 10
 
-  redis:
+  mysql-slave:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql-slave-data:/var/lib/mysql
+      - ../MySQL/slave.cnf:/etc/mysql/conf.d/slave.cnf:ro
+      - ../MySQL/dump.sql:/docker-entrypoint-initdb.d/dump.sql:ro
+    depends_on:
+      - mysql-master
+    networks:
+      - im-net
+
+  # ---------- Redis 哨兵（1M + 2S + 3S） ----------
+
+  redis-master:
     image: redis:7-alpine
     ports:
       - "6380:6379"
-    command: redis-server --requirepass 123456
     volumes:
-      - redis-data:/data
+      - redis-master-data:/data
+      - ../Redis/sentinel/redis-master.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
     networks:
       - im-net
     healthcheck:
@@ -48,6 +69,70 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  redis-slave-1:
+    image: redis:7-alpine
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis-slave1-data:/data
+      - ../Redis/sentinel/redis-slave.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf --slaveof redis-master 6379 --masterauth 123456
+    depends_on:
+      - redis-master
+    networks:
+      - im-net
+
+  redis-slave-2:
+    image: redis:7-alpine
+    ports:
+      - "6382:6379"
+    volumes:
+      - redis-slave2-data:/data
+      - ../Redis/sentinel/redis-slave.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf --slaveof redis-master 6379 --masterauth 123456
+    depends_on:
+      - redis-master
+    networks:
+      - im-net
+
+  sentinel-1:
+    image: redis:7-alpine
+    ports:
+      - "26379:26379"
+    volumes:
+      - ../Redis/sentinel/sentinel-1.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      - redis-master
+      - redis-slave-1
+      - redis-slave-2
+    networks:
+      - im-net
+
+  sentinel-2:
+    image: redis:7-alpine
+    ports:
+      - "26380:26379"
+    volumes:
+      - ../Redis/sentinel/sentinel-2.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      - redis-master
+    networks:
+      - im-net
+
+  sentinel-3:
+    image: redis:7-alpine
+    ports:
+      - "26381:26379"
+    volumes:
+      - ../Redis/sentinel/sentinel-3.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      - redis-master
+    networks:
+      - im-net
 
   # ==================== 业务服务 ====================
 
@@ -60,7 +145,7 @@ services:
     ports:
       - "50052:50052"
     depends_on:
-      redis:
+      redis-master:
         condition: service_healthy
     networks:
       - im-net
@@ -74,9 +159,9 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      mysql:
+      mysql-master:
         condition: service_healthy
-      redis:
+      redis-master:
         condition: service_healthy
       statusserver:
         condition: service_started
@@ -90,9 +175,9 @@ services:
       - "8090:8090"     # 业务 TCP（客户端聊天）
       - "50053:50053"   # gRPC（跨服务）
     depends_on:
-      mysql:
+      mysql-master:
         condition: service_healthy
-      redis:
+      redis-master:
         condition: service_healthy
       statusserver:
         condition: service_started
@@ -106,9 +191,9 @@ services:
       - "8091:8091"
       - "50054:50054"
     depends_on:
-      mysql:
+      mysql-master:
         condition: service_healthy
-      redis:
+      redis-master:
         condition: service_healthy
       statusserver:
         condition: service_started
@@ -122,9 +207,9 @@ services:
       - "9090:9090"     # 业务 TCP（文件传输）
       - "51055:51055"   # gRPC
     depends_on:
-      mysql:
+      mysql-master:
         condition: service_healthy
-      redis:
+      redis-master:
         condition: service_healthy
       statusserver:
         condition: service_started
@@ -137,9 +222,9 @@ services:
     ports:
       - "8101:8101"     # HTTP（秒杀业务）
     depends_on:
-      mysql:
+      mysql-master:
         condition: service_healthy
-      redis:
+      redis-master:
         condition: service_healthy
     networks:
       - im-net
@@ -176,8 +261,11 @@ services:
       - im-net
 
 volumes:
-  mysql-data:
-  redis-data:
+  mysql-master-data:
+  mysql-slave-data:
+  redis-master-data:
+  redis-slave1-data:
+  redis-slave2-data:
 
 networks:
   im-net:
