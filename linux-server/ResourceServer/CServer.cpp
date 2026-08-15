@@ -41,16 +41,17 @@ std::string CServer::getConnectionToStatusServerUuid()
 bool CServer::connectToStatusServer()
 {
 	ConfigManager cfg = ConfigManager::getInstance();
-	std::string start_server_ip = cfg["StatusServer"]["Host"];
-	short start_server_port = atoi(cfg["StatusServer"]["TCP_port"].c_str());
+	std::string start_server_host = cfg["StatusServer"]["Host"];
+	std::string start_server_port = cfg["StatusServer"]["TCP_port"];
 	connectionToStatusServer_->getSocket().open(tcp::v4());
 	boost::system::error_code ec;
-	boost::asio::ip::tcp::endpoint ep(boost::asio::ip::make_address(start_server_ip, ec), start_server_port);
+	tcp::resolver resolver(connectionToStatusServer_->getSocket().get_executor());
+	auto results = resolver.resolve(start_server_host, start_server_port, ec);
 	if (ec.value()) {
 		std::cout << "[ResourceServer] Bad StatusServer IP: " << ec.message() << std::endl;
 		return false;
 	}
-	connectionToStatusServer_->getSocket().connect(ep, ec);
+	connectionToStatusServer_->getSocket().connect(results->endpoint(), ec);
 	if (ec.value()) {
 		std::cout << "[ResourceServer] Connect to StatusServer failed: " << ec.message() << std::endl;
 		return false;

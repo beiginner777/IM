@@ -11,19 +11,21 @@ StatusClientSession::~StatusClientSession()
 }
 bool StatusClientSession::connect()
 {
-	// 获取 StatusServer 的 ip 和 TCP 端口
+	// 获取 StatusServer 的 host 和 TCP 端口（host 可能是 IP 或主机名/容器名）
 	ConfigManager cfg = ConfigManager::getInstance();
-	std::string status_ip = cfg["StatusServer"]["Host"];
-	short status_port = static_cast<short>(atoi(cfg["StatusServer"]["TCP_port"].c_str()));
+	std::string status_host = cfg["StatusServer"]["Host"];
+	std::string status_port = cfg["StatusServer"]["TCP_port"];
 	boost::system::error_code ec;
-	boost::asio::ip::tcp::endpoint ep(boost::asio::ip::make_address(status_ip, ec), status_port);
-	if (ec.value()) {
-		std::cout << "[StatusClientSession] make_address failed, error message: " << ec.message() << std::endl;
+	// 用 resolver 解析（同时支持 IP 和主机名，容器化部署时是容器名）
+	tcp::resolver resolver(ioc_);
+	auto results = resolver.resolve(status_host, status_port, ec);
+	if (ec) {
+		std::cout << "[StatusClientSession] resolve failed, error message: " << ec.message() << std::endl;
 		return false;
 	}
-	socket_.connect(ep, ec);
-	if (ec.value()) {
-		std::cout << "[StatusClientSession] connect StatusServer(" << status_ip << ":" << status_port
+	socket_.connect(results->endpoint(), ec);
+	if (ec) {
+		std::cout << "[StatusClientSession] connect StatusServer(" << status_host << ":" << status_port
 			<< ") failed, error message: " << ec.message() << std::endl;
 		return false;
 	}
