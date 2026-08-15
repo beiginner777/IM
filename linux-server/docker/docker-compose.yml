@@ -141,7 +141,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     image: im-server
-    command: /app/StatusServer /app/config/StatusServer.ini
+    command: StatusServer
     ports:
       - "50052:50052"
     depends_on:
@@ -152,7 +152,7 @@ services:
 
   authserver:
     image: im-server
-    command: /app/AuthServer /app/config/AuthServer.ini
+    command: AuthServer
     ports:
       - "8080:8080"
     depends_on:
@@ -167,7 +167,7 @@ services:
 
   chatserver1:
     image: im-server
-    command: /app/ChatServer1 /app/config/ChatServer1.ini
+    command: ChatServer1
     ports:
       - "8090:8090"     # 业务 TCP（客户端聊天）
       - "50053:50053"   # gRPC（跨服务）
@@ -183,7 +183,7 @@ services:
 
   chatserver2:
     image: im-server
-    command: /app/ChatServer2 /app/config/ChatServer2.ini
+    command: ChatServer2
     ports:
       - "8091:8091"
       - "50054:50054"
@@ -199,7 +199,7 @@ services:
 
   resourceserver:
     image: im-server
-    command: /app/ResourceServer /app/config/ResourceServer.ini
+    command: ResourceServer
     ports:
       - "9090:9090"     # 业务 TCP（文件传输）
       - "51055:51055"   # gRPC
@@ -215,7 +215,7 @@ services:
 
   seckillserver:
     image: im-server
-    command: /app/SeckillServer /app/config/SeckillServer.ini
+    command: SeckillServer
     ports:
       - "8101:8101"     # HTTP（秒杀业务）
     depends_on:
