@@ -5,12 +5,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
-# ==================== 强制只搜索 Linux 系统路径 ====================
-set(CMAKE_FIND_ROOT_PATH /usr /usr/local)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
-
 # ==================== 依赖 ====================
 find_package(Boost REQUIRED COMPONENTS system filesystem)
 find_package(OpenSSL REQUIRED)
