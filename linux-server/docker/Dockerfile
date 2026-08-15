@@ -53,13 +53,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# 复制所有二进制
-COPY --from=builder /build/build/AuthServer/AuthServer       /app/bin/
-COPY --from=builder /build/build/StatusServer/StatusServer    /app/bin/
-COPY --from=builder /build/build/ChatServer1/ChatServer1      /app/bin/
-COPY --from=builder /build/build/ChatServer2/ChatServer2      /app/bin/
-COPY --from=builder /build/build/ResourceServer/ResourceServer /app/bin/
-COPY --from=builder /build/build/SeckillServer/SeckillServer  /app/bin/
+# 复制所有二进制（CMakeLists 设了 CMAKE_RUNTIME_OUTPUT_DIRECTORY=bin）
+COPY --from=builder /build/bin/AuthServer       /app/bin/
+COPY --from=builder /build/bin/StatusServer     /app/bin/
+COPY --from=builder /build/bin/ChatServer1      /app/bin/
+COPY --from=builder /build/bin/ChatServer2      /app/bin/
+COPY --from=builder /build/bin/ResourceServer   /app/bin/
+COPY --from=builder /build/bin/SeckillServer    /app/bin/
 
 # 复制配置文件
 COPY AuthServer/config.ini     /app/config/AuthServer.ini
