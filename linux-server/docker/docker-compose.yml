@@ -149,7 +149,7 @@ services:
   prometheus:
     image: prom/prometheus
     ports:
-      - "9090:9090"
+      - "19090:9090"   # 宿主机 19090（避免和 ResourceServer 的 9090 冲突）
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
     command:
