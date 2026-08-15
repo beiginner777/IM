@@ -10,6 +10,7 @@
 #include "utils.h"
 #include "JWT.h"
 #include "BatchMessageWriter.h"
+#include "MetricsRegistry.h"
 #include "LogicWorker.h"
 
 #define LOGICWORKER_COUNT 4
@@ -299,6 +300,17 @@ void LogicSystem::dispatch(std::shared_ptr<CSession> session, short msgId, std::
 
 void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
+	// 消息总数埋点
+	MetricsRegistry::getInstance()->incCounter("im_msg_total");
+	// 消息处理延迟埋点（sum/count，Prometheus 算平均延迟）
+	auto t0 = std::chrono::steady_clock::now();
+	Defer latencyDefer([t0]() {
+		long long us = std::chrono::duration_cast<std::chrono::microseconds>(
+			std::chrono::steady_clock::now() - t0).count();
+		MetricsRegistry::getInstance()->incCounter("im_msg_latency_sum", us);
+		MetricsRegistry::getInstance()->incCounter("im_msg_latency_count", 1);
+	});
+
 	std::cout << "handle id = " << msgId << std::endl;
 	Json::Reader reader;
 	Json::Value root;

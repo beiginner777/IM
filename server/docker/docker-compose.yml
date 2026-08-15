@@ -133,6 +133,37 @@ services:
     networks:
       - im-net
 
+  # ==================== 监控 ====================
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    depends_on:
+      - authserver
+      - seckillserver
+      - chatserver1
+      - chatserver2
+      - resourceserver
+      - statusserver
+    networks:
+      - im-net
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    networks:
+      - im-net
+
 volumes:
   mysql-data:
   redis-data:
