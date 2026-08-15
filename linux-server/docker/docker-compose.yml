@@ -151,9 +151,6 @@ services:
       - im-net
 
   authserver:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
     image: im-server
     command: /app/AuthServer /app/config/AuthServer.ini
     ports:
