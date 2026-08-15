@@ -288,54 +288,101 @@ UNLOCK TABLES;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`hahaha`@`%` PROCEDURE `reg_user`(
-    IN `new_name` VARCHAR(255), 
-    IN `new_email` VARCHAR(255), 
-    IN `new_pwd` VARCHAR(255), 
-    OUT `result` INT
+CREATE DEFINER=`hahaha`@`%` PROCEDURE `reg_user`(
+
+    IN `new_name` VARCHAR(255), 
+
+    IN `new_email` VARCHAR(255), 
+
+    IN `new_pwd` VARCHAR(255), 
+
+    OUT `result` INT
+
 )
-BEGIN
-    DECLARE new_id INT;
-    DECLARE name_exists INT DEFAULT 0;
-    DECLARE email_exists INT DEFAULT 0;
-    
-    -- 错误处理
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-        SET result = -1;  -- 表示系统错误
-    END;
-
-    -- 开始事务
-    START TRANSACTION;
-
-    -- 检查用户名是否已存在
-    SELECT COUNT(*) INTO name_exists FROM `user` WHERE `name` = new_name;
-    
-    -- 检查邮箱是否已存在  
-    SELECT COUNT(*) INTO email_exists FROM `user` WHERE `email` = new_email;
-
-    IF name_exists > 0 THEN
-        SET result = -1020;  -- 用户名已存在
-        ROLLBACK;
-    ELSEIF email_exists > 0 THEN
-        SET result = -1019;  -- 邮箱已存在
-        ROLLBACK;
-    ELSE
-        -- 更新user_id表获取新ID
-        UPDATE `userid` SET `id` = `id` + 1;
-        
-        -- 获取更新后的id
-        SELECT `id` INTO new_id FROM `userid`;
-        
-        -- 插入新用户
-        INSERT INTO `user` (`uid`, `name`, `email`, `password`) 
-        VALUES (new_id, new_name, new_email, new_pwd);
-        
-        SET result = new_id;  -- 成功，返回新用户ID
-        COMMIT;
-    END IF;
-
+BEGIN
+
+    DECLARE new_id INT;
+
+    DECLARE name_exists INT DEFAULT 0;
+
+    DECLARE email_exists INT DEFAULT 0;
+
+    
+
+    -- 错误处理
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+
+    BEGIN
+
+        ROLLBACK;
+
+        SET result = -1;  -- 表示系统错误
+
+    END;
+
+
+
+    -- 开始事务
+
+    START TRANSACTION;
+
+
+
+    -- 检查用户名是否已存在
+
+    SELECT COUNT(*) INTO name_exists FROM `user` WHERE `name` = new_name;
+
+    
+
+    -- 检查邮箱是否已存在  
+
+    SELECT COUNT(*) INTO email_exists FROM `user` WHERE `email` = new_email;
+
+
+
+    IF name_exists > 0 THEN
+
+        SET result = -1020;  -- 用户名已存在
+
+        ROLLBACK;
+
+    ELSEIF email_exists > 0 THEN
+
+        SET result = -1019;  -- 邮箱已存在
+
+        ROLLBACK;
+
+    ELSE
+
+        -- 更新user_id表获取新ID
+
+        UPDATE `userid` SET `id` = `id` + 1;
+
+        
+
+        -- 获取更新后的id
+
+        SELECT `id` INTO new_id FROM `userid`;
+
+        
+
+        -- 插入新用户
+
+        INSERT INTO `user` (`uid`, `name`, `email`, `password`) 
+
+        VALUES (new_id, new_name, new_email, new_pwd);
+
+        
+
+        SET result = new_id;  -- 成功，返回新用户ID
+
+        COMMIT;
+
+    END IF;
+
+
+
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
@@ -343,6 +390,46 @@ DELIMITER ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+
+-- ============ 秒杀系统表结构 ============
+-- 秒杀系统表结构 + 初始数据
+-- MySQL 容器首次初始化时，在 dump.sql 之后执行（字母序 s > d）
+
+-- user 表加余额字段（充值/支付用）
+ALTER TABLE user ADD COLUMN balance DECIMAL(10,2) NOT NULL DEFAULT 0.00;
+
+-- user 表加异地登录 IP 字段
+ALTER TABLE user ADD COLUMN last_login_ip VARCHAR(45) DEFAULT NULL;
+
+-- 秒杀商品表
+CREATE TABLE seckill_product (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    stock INT NOT NULL DEFAULT 0,
+    image_url VARCHAR(255) DEFAULT ''
+);
+
+-- 秒杀订单表
+CREATE TABLE seckill_order (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    uid INT NOT NULL,
+    product_id INT NOT NULL,
+    product_name VARCHAR(255) NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'unpaid',
+    recipient VARCHAR(255) DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    cancelled_at DATETIME DEFAULT NULL
+);
+
+-- 初始商品数据
+INSERT INTO seckill_product (name, price, stock, image_url) VALUES
+('iPhone 15 Pro', 7999.00, 100, ''),
+('MacBook Pro 14', 14999.00, 50, ''),
+('AirPods Pro 2', 1899.00, 200, ''),
+('iPad Air', 4399.00, 80, '');
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
