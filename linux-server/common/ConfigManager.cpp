@@ -35,9 +35,9 @@ ConfigManager::ConfigManager()
         return;
     }
 
-    // 2. 按优先级搜索 "config/可执行文件名_config.ini"
+    // 2. 按优先级搜索 "config.ini"
     std::vector<boost::filesystem::path> dirs;
-    dirs.push_back(boost::filesystem::current_path() / "config");
+    dirs.push_back(boost::filesystem::current_path());
 
     std::string exePath;
 #ifdef _WIN32
@@ -53,20 +53,18 @@ ConfigManager::ConfigManager()
     }
 #endif
     boost::filesystem::path exe(exePath);
-    std::string exeName = exe.filename().string();
-    std::string configFileName = exeName + "_config.ini";
 
     if (!exePath.empty()) {
-        dirs.push_back(exe.parent_path() / "config");                    // bin/config
-        dirs.push_back(exe.parent_path().parent_path() / "config");      // server/config
+        dirs.push_back(exe.parent_path());
+        dirs.push_back(exe.parent_path().parent_path());
     }
 
     for (auto& d : dirs) {
-        auto p = d / configFileName;
+        auto p = d / "config.ini";
         if (boost::filesystem::exists(p)) {
             loadIni(p.string(), configData_);
             return;
         }
     }
-    std::cerr << "[ConfigManager] " << configFileName << " not found in config/ dirs" << std::endl;
+    std::cerr << "[ConfigManager] config.ini not found" << std::endl;
 }

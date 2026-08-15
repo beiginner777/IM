@@ -33,12 +33,11 @@ done
 echo "导入初始数据..."
 docker exec -i mysql mysql -uroot -p123456 JerryChat < MySQL/dump.sql 2>/dev/null || true
 
-# ---------- 5. 可选：Nginx 统一 HTTP 入口 ----------
-# 取消注释以启用
-# docker start nginx 2>/dev/null || docker run -d --name nginx \
-#   -p 8100:8100 \
-#   -v $(pwd)/docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro \
-#   nginx:alpine
+# ---------- 5. Nginx 统一 HTTP 入口（host 网络，直接监听 8100） ----------
+docker start nginx 2>/dev/null || docker run -d --name nginx \
+  --network host \
+  -v $(pwd)/docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro \
+  nginx:alpine
 
 # ---------- 6. 可选：Prometheus + Grafana 监控 ----------
 # 取消注释以启用

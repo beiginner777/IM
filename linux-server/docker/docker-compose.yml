@@ -86,6 +86,9 @@ services:
   chatserver1:
     image: im-server
     command: /app/ChatServer1 /app/config/ChatServer1.ini
+    ports:
+      - "8090:8090"     # 业务 TCP（客户端聊天）
+      - "50053:50053"   # gRPC（跨服务）
     depends_on:
       mysql:
         condition: service_healthy
@@ -99,6 +102,9 @@ services:
   chatserver2:
     image: im-server
     command: /app/ChatServer2 /app/config/ChatServer2.ini
+    ports:
+      - "8091:8091"
+      - "50054:50054"
     depends_on:
       mysql:
         condition: service_healthy
@@ -112,6 +118,9 @@ services:
   resourceserver:
     image: im-server
     command: /app/ResourceServer /app/config/ResourceServer.ini
+    ports:
+      - "9090:9090"     # 业务 TCP（文件传输）
+      - "51055:51055"   # gRPC
     depends_on:
       mysql:
         condition: service_healthy
@@ -125,6 +134,8 @@ services:
   seckillserver:
     image: im-server
     command: /app/SeckillServer /app/config/SeckillServer.ini
+    ports:
+      - "8101:8101"     # HTTP（秒杀业务）
     depends_on:
       mysql:
         condition: service_healthy

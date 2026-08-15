@@ -1,24 +1,34 @@
-# IM 系统 Docker 镜像
-# 构建上下文: server/ 目录
+# IM 系统 Docker 镜像（Ubuntu 24.04，gRPC 1.51）
+# 构建上下文: linux-server/ 目录
 # docker compose build --no-cache
 # docker compose up -d
 
-FROM ubuntu:22.04 AS builder
+FROM ubuntu:24.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential cmake g++ \
+    build-essential cmake g++ pkg-config \
     libboost-all-dev \
     libssl-dev \
     libjsoncpp-dev \
     libprotobuf-dev protobuf-compiler \
     libgrpc++-dev protobuf-compiler-grpc \
     libmysqlcppconn-dev \
+    libhiredis-dev \
+    libspdlog-dev \
+    libfmt-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 COPY . .
+
+# 生成 protobuf 文件
+RUN for dir in AuthServer StatusServer ChatServer1 ChatServer2 ResourceServer SeckillServer; do \
+        protoc --cpp_out=$dir --grpc_out=$dir \
+            --plugin=protoc-gen-grpc=$(which grpc_cpp_plugin) \
+            -I$dir $dir/message.proto; \
+    done
 
 # 构建所有服务
 RUN mkdir -p build && cd build && \
@@ -26,15 +36,18 @@ RUN mkdir -p build && cd build && \
     make -j$(nproc)
 
 # ==================== 运行时 ====================
-FROM ubuntu:22.04 AS runtime
+FROM ubuntu:24.04 AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libboost-system1.74.0 \
+    libboost-system1.83.0 \
     libssl3 \
     libjsoncpp25 \
-    libprotobuf23 \
-    libgrpc++1.51 \
-    libmysqlcppconn7v5 \
+    libprotobuf32t64 \
+    libgrpc++1.51t64 \
+    libmysqlcppconn7t64 \
+    libhiredis1.1.0 \
+    libfmt9 \
+    libspdlog1.12 \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
