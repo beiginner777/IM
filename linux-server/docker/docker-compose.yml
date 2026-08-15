@@ -104,9 +104,12 @@ services:
       - ../Redis/sentinel/sentinel-1.conf:/usr/local/etc/redis/sentinel.conf
     command: redis-sentinel /usr/local/etc/redis/sentinel.conf
     depends_on:
-      - redis-master
-      - redis-slave-1
-      - redis-slave-2
+      redis-master:
+        condition: service_healthy
+      redis-slave-1:
+        condition: service_started
+      redis-slave-2:
+        condition: service_started
     networks:
       - im-net
 
@@ -118,7 +121,8 @@ services:
       - ../Redis/sentinel/sentinel-2.conf:/usr/local/etc/redis/sentinel.conf
     command: redis-sentinel /usr/local/etc/redis/sentinel.conf
     depends_on:
-      - redis-master
+      redis-master:
+        condition: service_healthy
     networks:
       - im-net
 
@@ -130,7 +134,8 @@ services:
       - ../Redis/sentinel/sentinel-3.conf:/usr/local/etc/redis/sentinel.conf
     command: redis-sentinel /usr/local/etc/redis/sentinel.conf
     depends_on:
-      - redis-master
+      redis-master:
+        condition: service_healthy
     networks:
       - im-net
 
