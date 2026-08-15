@@ -71,25 +71,28 @@ private:
 
         void handleRequest()
         {
-            http::response<http::string_body> res;
-            res.version(request_.version());
-            res.keep_alive(false);
+            // 响应必须比 async_write 活得久：http::async_write 内部 serializer
+            // 持有对 message（尤其 body 字符串）的引用，若用栈上局部变量会在
+            // 写完成前被析构 → use-after-free（SIGSEGV）。所以用 shared_ptr 保活。
+            auto res = std::make_shared<http::response<http::string_body>>();
+            res->version(request_.version());
+            res->keep_alive(false);
 
             if (request_.method() == http::verb::get &&
                 request_.target() == "/metrics") {
-                res.result(http::status::ok);
-                res.set(http::field::content_type, "text/plain; version=0.0.4");
-                res.body() = MetricsRegistry::getInstance()->render();
+                res->result(http::status::ok);
+                res->set(http::field::content_type, "text/plain; version=0.0.4");
+                res->body() = MetricsRegistry::getInstance()->render();
             } else {
-                res.result(http::status::not_found);
-                res.set(http::field::content_type, "text/plain");
-                res.body() = "404 not found\n";
+                res->result(http::status::not_found);
+                res->set(http::field::content_type, "text/plain");
+                res->body() = "404 not found\n";
             }
-            res.prepare_payload();
+            res->prepare_payload();
 
             auto self = shared_from_this();
-            http::async_write(socket_, res,
-                [self](beast::error_code ec, std::size_t) {
+            http::async_write(socket_, *res,
+                [self, res](beast::error_code ec, std::size_t) {
                     // 写完关闭连接
                     beast::error_code ec2;
                     self->socket_.shutdown(tcp::socket::shutdown_send, ec2);
