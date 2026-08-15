@@ -1,0 +1,274 @@
+version: "3.8"
+
+services:
+  # ==================== 基础设施 ====================
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8100:8100"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - authserver
+      - seckillserver
+    networks:
+      - im-net
+
+  # ---------- MySQL 主从 ----------
+
+  mysql-master:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: JerryChat
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-master-data:/var/lib/mysql
+      - ../MySQL/master.cnf:/etc/mysql/conf.d/master.cnf:ro
+      - ../MySQL/dump.sql:/docker-entrypoint-initdb.d/dump.sql:ro
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - im-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mysql-slave:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql-slave-data:/var/lib/mysql
+      - ../MySQL/slave.cnf:/etc/mysql/conf.d/slave.cnf:ro
+      - ../MySQL/dump.sql:/docker-entrypoint-initdb.d/dump.sql:ro
+    depends_on:
+      - mysql-master
+    networks:
+      - im-net
+
+  # ---------- Redis 哨兵（1M + 2S + 3S） ----------
+
+  redis-master:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-master-data:/data
+      - ../Redis/sentinel/redis-master.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - im-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "123456", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-slave-1:
+    image: redis:7-alpine
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis-slave1-data:/data
+      - ../Redis/sentinel/redis-slave.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf --slaveof redis-master 6379 --masterauth 123456
+    depends_on:
+      - redis-master
+    networks:
+      - im-net
+
+  redis-slave-2:
+    image: redis:7-alpine
+    ports:
+      - "6382:6379"
+    volumes:
+      - redis-slave2-data:/data
+      - ../Redis/sentinel/redis-slave.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf --slaveof redis-master 6379 --masterauth 123456
+    depends_on:
+      - redis-master
+    networks:
+      - im-net
+
+  sentinel-1:
+    image: redis:7-alpine
+    ports:
+      - "26379:26379"
+    volumes:
+      - ../Redis/sentinel/sentinel-1.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-slave-1:
+        condition: service_started
+      redis-slave-2:
+        condition: service_started
+    networks:
+      - im-net
+
+  sentinel-2:
+    image: redis:7-alpine
+    ports:
+      - "26380:26379"
+    volumes:
+      - ../Redis/sentinel/sentinel-2.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - im-net
+
+  sentinel-3:
+    image: redis:7-alpine
+    ports:
+      - "26381:26379"
+    volumes:
+      - ../Redis/sentinel/sentinel-3.conf:/usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - im-net
+
+  # ==================== 业务服务 ====================
+
+  statusserver:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: im-server
+    command: StatusServer
+    ports:
+      - "50052:50052"
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    networks:
+      - im-net
+
+  authserver:
+    image: im-server
+    command: AuthServer
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+      statusserver:
+        condition: service_started
+    networks:
+      - im-net
+
+  chatserver1:
+    image: im-server
+    command: ChatServer1
+    ports:
+      - "8090:8090"     # 业务 TCP（客户端聊天）
+      - "50053:50053"   # gRPC（跨服务）
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+      statusserver:
+        condition: service_started
+    networks:
+      - im-net
+
+  chatserver2:
+    image: im-server
+    command: ChatServer2
+    ports:
+      - "8091:8091"
+      - "50054:50054"
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+      statusserver:
+        condition: service_started
+    networks:
+      - im-net
+
+  resourceserver:
+    image: im-server
+    command: ResourceServer
+    ports:
+      - "9090:9090"     # 业务 TCP（文件传输）
+      - "51055:51055"   # gRPC
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+      statusserver:
+        condition: service_started
+    networks:
+      - im-net
+
+  seckillserver:
+    image: im-server
+    command: SeckillServer
+    ports:
+      - "8101:8101"     # HTTP（秒杀业务）
+    depends_on:
+      mysql-master:
+        condition: service_healthy
+      redis-master:
+        condition: service_healthy
+    networks:
+      - im-net
+
+  # ==================== 监控 ====================
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "19090:9090"   # 宿主机 19090（避免和 ResourceServer 的 9090 冲突）
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    depends_on:
+      - authserver
+      - seckillserver
+      - chatserver1
+      - chatserver2
+      - resourceserver
+      - statusserver
+    networks:
+      - im-net
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    networks:
+      - im-net
+
+volumes:
+  mysql-master-data:
+  mysql-slave-data:
+  redis-master-data:
+  redis-slave1-data:
+  redis-slave2-data:
+
+networks:
+  im-net:
+    driver: bridge

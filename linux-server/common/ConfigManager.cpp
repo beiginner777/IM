@@ -15,7 +15,7 @@ std::string ConfigManager::configPath_;
 static void loadIni(const std::string& path,
                     std::map<std::string, SectionInfo>& data)
 {
-    std::cout << "[ConfigManager] loading config.ini from: " << path << std::endl;
+    std::cout << "[ConfigManager] loading config from: " << path << std::endl;
     boost::property_tree::ptree pt;
     boost::property_tree::read_ini(path, pt);
     for (const auto& sec : pt) {
@@ -35,23 +35,28 @@ ConfigManager::ConfigManager()
         return;
     }
 
-    // 2. 按优先级搜索 config.ini
+    // 2. 按优先级搜索 "config.ini"
     std::vector<boost::filesystem::path> dirs;
     dirs.push_back(boost::filesystem::current_path());
 
+    std::string exePath;
 #ifdef _WIN32
     char buf[MAX_PATH];
     GetModuleFileNameA(NULL, buf, MAX_PATH);
-    auto exeDir = boost::filesystem::path(buf).parent_path();
+    exePath = buf;
 #else
     char buf[256];
-    auto exeDir = boost::filesystem::path();
-    if (readlink("/proc/self/exe", buf, sizeof(buf)) != -1)
-        exeDir = boost::filesystem::path(buf).parent_path();
+    ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+    if (len != -1) {
+        buf[len] = 0;
+        exePath = buf;
+    }
 #endif
-    if (!exeDir.empty()) {
-        dirs.push_back(exeDir);
-        dirs.push_back(exeDir.parent_path());
+    boost::filesystem::path exe(exePath);
+
+    if (!exePath.empty()) {
+        dirs.push_back(exe.parent_path());
+        dirs.push_back(exe.parent_path().parent_path());
     }
 
     for (auto& d : dirs) {

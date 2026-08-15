@@ -1,0 +1,564 @@
+#include "LogicSystem.h"
+#include "MysqlDao.h"
+#include "JWT.h"
+#include "crypto/BCryptHasher.h"
+#include "RedisManager.h"
+#include "MetricsRegistry.h"
+
+void LogicSystem::sendJson(std::shared_ptr<HttpConnection> conn, const Json::Value& v)
+{
+	conn->response_.set(http::field::content_type, "application/json");
+	beast::ostream(conn->response_.body()) << v.toStyledString();
+}
+void LogicSystem::sendAuthError(std::shared_ptr<HttpConnection> conn, const std::string& msg)
+{
+	Json::Value v;
+	v["success"] = false;
+	v["message"] = msg;
+	sendJson(conn, v);
+}
+
+LogicSystem::LogicSystem() : mysqlDao_(new MysqlDao())
+{
+	registerGetHandler();
+	registerPostHandler();
+	initStockCache();
+}
+LogicSystem::~LogicSystem()
+{
+	delete mysqlDao_;
+}
+
+// 启动时从 MySQL 读库存初始化到 Redis
+// 用 ExistsKey 检查，服务重启不覆盖已扣减的库存
+void LogicSystem::initStockCache()
+{
+	for (auto& p : mysqlDao_->getProducts())
+	{
+		std::string key = "seckill:stock:" + std::to_string(p.id);
+		if (!RedisManager::getInstance()->ExistsKey(key))
+		{
+			RedisManager::getInstance()->Set(key, std::to_string(p.stock));
+			std::cout << "[Seckill] init stock key " << key << " = " << p.stock << std::endl;
+		}
+	}
+}
+
+// ==================== GET handlers ====================
+void LogicSystem::registerGetHandler()
+{
+	// Prometheus 监控指标端点（文本格式，非 JSON）
+	getHandles_["/metrics"] = [this](auto conn, auto&)
+	{
+		conn->response_.set(http::field::content_type, "text/plain; version=0.0.4");
+		beast::ostream(conn->response_.body()) << MetricsRegistry::getInstance()->render();
+	};
+
+	getHandles_["/orders"] = [this](auto conn, auto&)
+	{
+		Json::Value arr(Json::arrayValue);
+		for (auto& o : mysqlDao_->getOrders())
+		{
+			Json::Value i;
+			i["orderId"] = o.id;
+			i["productName"] = o.productName;
+			i["time"] = o.time;
+			i["status"] = o.status;
+			arr.append(i);
+		}
+		sendJson(conn, arr);
+	};
+
+	getHandles_["/products"] = [this](auto conn, auto&)
+	{
+		// 商品列表缓存 + 逻辑过期（防缓存击穿）
+		// 逻辑过期：物理不删除，value 存 expireAt，过期后返回旧值，用户永不阻塞
+		const std::string CACHE_KEY = "product:list";
+		Json::Value arr(Json::arrayValue);
+		bool hit = false;
+
+		std::string cached = RedisManager::getInstance()->Get(CACHE_KEY);
+		if (!cached.empty())
+		{
+			Json::Reader reader;
+			Json::Value root;
+			if (reader.parse(cached, root))
+			{
+				// 无论物理过期还是逻辑过期，都返回旧值（防击穿核心）
+				arr = root["list"];
+				hit = true;
+			}
+		}
+
+		if (!hit)
+		{
+			// 缓存 miss：查 MySQL 构造 JSON 并写缓存
+			for (auto& p : mysqlDao_->getProducts())
+			{
+				Json::Value i;
+				i["id"] = p.id;
+				i["name"] = p.name;
+				i["price"] = p.price;
+				i["stock"] = p.stock;
+				i["imageUrl"] = p.imageUrl;
+				arr.append(i);
+			}
+			Json::Value cacheObj;
+			cacheObj["list"] = arr;
+			cacheObj["expireAt"] = (Json::Int64)(time(nullptr) + 300);  // 5min 逻辑过期
+			RedisManager::getInstance()->Set(CACHE_KEY, cacheObj.toStyledString());
+		}
+		sendJson(conn, arr);
+	};
+	getHandles_["/rank"] = [this](auto conn, auto& p)
+	{
+		Json::Value arr(Json::arrayValue);
+		auto products = mysqlDao_->getProducts();
+		auto raw = mysqlDao_->getBuyCountsWithTime();
+		std::vector<std::tuple<int,int,std::string>> sorted;
+		for (auto& kv : raw) sorted.push_back({kv.first, kv.second.first, kv.second.second});
+		std::sort(sorted.begin(), sorted.end(), [](auto& a, auto& b) {
+			if (std::get<1>(a) != std::get<1>(b)) return std::get<1>(a) > std::get<1>(b);
+			return std::get<2>(a) > std::get<2>(b);
+		});
+		for (auto& t : sorted) {
+			auto pid = std::get<0>(t);
+			auto cnt = std::get<1>(t);
+			auto tm = std::get<2>(t);
+			Json::Value i;
+			i["productId"] = pid; i["count"] = cnt;
+			for (auto& p : products) if (p.id == pid) { i["productName"] = p.name; break; }
+			arr.append(i);
+		}
+		sendJson(conn, arr);
+	};
+	getHandles_["/profile"] = [this](auto conn, auto&)
+	{
+		Json::Value v;
+		if (!conn->authenticate())
+		{
+			v["error"] = "请先登录";
+			sendJson(conn, v);
+			return;
+		}
+		v["uid"] = conn->uid();
+		v["username"] = mysqlDao_->getUsername(conn->uid());
+		v["balance"] = mysqlDao_->getBalance(conn->uid());
+		Json::Value ord(Json::arrayValue);
+		for (auto& o : mysqlDao_->getOrdersByUid(conn->uid()))
+		{
+			Json::Value i;
+			i["orderId"] = o.id;
+			i["productName"] = o.productName;
+			i["price"] = o.price;
+			i["status"] = o.status;
+			i["time"] = o.time;
+			ord.append(i);
+		}
+		v["orders"] = ord;
+		sendJson(conn, v);
+	};
+	getHandles_["/balance"] = [this](auto conn, auto&)
+	{
+		Json::Value v;
+		if (!conn->authenticate())
+		{
+			v["error"] = "请先登录";
+			sendJson(conn, v);
+			return;
+		}
+		v["balance"] = mysqlDao_->getBalance(conn->uid());
+		sendJson(conn, v);
+	};
+	getHandles_["/order/"] = [this](auto conn, auto& p)
+	{
+		Json::Value v;
+		if (!conn->authenticate())
+		{
+			v["error"] = "请先登录";
+			sendJson(conn, v);
+			return;
+		}
+		auto o = mysqlDao_->getOrderById(p.pathId);
+		if (o.id < 0)
+		{
+			v["error"] = "not found";
+			sendJson(conn, v);
+			return;
+		}
+		v["id"] = o.id;
+		v["uid"] = o.uid;
+		v["productId"] = o.productId;
+		v["productName"] = o.productName;
+		v["price"] = o.price;
+		v["status"] = o.status;
+		v["time"] = o.time;
+		if (o.status == "unpaid" && o.time.size() >= 19)
+		{
+			struct tm t = {};
+#ifdef _WIN32
+			sscanf_s(o.time.c_str(), "%d-%d-%d %d:%d:%d", &t.tm_year, &t.tm_mon, &t.tm_mday, &t.tm_hour, &t.tm_min,
+			         &t.tm_sec);
+#else
+			sscanf(o.time.c_str(), "%d-%d-%d %d:%d:%d", &t.tm_year, &t.tm_mon, &t.tm_mday, &t.tm_hour, &t.tm_min,
+			       &t.tm_sec);
+#endif
+			t.tm_year -= 1900;
+			t.tm_mon -= 1;
+			int remain = 1800 - (int) (time(nullptr) - mktime(&t));
+			v["remainSeconds"] = remain > 0 ? remain : 0;
+		}
+		sendJson(conn, v);
+	};
+	getHandles_["/orders"] = [this](auto conn, auto& p)
+	{
+		Json::Value arr(Json::arrayValue);
+		for (auto& o : mysqlDao_->getOrders())
+		{
+			Json::Value item;
+			item["orderId"] = o.id;
+			item["productName"] = o.productName;
+			item["time"] = o.time;
+			item["status"] = "成功";
+			arr.append(item);
+		}
+		sendJson(conn, arr);
+	};
+}
+
+// ==================== POST handlers ====================
+void LogicSystem::registerPostHandler()
+{
+	postHandles_["/recharge"] = [this](auto conn, auto& p)
+	{
+		Json::Value v, req;
+		Json::Reader r;
+		r.parse(p.body, req);
+		if (!conn->authenticate())
+		{
+			v["code"] = -1;
+			v["message"] = "请先登录";
+			sendJson(conn, v);
+			return;
+		}
+		if (req["amount"].asDouble() <= 0)
+		{
+			v["code"] = -1;
+			v["message"] = "金额无效";
+			sendJson(conn, v);
+			return;
+		}
+		if (!mysqlDao_->verifyPassword(conn->uid(), req["password"].asString()))
+		{
+			v["code"] = -1;
+			v["message"] = "密码错误";
+			sendJson(conn, v);
+			return;
+		}
+		double cur = mysqlDao_->getBalance(conn->uid()), nb = cur + req["amount"].asDouble();
+		if (!mysqlDao_->updateBalance(conn->uid(), nb))
+		{
+			v["code"] = -1;
+			v["message"] = "充值失败";
+			sendJson(conn, v);
+			return;
+		}
+		RedisManager::getInstance()->Del("balance_cache:" + std::to_string(conn->uid()));
+		v["code"] = 0;
+		v["balance"] = nb;
+		sendJson(conn, v);
+	};
+	postHandles_["/buy/"] = [this](auto conn, auto& p)
+	{
+		Json::Value v;
+		if (!conn->authenticate())
+		{
+			v["success"] = false;
+			v["message"] = "请先登录";
+			sendJson(conn, v);
+			return;
+		}
+		auto prods = mysqlDao_->getProducts();
+		auto it = std::find_if(prods.begin(), prods.end(), [&](auto& x) { return x.id == p.pathId; });
+		if (it == prods.end())
+		{
+			v["success"] = false;
+			v["message"] = "商品不存在";
+			sendJson(conn, v);
+			return;
+		}
+		if (it->stock <= 0)
+		{
+			v["success"] = false;
+			v["message"] = "已售罄";
+			sendJson(conn, v);
+			return;
+		}
+		if (mysqlDao_->getBalance(conn->uid()) < it->price)
+		{
+			v["success"] = false;
+			v["message"] = "余额不足";
+			sendJson(conn, v);
+			return;
+		}
+		int oid = mysqlDao_->insertOrder(conn->uid(), p.pathId, it->name, it->price);
+		v["success"] = true;
+		v["orderId"] = oid;
+		v["message"] = "订单已创建";
+		sendJson(conn, v);
+	};
+	postHandles_["/order/"] = [this](auto conn, auto& p)
+	{
+		Json::Value v, req;
+		Json::Reader r;
+		r.parse(p.body, req);
+		if (!conn->authenticate())
+		{
+			v["success"] = false;
+			v["message"] = "请先登录";
+			sendJson(conn, v);
+			return;
+		}
+		if (p.url.find("/pay") != std::string::npos)
+		{
+			if (!mysqlDao_->verifyPassword(conn->uid(), req["password"].asString()))
+			{
+				v["success"] = false;
+				v["message"] = "密码错误";
+				sendJson(conn, v);
+				return;
+			}
+			auto o = mysqlDao_->getOrderById(p.pathId);
+			if (o.id < 0 || o.uid != conn->uid() || o.status != "unpaid")
+			{
+				v["success"] = false;
+				v["message"] = "订单异常";
+				sendJson(conn, v);
+				return;
+			}
+
+			// Redis Lua 原子扣库存 + 订单号幂等（防并发超卖 + 防重复扣）
+			const char* lua =
+				"if redis.call('EXISTS', KEYS[2]) == 1 then return 1 end"
+				" local stock = redis.call('GET', KEYS[1])"
+				" if not stock or tonumber(stock) <= 0 then return -1 end"
+				" redis.call('DECR', KEYS[1])"
+				" redis.call('SET', KEYS[2], '1', 'EX', 3600)"
+				" return 0";
+			std::string stockKey = "seckill:stock:" + std::to_string(o.productId);
+			std::string idemKey  = "seckill:paid:" + std::to_string(o.id);
+			long long stockRet = RedisManager::getInstance()->evalLuaInt(
+				lua, { stockKey, idemKey }, {});
+			if (stockRet == -1)
+			{
+				v["success"] = false;
+				v["message"] = "已售罄";
+				sendJson(conn, v);
+				return;
+			}
+			else if (stockRet == 1)
+			{
+				// 幂等：该订单已扣过库存，直接返回成功
+				v["success"] = true;
+				v["message"] = "支付成功";
+				sendJson(conn, v);
+				return;
+			}
+
+			double bal = mysqlDao_->getBalance(conn->uid());
+			if (bal < o.price)
+			{
+				v["success"] = false;
+				v["message"] = "余额不足";
+				sendJson(conn, v);
+				return;
+			}
+			if (!mysqlDao_->updateBalance(conn->uid(), bal - o.price))
+			{
+				v["success"] = false;
+				v["message"] = "扣款失败";
+				sendJson(conn, v);
+				return;
+			}
+			mysqlDao_->payOrder(p.pathId, conn->uid());
+			RedisManager::getInstance()->Del("balance_cache:" + std::to_string(conn->uid()));
+			// 库存已变化 → 删除商品列表缓存，下次请求重新构造
+			RedisManager::getInstance()->Del("product:list");
+			v["success"] = true;
+			v["message"] = "支付成功";
+			sendJson(conn, v);
+		}
+		else if (p.url.find("/cancel") != std::string::npos)
+		{
+			mysqlDao_->cancelOrder(p.pathId, conn->uid());
+			v["success"] = true;
+			v["message"] = "订单已取消";
+			sendJson(conn, v);
+		}
+		else
+		{
+			v["success"] = false;
+			v["message"] = "unknown";
+			sendJson(conn, v);
+		}
+	};
+}
+
+// ==================== URL 解析 + 前缀路由 ====================
+void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
+{
+	MetricsRegistry::getInstance()->incCounter("im_http_request_total");
+	if (!tryAcquireRateLimit(conn)) {
+		return;
+	}
+	std::string target = conn->request_.target();
+	GetParams p;
+	prase_get_request(target);
+	p.url = url_;
+	p.query = getPrama_;
+	url_ = "";
+	getPrama_.clear();
+	if (p.url.find("/order/") == 0)
+		p.pathId = atoi(p.url.substr(7).c_str());
+	for (auto& kv : getHandles_)
+	{
+		auto prefix = kv.first;
+		auto handler = kv.second;
+		if (p.url.find(prefix) == 0)
+		{
+			handler(conn, p);
+			return;
+		}
+	}
+	conn->response_.result(http::status::not_found);
+	Json::Value v;
+	v["error"] = "not found";
+	sendJson(conn, v);
+}
+
+bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<HttpConnection> conn)
+{
+	std::lock_guard<std::mutex> lock(rateLimitMtx_);
+	if (!globalBucket_.consume(1)) { sendAuthError(conn, "server busy"); return false; }
+	int uid = conn->uid();
+	if (uid <= 0) return true; // 未认证，跳过单用户限流
+	auto it = userBuckets_.find(uid);
+	if (it == userBuckets_.end()) { userBuckets_.emplace(uid, TokenBucket(5.0, 10.0)); it = userBuckets_.find(uid); }
+	if (!it->second.consume(1)) { sendAuthError(conn, "发送过于频繁"); return false; }
+	return RedisManager::getInstance()->checkRateLimit(uid, 100);
+}
+
+void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn)
+{
+	MetricsRegistry::getInstance()->incCounter("im_http_request_total");
+	if (!tryAcquireRateLimit(conn)){
+		return;
+	}
+	std::string target = conn->request_.target();
+	PostParams p;
+	p.body = beast::buffers_to_string(conn->request_.body().data());
+	p.url = target;
+	if (target.find("/order/") == 0)
+		p.pathId = atoi(target.substr(7).c_str());
+	else if (target.find("/buy/") == 0)
+		p.pathId = atoi(target.substr(5).c_str());
+	for (auto& kv : postHandles_)
+	{
+		auto prefix = kv.first;
+		auto handler = kv.second;
+		if (target.find(prefix) == 0)
+		{
+			handler(conn, p);
+			return;
+		}
+	}
+	conn->response_.result(http::status::not_found);
+	Json::Value v;
+	v["error"] = "not found";
+	sendJson(conn, v);
+}
+
+// ==================== URL 编解码 ====================
+unsigned char LogicSystem::toHex(unsigned char ch)
+{
+	return ch > 9 ? ch + 55 : ch + 48;
+}
+unsigned char LogicSystem::fromHex(unsigned char ch)
+{
+	if (ch >= 'A' && ch <= 'Z')
+		return ch - 'A' + 10;
+	else if (ch >= 'a' && ch <= 'z')
+		return ch - 'a' + 10;
+	else if (ch >= '0' && ch <= '9')
+		return ch - '0';
+	return 0;
+}
+std::string LogicSystem::urlEncode(std::string url)
+{
+	std::string r;
+	for (int i = 0; i < (int) url.size(); ++i)
+	{
+		if (url[i] == ' ')
+			r += '+';
+		else if (isalnum((unsigned char) url[i]) || url[i] == '-' || url[i] == '_' || url[i] == '.' || url[i] == '~')
+			r += url[i];
+		else
+		{
+			r += "%";
+			r += toHex((unsigned char) url[i] >> 4);
+			r += toHex((unsigned char) url[i] & 0x0F);
+		}
+	}
+	return r;
+}
+std::string LogicSystem::urlDecode(std::string url)
+{
+	std::string r;
+	for (int i = 0; i < (int) url.size(); ++i)
+	{
+		if (url[i] == '+')
+			r += ' ';
+		else if (url[i] == '%')
+		{
+			r += (char) ((fromHex((unsigned char) url[++i]) << 4) + fromHex((unsigned char) url[++i]));
+		}
+		else
+			r += url[i];
+	}
+	return r;
+}
+void LogicSystem::prase_get_request(std::string& url)
+{
+	auto q = url.find('?');
+	if (q == std::string::npos)
+	{
+		url_ = url;
+		return;
+	}
+	url_ = url.substr(0, q);
+	std::string qs = url.substr(q + 1);
+	size_t p = 0;
+	std::string k, val;
+	while ((p = qs.find('&')) != std::string::npos)
+	{
+		auto pair = qs.substr(0, p);
+		size_t e = pair.find('=');
+		if (e != std::string::npos)
+		{
+			k = urlDecode(pair.substr(0, e));
+			val = urlDecode(pair.substr(e + 1));
+			getPrama_[k] = val;
+		}
+		qs.erase(0, p + 1);
+	}
+	if (!qs.empty())
+	{
+		size_t e = qs.find('=');
+		if (e != std::string::npos)
+		{
+			k = urlDecode(qs.substr(0, e));
+			val = urlDecode(qs.substr(e + 1));
+			getPrama_[k] = val;
+		}
+	}
+}
