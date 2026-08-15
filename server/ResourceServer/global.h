@@ -31,12 +31,21 @@
 #include <iomanip>
 #include <functional>
 // #include <optional> // c++17 标准
+#ifdef _WIN32
 #include <jdbc/mysql_driver.h>
 #include <jdbc/mysql_connection.h>
 #include <jdbc/cppconn/prepared_statement.h>
 #include <jdbc/cppconn/resultset.h>
 #include <jdbc/cppconn/statement.h>
 #include <jdbc/cppconn/exception.h>
+#else
+#include <mysql_driver.h>
+#include <mysql_connection.h>
+#include <cppconn/prepared_statement.h>
+#include <cppconn/resultset.h>
+#include <cppconn/statement.h>
+#include <cppconn/exception.h>
+#endif
 #include <boost/beast/core/detail/base64.hpp>
 #define HOST "0.0.0.0"
 #define PORT 9090

@@ -6,6 +6,7 @@
 extern "C" {
 #endif
 #include <stdint.h>
+#include <stddef.h>
 #define BCRYPT_MAXSALT 16
 #define BCRYPT_BLOCKS  6    /* 24 bytes = 6 x uint32_t */
 #define BCRYPT_WORDS   6    /* ciphertext array size in uint32_t */

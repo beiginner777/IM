@@ -3,10 +3,13 @@
 #include "ConfigManager.h"
 #include "RedisManager.h"
 #include "MysqlManager.h"
-int main()
+int main(int argc, char* argv[])
 {
+    // 支持命令行传 config.ini 路径: ./AuthServer /path/to/config.ini
+    if (argc > 1) {
+        ConfigManager::setConfigPath(argv[1]);
+    }
     try {
-        // 加载布隆过滤器（从 Redis 恢复）
         MysqlManager::getInstance()->initBloomFilter();
         net::io_context ioc{ 1 };
         net::signal_set signals(ioc, SIGINT, SIGTERM);

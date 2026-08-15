@@ -2,14 +2,19 @@
 #include "ConfigManager.h"
 #include "RedisManager.h"
 #include <json/json.h>
-#include <windows.h>
-#include <bcrypt.h>
 #include <sstream>
 #include <iomanip>
 #include <chrono>
 #include <vector>
 
+#ifdef _WIN32
+#include <windows.h>
+#include <bcrypt.h>
 #pragma comment(lib, "bcrypt.lib")
+#else
+#include <openssl/hmac.h>
+#include <openssl/evp.h>
+#endif
 
 // ==================== Base64 URL-safe (RFC 7515) ====================
 static const char BASE64URL_CHARS[] =
@@ -66,33 +71,32 @@ static std::vector<unsigned char> base64UrlDecode(const std::string& str)
     return out;
 }
 
-// ==================== HMAC-SHA256 (Windows BCrypt API) ====================
+// ==================== HMAC-SHA256 (跨平台) ====================
 static std::vector<unsigned char> hmacSha256(const std::string& key, const std::string& data)
 {
+    std::vector<unsigned char> hash(32);
+#ifdef _WIN32
+    // Windows: BCrypt API
     BCRYPT_ALG_HANDLE hAlg = NULL;
     BCRYPT_HASH_HANDLE hHash = NULL;
-    std::vector<unsigned char> hash(32);
-
-    // 打开 SHA-256 HMAC provider
     if (BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA256_ALGORITHM, NULL,
                                     BCRYPT_ALG_HANDLE_HMAC_FLAG) != 0)
         return hash;
-
-    // 创建 hash 对象（传入密钥）
     if (BCryptCreateHash(hAlg, &hHash, NULL, 0,
                          (PUCHAR)key.data(), (ULONG)key.size(), 0) != 0) {
         BCryptCloseAlgorithmProvider(hAlg, 0);
         return hash;
     }
-
-    // 哈希数据
     BCryptHashData(hHash, (PUCHAR)data.data(), (ULONG)data.size(), 0);
-
-    // 获取结果
     BCryptFinishHash(hHash, hash.data(), 32, 0);
-
     BCryptDestroyHash(hHash);
     BCryptCloseAlgorithmProvider(hAlg, 0);
+#else
+    // Linux: OpenSSL
+    unsigned int len = 32;
+    HMAC(EVP_sha256(), key.data(), (int)key.size(),
+         (const unsigned char*)data.data(), data.size(), hash.data(), &len);
+#endif
     return hash;
 }
 

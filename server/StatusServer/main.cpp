@@ -5,6 +5,7 @@
 #include "ConfigManager.h"
 #include "StatusServiceImpl.h"
 #include "CServer.h"
+#include "MetricsServer.h"
 int main() {
     // 1. 获取配置
     auto cfg = ConfigManager::getInstance();
@@ -14,6 +15,9 @@ int main() {
     boost::asio::io_context io_ctx;
     auto session_server = std::make_shared<CServer>(io_ctx, port);
     session_server->startTimer();            // 必须在 shared_ptr 构造之后调用（shared_from_this 需要）
+    // 暴露监控指标（Prometheus /metrics 端点）
+    auto metrics = std::make_shared<MetricsServer>(io_ctx, 9103);
+    metrics->start();
     // 3. 启动 gRPC 服务（StatusServer），注入 CServer 指针
     StatusServiceImpl status_service;
     status_service.setCServer(session_server.get());

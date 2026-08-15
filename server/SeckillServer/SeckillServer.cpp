@@ -3,6 +3,7 @@
 #include "StatusClientSession.h"
 #include "AsioIOContextThreadPool.h"
 #include "RedisManager.h"
+#include "MetricsRegistry.h"
 SeckillServer::SeckillServer(boost::asio::io_context& ioc, unsigned int port)
 	: ioc_(ioc)
 	, acceptor_(ioc, tcp::endpoint(tcp::v4(), port))
@@ -115,6 +116,7 @@ void SeckillServer::incrementConnCount()
 	int count = json["con_count"].asInt() + 1;
 	json["con_count"] = count;
 	RedisManager::getInstance()->HSet(SECKILLSERVERS, selfName, json.toStyledString());
+	MetricsRegistry::getInstance()->incGauge("im_seckill_conn_count");
 	std::cout << "[SeckillServer] connection_count = " << count << std::endl;
 }
 void SeckillServer::decrementConnCount()
@@ -125,6 +127,7 @@ void SeckillServer::decrementConnCount()
 	int count = std::max(0, json["con_count"].asInt() - 1);
 	json["con_count"] = count;
 	RedisManager::getInstance()->HSet(SECKILLSERVERS, selfName, json.toStyledString());
+	MetricsRegistry::getInstance()->decGauge("im_seckill_conn_count");
 	std::cout << "[SeckillServer] connection_count = " << count << std::endl;
 }
 void SeckillServer::stopHeartbeat()

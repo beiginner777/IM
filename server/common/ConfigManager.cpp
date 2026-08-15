@@ -1,43 +1,64 @@
-﻿#include "ConfigManager.h"
+#include "ConfigManager.h"
 #include <boost/filesystem.hpp>
 #include <boost/property_tree/ini_parser.hpp>
+#include <iostream>
+#include <vector>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
+std::string ConfigManager::configPath_;
+
+static void loadIni(const std::string& path,
+                    std::map<std::string, SectionInfo>& data)
+{
+    boost::property_tree::ptree pt;
+    boost::property_tree::read_ini(path, pt);
+    for (const auto& sec : pt) {
+        std::map<std::string, std::string> kv;
+        for (const auto& it : sec.second)
+            kv[it.first] = it.second.get_value<std::string>();
+        SectionInfo si; si.setData(kv);
+        data[sec.first] = si;
+    }
+}
+
 ConfigManager::ConfigManager()
 {
-	// ��ȡ��ǰ����Ŀ¼
-	boost::filesystem::path currentPath = boost::filesystem::current_path();
-	// ����config.ini�ľ���·��
-	boost::filesystem::path configPath = currentPath / "config.ini";
-	//std::cout << "Config.init Path = " << configPath.string() << std::endl;
-	
-	// ��ȡini�ļ���boost::property_tree::ptree�ṹ����
-	boost::property_tree::ptree pt;
-	boost::property_tree::read_ini(configPath.string(), pt);
-	// ����boost::property_tree::ptree
-	for (const auto& sectionPair : pt)
-	{
-		auto name = sectionPair.first;
-		auto tree = sectionPair.second;
-		std::map<std::string, std::string> sectionData;
-		for (const auto& keyValue : tree)
-		{
-			const std::string key = keyValue.first;
-			const std::string value = keyValue.second.get_value<std::string>();
-			sectionData[key] = value;
-		}
-		SectionInfo sec;
-		sec.setData(sectionData);
-		configData_[name] = sec;
-	}
-	// ���config.ini�ļ�
-	/*for (const auto& elem1 : configData_)
-	{
-		const auto& name = elem1.first;
-		const auto& sec = elem1.second;
-		std::cout << "[" << name << "]" << std::endl;
-		auto secMap = sec.sectionData_;
-		for (auto elem2 : secMap)
-		{
-			std::cout << elem2.first << " = " << elem2.second << std::endl;
-		}
-	}*/
+    // 1. 命令行传了路径 → 直接用
+    if (!configPath_.empty()) {
+        loadIni(configPath_, configData_);
+        return;
+    }
+
+    // 2. 按优先级搜索 config.ini
+    std::vector<boost::filesystem::path> dirs;
+    dirs.push_back(boost::filesystem::current_path());
+
+#ifdef _WIN32
+    char buf[MAX_PATH];
+    GetModuleFileNameA(NULL, buf, MAX_PATH);
+    auto exeDir = boost::filesystem::path(buf).parent_path();
+#else
+    char buf[256];
+    auto exeDir = boost::filesystem::path();
+    if (readlink("/proc/self/exe", buf, sizeof(buf)) != -1)
+        exeDir = boost::filesystem::path(buf).parent_path();
+#endif
+    if (!exeDir.empty()) {
+        dirs.push_back(exeDir);
+        dirs.push_back(exeDir.parent_path());
+    }
+
+    for (auto& d : dirs) {
+        auto p = d / "config.ini";
+        if (boost::filesystem::exists(p)) {
+            loadIni(p.string(), configData_);
+            return;
+        }
+    }
+    std::cerr << "[ConfigManager] config.ini not found" << std::endl;
 }

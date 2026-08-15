@@ -1,4 +1,6 @@
 #include "MysqlManager.h"
+#include "DynamicConfig.h"
+#include "RedisManager.h"
 // 启动时构建布隆过滤器：优先从 Redis 恢复，没有则从 MySQL 全量加载
 void MysqlManager::initBloomFilter()
 {
@@ -61,19 +63,54 @@ int MysqlManager::addFriendRelation(int fromuid, int touid, int& thread_id1,int&
 }
 std::shared_ptr<UserInfo> MysqlManager::getUserByUid(int uid, bool forceMaster)
 {
-	// 布隆过滤器加速：如果确定不存在，直接返回，不走 MySQL
-	if (bloomFilter_ && !bloomFilter_->contains((uint64_t)uid)) {
-		return nullptr;
+	auto cfg = DynamicConfig::getInstance();
+
+	// 开关1：布隆过滤器（穿透率超阈值后人工开启）
+	if (cfg->enableBloom()) {
+		if (bloomFilter_ && !bloomFilter_->contains((uint64_t)uid)) {
+			return nullptr;
+		}
 	}
-	return dao_.getUserByUid(uid, forceMaster);
+	// 开关2：缓存空值（小规模时用，布隆开启后可关闭）
+	else if (cfg->enableNullCache()) {
+		std::string nullKey = "user_null:" + std::to_string(uid);
+		if (RedisManager::getInstance()->ExistsKey(nullKey)) {
+			return nullptr;  // 命中空值缓存，直接返回不存在
+		}
+	}
+
+	auto result = dao_.getUserByUid(uid, forceMaster);
+
+	// 查询确实不存在 → 写缓存空值（短 TTL，防穿透）
+	if (!result && cfg->enableNullCache()) {
+		RedisManager::getInstance()->SetExp("user_null:" + std::to_string(uid), "1", 300);
+	}
+	return result;
 }
 std::shared_ptr<UserInfo> MysqlManager::getUserByName(std::string name, bool forceMaster)
 {
-	// 布隆过滤器加速：如果确定不存在，直接返回，不走 MySQL
-	if (bloomFilter_ && !bloomFilter_->contains(name)) {
-		return nullptr;
+	auto cfg = DynamicConfig::getInstance();
+
+	// 开关1：布隆过滤器（穿透率超阈值后人工开启）
+	if (cfg->enableBloom()) {
+		if (bloomFilter_ && !bloomFilter_->contains(name)) {
+			return nullptr;
+		}
 	}
-	return dao_.getUserByName(name, forceMaster);
+	// 开关2：缓存空值（小规模时用，布隆开启后可关闭）
+	else if (cfg->enableNullCache()) {
+		std::string nullKey = "user_null:" + name;
+		if (RedisManager::getInstance()->ExistsKey(nullKey)) {
+			return nullptr;
+		}
+	}
+
+	auto result = dao_.getUserByName(name, forceMaster);
+
+	if (!result && cfg->enableNullCache()) {
+		RedisManager::getInstance()->SetExp("user_null:" + name, "1", 300);
+	}
+	return result;
 }
 int MysqlManager::setFriendApplyStatus(int fromuid, int touid, int status)
 {
@@ -102,6 +139,7 @@ int MysqlManager::AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_dat
 		int ret = dao_.AddChatMsg(shard, msgs);
 		if (ret != SUCCESS) {
 			anyFailed = true;
+			// 标记失败消息，BatchMessageWriter 会上报失败
 			for (auto& m : msgs) {
 				m->status = SEND_FAILED;
 			}

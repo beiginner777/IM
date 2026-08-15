@@ -3,6 +3,7 @@
 #include "JWT.h"
 #include "crypto/BCryptHasher.h"
 #include "RedisManager.h"
+#include "MetricsRegistry.h"
 
 void LogicSystem::sendJson(std::shared_ptr<HttpConnection> conn, const Json::Value& v)
 {
@@ -21,15 +22,38 @@ LogicSystem::LogicSystem() : mysqlDao_(new MysqlDao())
 {
 	registerGetHandler();
 	registerPostHandler();
+	initStockCache();
 }
 LogicSystem::~LogicSystem()
 {
 	delete mysqlDao_;
 }
 
+// 启动时从 MySQL 读库存初始化到 Redis
+// 用 ExistsKey 检查，服务重启不覆盖已扣减的库存
+void LogicSystem::initStockCache()
+{
+	for (auto& p : mysqlDao_->getProducts())
+	{
+		std::string key = "seckill:stock:" + std::to_string(p.id);
+		if (!RedisManager::getInstance()->ExistsKey(key))
+		{
+			RedisManager::getInstance()->Set(key, std::to_string(p.stock));
+			std::cout << "[Seckill] init stock key " << key << " = " << p.stock << std::endl;
+		}
+	}
+}
+
 // ==================== GET handlers ====================
 void LogicSystem::registerGetHandler()
 {
+	// Prometheus 监控指标端点（文本格式，非 JSON）
+	getHandles_["/metrics"] = [this](auto conn, auto&)
+	{
+		conn->response_.set(http::field::content_type, "text/plain; version=0.0.4");
+		beast::ostream(conn->response_.body()) << MetricsRegistry::getInstance()->render();
+	};
+
 	getHandles_["/orders"] = [this](auto conn, auto&)
 	{
 		Json::Value arr(Json::arrayValue);
@@ -47,16 +71,42 @@ void LogicSystem::registerGetHandler()
 
 	getHandles_["/products"] = [this](auto conn, auto&)
 	{
+		// 商品列表缓存 + 逻辑过期（防缓存击穿）
+		// 逻辑过期：物理不删除，value 存 expireAt，过期后返回旧值，用户永不阻塞
+		const std::string CACHE_KEY = "product:list";
 		Json::Value arr(Json::arrayValue);
-		for (auto& p : mysqlDao_->getProducts())
+		bool hit = false;
+
+		std::string cached = RedisManager::getInstance()->Get(CACHE_KEY);
+		if (!cached.empty())
 		{
-			Json::Value i;
-			i["id"] = p.id;
-			i["name"] = p.name;
-			i["price"] = p.price;
-			i["stock"] = p.stock;
-			i["imageUrl"] = p.imageUrl;
-			arr.append(i);
+			Json::Reader reader;
+			Json::Value root;
+			if (reader.parse(cached, root))
+			{
+				// 无论物理过期还是逻辑过期，都返回旧值（防击穿核心）
+				arr = root["list"];
+				hit = true;
+			}
+		}
+
+		if (!hit)
+		{
+			// 缓存 miss：查 MySQL 构造 JSON 并写缓存
+			for (auto& p : mysqlDao_->getProducts())
+			{
+				Json::Value i;
+				i["id"] = p.id;
+				i["name"] = p.name;
+				i["price"] = p.price;
+				i["stock"] = p.stock;
+				i["imageUrl"] = p.imageUrl;
+				arr.append(i);
+			}
+			Json::Value cacheObj;
+			cacheObj["list"] = arr;
+			cacheObj["expireAt"] = (Json::Int64)(time(nullptr) + 300);  // 5min 逻辑过期
+			RedisManager::getInstance()->Set(CACHE_KEY, cacheObj.toStyledString());
 		}
 		sendJson(conn, arr);
 	};
@@ -146,8 +196,13 @@ void LogicSystem::registerGetHandler()
 		if (o.status == "unpaid" && o.time.size() >= 19)
 		{
 			struct tm t = {};
+#ifdef _WIN32
 			sscanf_s(o.time.c_str(), "%d-%d-%d %d:%d:%d", &t.tm_year, &t.tm_mon, &t.tm_mday, &t.tm_hour, &t.tm_min,
 			         &t.tm_sec);
+#else
+			sscanf(o.time.c_str(), "%d-%d-%d %d:%d:%d", &t.tm_year, &t.tm_mon, &t.tm_mday, &t.tm_hour, &t.tm_min,
+			       &t.tm_sec);
+#endif
 			t.tm_year -= 1900;
 			t.tm_mon -= 1;
 			int remain = 1800 - (int) (time(nullptr) - mktime(&t));
@@ -281,6 +336,35 @@ void LogicSystem::registerPostHandler()
 				sendJson(conn, v);
 				return;
 			}
+
+			// Redis Lua 原子扣库存 + 订单号幂等（防并发超卖 + 防重复扣）
+			const char* lua =
+				"if redis.call('EXISTS', KEYS[2]) == 1 then return 1 end"
+				" local stock = redis.call('GET', KEYS[1])"
+				" if not stock or tonumber(stock) <= 0 then return -1 end"
+				" redis.call('DECR', KEYS[1])"
+				" redis.call('SET', KEYS[2], '1', 'EX', 3600)"
+				" return 0";
+			std::string stockKey = "seckill:stock:" + std::to_string(o.productId);
+			std::string idemKey  = "seckill:paid:" + std::to_string(o.id);
+			long long stockRet = RedisManager::getInstance()->evalLuaInt(
+				lua, { stockKey, idemKey }, {});
+			if (stockRet == -1)
+			{
+				v["success"] = false;
+				v["message"] = "已售罄";
+				sendJson(conn, v);
+				return;
+			}
+			else if (stockRet == 1)
+			{
+				// 幂等：该订单已扣过库存，直接返回成功
+				v["success"] = true;
+				v["message"] = "支付成功";
+				sendJson(conn, v);
+				return;
+			}
+
 			double bal = mysqlDao_->getBalance(conn->uid());
 			if (bal < o.price)
 			{
@@ -296,14 +380,10 @@ void LogicSystem::registerPostHandler()
 				sendJson(conn, v);
 				return;
 			}
-			for (auto& pr : mysqlDao_->getProducts())
-				if (pr.id == o.productId)
-				{
-					mysqlDao_->updateStock(pr.id, pr.stock - 1);
-					break;
-				}
 			mysqlDao_->payOrder(p.pathId, conn->uid());
 			RedisManager::getInstance()->Del("balance_cache:" + std::to_string(conn->uid()));
+			// 库存已变化 → 删除商品列表缓存，下次请求重新构造
+			RedisManager::getInstance()->Del("product:list");
 			v["success"] = true;
 			v["message"] = "支付成功";
 			sendJson(conn, v);
@@ -327,6 +407,7 @@ void LogicSystem::registerPostHandler()
 // ==================== URL 解析 + 前缀路由 ====================
 void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 {
+	MetricsRegistry::getInstance()->incCounter("im_http_request_total");
 	if (!tryAcquireRateLimit(conn)) {
 		return;
 	}
@@ -369,6 +450,7 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<HttpConnection> conn)
 
 void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn)
 {
+	MetricsRegistry::getInstance()->incCounter("im_http_request_total");
 	if (!tryAcquireRateLimit(conn)){
 		return;
 	}

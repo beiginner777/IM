@@ -33,6 +33,7 @@ public:
 private:
 	void registerGetHandler();
 	void registerPostHandler();
+	void initStockCache();  // 启动时从 MySQL 初始化 Redis 库存（服务重启不覆盖）
 	void sendJson(std::shared_ptr<HttpConnection> conn, const Json::Value& value);
 	void sendAuthError(std::shared_ptr<HttpConnection> conn, const std::string& msg);
 	bool tryAcquireRateLimit(std::shared_ptr<HttpConnection> conn);

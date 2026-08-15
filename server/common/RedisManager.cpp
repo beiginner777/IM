@@ -2,6 +2,7 @@
 #include "RedisLocker.h"
 #include "Defer.h"
 #include <sstream>
+#include <cstring>
 std::string RedisManager::Get(const std::string& key, bool forceMaster)
 {
 	auto connect_ = getConn(forceMaster);
@@ -175,6 +176,26 @@ bool RedisManager::LPush(const std::string& key, const std::string& value)
 	std::cout << "Execut command [ LPUSH " << key << "  " << value << " ] success ! " << std::endl;
 	freeReplyObject(reply_);
 	return true;
+}
+
+bool RedisManager::wait(int numreplicas, int timeoutMs)
+{
+	auto connect_ = getConn(true);  // 强制 Master
+	if (connect_ == nullptr) {
+		return false;
+	}
+	Defer defer([this, &connect_]() {
+		returnConn(connect_);
+		});
+	redisReply* reply = (redisReply*)redisCommand(connect_, "WAIT %d %d", numreplicas, timeoutMs);
+	if (reply == nullptr || reply->type != REDIS_REPLY_INTEGER) {
+		if (reply) freeReplyObject(reply);
+		return false;
+	}
+	// WAIT 返回"已确认的副本数"，>= numreplicas 才算同步成功
+	bool ok = (reply->integer >= numreplicas);
+	freeReplyObject(reply);
+	return ok;
 }
 
 std::string RedisManager::LPop(const std::string& key) 
@@ -804,4 +825,45 @@ bool RedisManager::checkRateLimit(int uid, int limit)
 	if (reply) freeReplyObject(reply);
 	returnConn(conn);
 	return allowed;
+}
+
+// 通用 Lua 脚本执行（原子操作）
+// 用法：evalLuaInt(script, {key1,key2}, {arg1,arg2}) -> 返回整数
+long long RedisManager::evalLuaInt(const std::string& script,
+                                   const std::vector<std::string>& keys,
+                                   const std::vector<std::string>& args)
+{
+	redisContext* conn = getConn(true);  // 写操作走 Master
+	if (!conn) {
+		return -1;
+	}
+	Defer defer([this, &conn]() { returnConn(conn); });
+
+	// 组装 EVAL 参数: EVAL script numkeys key1..keyN arg1..argN
+	std::vector<const char*> argv;
+	std::vector<size_t> argvlen;
+	argv.push_back("EVAL");
+	argvlen.push_back(4);
+	argv.push_back(script.c_str());
+	argvlen.push_back(script.size());
+	std::string numkeys = std::to_string(keys.size());
+	argv.push_back(numkeys.c_str());
+	argvlen.push_back(numkeys.size());
+	for (const auto& k : keys) {
+		argv.push_back(k.c_str());
+		argvlen.push_back(k.size());
+	}
+	for (const auto& a : args) {
+		argv.push_back(a.c_str());
+		argvlen.push_back(a.size());
+	}
+
+	redisReply* reply = (redisReply*)redisCommandArgv(conn, (int)argv.size(),
+	                                                  argv.data(), argvlen.data());
+	long long result = -1;
+	if (reply && reply->type == REDIS_REPLY_INTEGER) {
+		result = reply->integer;
+	}
+	if (reply) freeReplyObject(reply);
+	return result;
 }

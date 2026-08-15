@@ -12,7 +12,7 @@
 #include <chrono>
 #include <map>
 #include <string>
-#include <fstream>e
+#include <fstream>
 #include <json/json.h>
 #include <boost/filesystem.hpp>
 #include <boost/property_tree/ini_parser.hpp>
@@ -27,12 +27,21 @@
 #include <grpcpp/grpcpp.h>
 #include <unordered_map>
 #include <ctime>
+#ifdef _WIN32
 #include <jdbc/mysql_driver.h>
 #include <jdbc/mysql_connection.h>
 #include <jdbc/cppconn/prepared_statement.h>
 #include <jdbc/cppconn/resultset.h>
 #include <jdbc/cppconn/statement.h>
 #include <jdbc/cppconn/exception.h>
+#else
+#include <mysql_driver.h>
+#include <mysql_connection.h>
+#include <cppconn/prepared_statement.h>
+#include <cppconn/resultset.h>
+#include <cppconn/statement.h>
+#include <cppconn/exception.h>
+#endif
 #include "SingleTon.h"
 #include "ConfigManager.h"
 #define HOST "0.0.0.0"

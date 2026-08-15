@@ -46,6 +46,9 @@ public:
 		static ConfigManager cfg;
 		return cfg;
 	}
+	// 命令行传了配置文件路径时，在 getInstance() 之前调用
+	static void setConfigPath(const std::string& path) { configPath_ = path; }
+	static std::string configPath_;
 	ConfigManager();
 	ConfigManager(const ConfigManager& cfg)
 	{

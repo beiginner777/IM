@@ -30,6 +30,8 @@ void BatchMessageWriter::enqueue(std::shared_ptr<ChatMessage> msg)
 {
 	std::string json = serialize(*msg);
 	RedisManager::getInstance()->LPush(MAIN_QUEUE_KEY, json);
+	// WAIT 同步复制：确保至少 1 个从节点确认，防止 Master 宕机丢消息
+	RedisManager::getInstance()->wait(1, 100);
 }
 // ==== flushWorker: RPOP from main queue -> batch insert to MySQL ====
 void BatchMessageWriter::flushWorker()

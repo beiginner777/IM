@@ -1,8 +1,6 @@
 #ifndef MYSQLDAO_SECKILL_H
 #define MYSQLDAO_SECKILL_H
 #include "global.h"
-#include <jdbc/mysql_connection.h>
-#include <jdbc/mysql_driver.h>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -40,6 +38,8 @@ public:
 	};
 	std::vector<Product> getProducts();
 	bool updateStock(int productId, int newStock);
+	// 已支付订单数（库存由订单数反推：实时库存 = 初始库存 - paid数）
+	int getPaidCount(int productId);
 	int insertOrder(int uid, int productId, const std::string& productName, double price);
 	bool payOrder(int orderId, int uid);
 	bool cancelOrder(int orderId, int uid);
