@@ -6,9 +6,7 @@
 #include "StatusServiceImpl.h"
 #include "CServer.h"
 #include "MetricsServer.h"
-#include "CrashHandler.h"
 int main() {
-    installCrashHandler();
     // 1. 获取配置
     auto cfg = ConfigManager::getInstance();
     std::string status_addr = cfg["StatusServer"]["Host"] + ":" + cfg["StatusServer"]["Port"];

@@ -4,10 +4,8 @@
 #include "CServer.h"
 #include "AsioIOContextThreadPool.h"
 #include "MetricsServer.h"
-#include "CrashHandler.h"
 int main()
 {
-	installCrashHandler();
 	// io_context 负责新用户连接，AsioIOContextThreadPool 负责通信 + StatusServer 心跳
 	boost::asio::io_context ioc;
 	boost::asio::signal_set signals(ioc, SIGINT, SIGTERM);

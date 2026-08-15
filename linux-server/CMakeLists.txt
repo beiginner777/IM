@@ -4,9 +4,6 @@ project(IMServer LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-# 崩溃定位用：-g 保留符号，-rdynamic 让 backtrace() 显示函数名（定位 Exit 139 后去掉）
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -rdynamic")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic")
 
 # ==================== 依赖 ====================
 find_package(Boost REQUIRED COMPONENTS system filesystem)

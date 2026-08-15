@@ -9,13 +9,11 @@
 #include "MysqlManager.h"
 #include "MetricsServer.h"
 #include "DynamicConfig.h"
-#include "CrashHandler.h"
 // to do ...
 // ������ uid_ token_ uip_ ��ʱ����Ҫ�����Լ����ù���ʱ�䡣
 // ��Ҫͬʱ���� tcp���� �� rpc����
 int main()
 {
-	installCrashHandler();
 	try
 	{
 		ConfigManager cfg = ConfigManager::getInstance();
