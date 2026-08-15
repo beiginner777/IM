@@ -685,15 +685,12 @@ void RedisManager::sentinelPollWorker()
 			std::string newAddr = masterHost + ":" + masterPort;
 			if (newAddr != cachedMasterAddr_) {
 				std::cout << "[SentinelPoll] Master changed: "
-				          << cachedMasterAddr_ << " -> " << newAddr
-				          << " — rebuilding master pool" << std::endl;
-				// rebuild master pool (lock protected)
-				{
-					std::lock_guard<std::mutex> lock(masterPoolMutex_);
-					masterPool_ = std::make_unique<RedisConnPool>();
-					cachedMasterAddr_ = newAddr;
-				}
-				std::cout << "[SentinelPoll] Master pool rebuilt for " << newAddr << std::endl;
+				          << cachedMasterAddr_ << " -> " << newAddr << std::endl;
+				// 只记录切换，不重建连接池。
+				// 重建 masterPool_ = make_unique(...) 会析构旧池，而其他线程可能正持有旧的
+				// redisContext* 使用中，造成 use-after-free（Exit 139 段错误）。
+				cachedMasterAddr_ = newAddr;
+				std::cout << "[SentinelPoll] Master changed, pool left unchanged: " << newAddr << std::endl;
 			}
 		}
 	}
