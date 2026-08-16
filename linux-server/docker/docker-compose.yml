@@ -157,6 +157,7 @@ services:
 
   authserver:
     image: im-server
+    pull_policy: never
     command: AuthServer
     ports:
       - "8080:8080"
@@ -172,6 +173,7 @@ services:
 
   chatserver1:
     image: im-server
+    pull_policy: never
     command: ChatServer1
     ports:
       - "8090:8090"     # 业务 TCP（客户端聊天）
@@ -188,6 +190,7 @@ services:
 
   chatserver2:
     image: im-server
+    pull_policy: never
     command: ChatServer2
     ports:
       - "8091:8091"
@@ -204,6 +207,7 @@ services:
 
   resourceserver:
     image: im-server
+    pull_policy: never
     command: ResourceServer
     ports:
       - "9090:9090"     # 业务 TCP（文件传输）
@@ -220,6 +224,7 @@ services:
 
   seckillserver:
     image: im-server
+    pull_policy: never
     command: SeckillServer
     ports:
       - "8101:8101"     # HTTP（秒杀业务）
