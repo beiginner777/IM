@@ -32,7 +32,10 @@ services:
     networks:
       - im-net
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
+      # 用 -h 127.0.0.1 强制走 TCP：MySQL 初始化时会先起一个只监听 unix socket 的临时服务器
+      # (port:0)，若用 -h localhost(走 socket) 会在临时服务器阶段就误判 healthy，导致依赖它的
+      # 服务(TCP 3306)启动时连接被拒。只有真实服务器起来后 TCP 才可连。
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p123456"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -46,7 +49,6 @@ services:
     volumes:
       - mysql-slave-data:/var/lib/mysql
       - ../MySQL/slave.cnf:/etc/mysql/conf.d/slave.cnf:ro
-      - ../MySQL/dump.sql:/docker-entrypoint-initdb.d/dump.sql:ro
     depends_on:
       - mysql-master
     networks:
