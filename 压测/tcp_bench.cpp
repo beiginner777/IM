@@ -135,8 +135,16 @@ void worker(const std::string& host, const std::string& port,
         auto f = makeFrame(ID_CHAT_LOGIN, lb, genUuid());
         boost::asio::write(sock, boost::asio::buffer(f.data(), f.size()));
         short id; std::string body;
-        if (!readFrame(sock, id, body) || id != ID_CHAT_LOGIN_RSP) {
-            std::cerr << "uid " << uid << " login failed\n"; return;
+        if (!readFrame(sock, id, body)) {
+            std::cerr << "uid " << uid << " login failed: connection closed by server\n"; return;
+        }
+        if (id != ID_CHAT_LOGIN_RSP) {
+            std::cerr << "uid " << uid << " login failed: unexpected msgId=" << id
+                      << ", response=" << body << "\n"; return;
+        }
+        // msgId==1005 也可能是业务失败（用户不存在/限流等），打印服务端返回的具体原因
+        if (body.find("\"code\" : 0") == std::string::npos) {
+            std::cerr << "uid " << uid << " login rejected: " << body << "\n"; return;
         }
 
         // 2) 循环发消息 → 等 ACK
