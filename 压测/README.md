@@ -16,6 +16,7 @@
 | `upload_throughput.py` | 场景 8 | Python 客户端 | 文件传输吞吐 |
 | `stability_monitor.sh` | 场景 9 | shell 脚本 | 长时稳定性监控 |
 | `seckill_bench.py` | 场景 10 | Python 客户端 | 秒杀防超卖（两步流程） |
+| `create_users.py` | 辅助 | Python 脚本 | 预置压测用户（先跑这个） |
 
 ## 前置条件
 
@@ -25,6 +26,25 @@
 4. 丢包模拟开关在 `ResourceServer/LogicWorker.cpp:178`（测完记得删）。
 
 ## 运行
+
+### 0. 先创建压测用户（必做）
+
+ChatServer 登录、秒杀登录都要查 MySQL `user` 表，且密码是 bcrypt(cost=10)。先预置用户：
+
+```bash
+pip install pymysql bcrypt   # 一次性装依赖
+
+python3 create_users.py 200 1000 123456   # 场景 1：uid 1000~1199（配合 tcp_bench 起始 uid）
+python3 create_users.py 3 1 123456        # 场景 10：uid 1/2/3（配合 seckill_bench 的 UIDS=[1,2,3]）
+```
+
+> ⚠️ **布隆过滤器**：AuthServer 启动时会从 MySQL 构建用户名布隆过滤器缓存到 Redis（`bloom:user_search`）。如果服务已启动、后补的用户，布隆过滤器不含新用户，登录会被误判「用户不存在」。两种解法：
+> 1. **推荐**：先建用户，再 `sh run.sh` 启动整套服务。
+> 2. 已启动的话：清 Redis 布隆键 + 重启 authserver：
+>    ```bash
+>    docker compose exec redis-master redis-cli -a 123456 DEL bloom:user_search
+>    docker compose restart authserver
+>    ```
 
 ### 场景 1：单聊吞吐（C++）
 
