@@ -6,7 +6,9 @@
 
 import socket, struct, json, time, base64, hashlib, hmac, sys, threading
 
-ID_UPLOAD_FILE_REQ, ID_UPLOAD_FILE_RSP = 1028, 1029
+# 注意：ResourceServer 文件上传实际注册的 handler 是 ID_IMAGE_CHAT_MSG_REQ(1034)/RSP(1035)，
+# ID_UPLOAD_FILE_REQ(1028) 是未注册的废弃枚举值，服务端会报"无法找到 msg_id=1028 的回调函数"
+ID_IMAGE_CHAT_MSG_REQ, ID_IMAGE_CHAT_MSG_RSP = 1034, 1035
 CHUNK, WINDOW = 2048, 8
 
 
@@ -53,7 +55,7 @@ def run(host: str, port: int, uid: int, total_bytes: int, secret: str) -> float:
                 mid, body = recv_frame(s)
             except Exception:
                 return
-            if mid == ID_UPLOAD_FILE_RSP:
+            if mid == ID_IMAGE_CHAT_MSG_RSP:
                 r = json.loads(body)
                 seq = r.get("seq") or r.get("last_ack_seq")
                 if seq:
@@ -68,7 +70,7 @@ def run(host: str, port: int, uid: int, total_bytes: int, secret: str) -> float:
                 "transferredsize": (nxt - 1) * CHUNK, "totolsize": total_bytes,
                 "data": chunk, "md5": md5, "type": 0, "uid": uid, "token": token,
             }).encode()
-            s.sendall(frame(ID_UPLOAD_FILE_REQ, body))
+            s.sendall(frame(ID_IMAGE_CHAT_MSG_REQ, body))
             nxt += 1
         while base in acked:
             base += 1
