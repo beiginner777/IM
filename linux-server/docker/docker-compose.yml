@@ -214,6 +214,8 @@ services:
     ports:
       - "9090:9090"     # 业务 TCP（文件传输）
       - "51055:51055"   # gRPC
+    volumes:
+      - upload-data:/app/upload
     depends_on:
       mysql-master:
         condition: service_healthy
@@ -275,6 +277,7 @@ volumes:
   redis-master-data:
   redis-slave1-data:
   redis-slave2-data:
+  upload-data:
 
 networks:
   im-net:
