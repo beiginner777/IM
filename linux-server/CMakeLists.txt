@@ -81,6 +81,11 @@ target_link_libraries(im_common PUBLIC
     ${Protobuf_LIBRARIES}
 )
 
+# Debug 构建启用 debug 日志；Release 构建 SPDLOG_DEBUG 编译期展开为空（零开销）
+target_compile_definitions(im_common PUBLIC
+    $<$<CONFIG:Debug>:SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG>
+)
+
 # ==================== 宏：构建服务 ====================
 function(add_im_service NAME)
     file(GLOB_RECURSE SRC "${NAME}/*.cpp" "${NAME}/*.cc")
