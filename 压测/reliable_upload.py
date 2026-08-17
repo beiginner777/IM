@@ -52,7 +52,7 @@ def upload(uid: int, token: str, total: int):
 
     def send_one(seq):
         body = json.dumps({
-            "filename": filename, "seq": seq, "lastseq": seq - 1,
+            "filename": filename, "seq": seq, "lastseq": total,
             "transferredsize": (seq - 1) * CHUNK, "totolsize": total * CHUNK,
             "data": base64.b64encode(b"x" * CHUNK).decode(),
             "md5": md5, "type": 0, "uid": uid, "token": token,
@@ -68,12 +68,12 @@ def upload(uid: int, token: str, total: int):
                 return
             if mid == ID_IMAGE_CHAT_MSG_RSP:
                 r = json.loads(body)
-                seq = r.get("seq") or r.get("last_ack_seq")
+                seq = r.get("seq")
                 if seq:
                     acked.add(int(seq))
 
     threading.Thread(target=reader, daemon=True).start()
-    end = time.time() + 30
+    end = time.time() + 120
     while base <= total and time.time() < end:
         # 发送窗口内未发送的分片
         while nxt < base + WINDOW and nxt <= total:
