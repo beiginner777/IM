@@ -151,6 +151,7 @@ services:
     command: StatusServer
     ports:
       - "50052:50052"
+      - "9103:9103"     # Prometheus /metrics
     depends_on:
       redis-master:
         condition: service_healthy
@@ -180,6 +181,7 @@ services:
     ports:
       - "8090:8090"     # 业务 TCP（客户端聊天）
       - "50053:50053"   # gRPC（跨服务）
+      - "9100:9100"     # Prometheus /metrics
     depends_on:
       mysql-master:
         condition: service_healthy
@@ -197,6 +199,7 @@ services:
     ports:
       - "8091:8091"
       - "50054:50054"
+      - "9101:9101"     # Prometheus /metrics
     depends_on:
       mysql-master:
         condition: service_healthy
@@ -214,6 +217,7 @@ services:
     ports:
       - "9090:9090"     # 业务 TCP（文件传输）
       - "51055:51055"   # gRPC
+      - "9102:9102"     # Prometheus /metrics
     depends_on:
       mysql-master:
         condition: service_healthy
@@ -264,6 +268,9 @@ services:
       - "3000:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - prometheus
     networks:

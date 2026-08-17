@@ -1,0 +1,87 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "消息总 QPS",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "sum(rate(im_msg_total[1m]))", "legendFormat": "总消息 QPS", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "消息平均延迟 (ms)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "sum(im_msg_latency_sum) / sum(im_msg_latency_count) / 1000", "legendFormat": "平均延迟", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP 请求 QPS",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "sum(rate(im_http_request_total[1m]))", "legendFormat": "HTTP QPS", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "布隆过滤器：命中 vs 穿透 QPS",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        { "expr": "rate(im_user_hit_total[1m])", "legendFormat": "命中", "refId": "A" },
+        { "expr": "rate(im_user_penetration_total[1m])", "legendFormat": "穿透", "refId": "B" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "秒杀连接数",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        { "expr": "im_seckill_conn_count", "legendFormat": "秒杀连接", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "服务连接数",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        { "expr": "im_conn_count", "legendFormat": "连接数", "refId": "A" }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["im"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "IM 系统监控大盘",
+  "uid": "im-monitoring",
+  "version": 1
+}
