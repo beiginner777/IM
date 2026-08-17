@@ -31,6 +31,7 @@ static const short  ID_TEXT_CHAT_MSG_RSP     = 1015;
 
 // ===== 全局统计 =====
 std::atomic<long> g_acks{0};
+std::atomic<long> g_sent{0};   // 发送总数（含重发），丢失 = g_sent - g_acks
 std::mutex g_mtx;
 std::vector<long> g_latUs;   // 每条消息 ACK 延迟(微秒)
 
@@ -123,7 +124,7 @@ static bool readFrame(tcp::socket& s, short& msgId, std::string& body) {
 }
 
 void worker(const std::string& host, const std::string& port,
-            int uid, const std::string& token, int targetUid, int durationSec) {
+            int uid, const std::string& token, int targetUid, int durationSec, int dupCount) {
     try {
         boost::asio::io_context ioc;
         tcp::socket sock(ioc);
@@ -139,19 +140,25 @@ void worker(const std::string& host, const std::string& port,
             std::cerr << "uid " << uid << " login failed\n"; return;
         }
 
-        // 2) 循环发消息 → 等 ACK
+        // 2) 循环发消息 → 等 ACK（dupCount>1 时同 unique_id 重发，测服务端幂等去重）
         auto end = steady_clock::now() + seconds(durationSec);
         while (steady_clock::now() < end) {
             auto t0 = steady_clock::now();
-            std::string mb = "{\"fromuid\":" + std::to_string(uid)
-                + ",\"touid\":" + std::to_string(targetUid)
-                + ",\"thread_id\":1"
-                + ",\"text_array\":[{\"content\":\"hello\",\"unique_id\":\"" + genUuid() + "\"}]}";
-            f = makeFrame(ID_TEXT_CHAT_MSG_REQ, mb, genUuid());
-            boost::asio::write(sock, boost::asio::buffer(f.data(), f.size()));
-            if (!readFrame(sock, id, body) || id != ID_TEXT_CHAT_MSG_RSP) break;
+            std::string uniq = genUuid();   // 同一条消息的 unique_id（重发复用）
+            bool ok = true;
+            for (int d = 0; d < dupCount; ++d) {
+                std::string mb = "{\"fromuid\":" + std::to_string(uid)
+                    + ",\"touid\":" + std::to_string(targetUid)
+                    + ",\"thread_id\":1"
+                    + ",\"text_array\":[{\"content\":\"hello\",\"unique_id\":\"" + uniq + "\"}]}";
+                f = makeFrame(ID_TEXT_CHAT_MSG_REQ, mb, genUuid());
+                boost::asio::write(sock, boost::asio::buffer(f.data(), f.size()));
+                g_sent++;
+                if (!readFrame(sock, id, body) || id != ID_TEXT_CHAT_MSG_RSP) { ok = false; break; }
+                g_acks++;
+            }
+            if (!ok) break;
             long lat = duration_cast<microseconds>(steady_clock::now() - t0).count();
-            g_acks++;
             { std::lock_guard<std::mutex> lk(g_mtx); g_latUs.push_back(lat); }
         }
     } catch (const std::exception& e) {
@@ -161,7 +168,7 @@ void worker(const std::string& host, const std::string& port,
 
 int main(int argc, char* argv[]) {
     if (argc < 7) {
-        std::cerr << "usage: tcp_bench <host> <port> <conns> <duration> <uid_base> <jwt_secret> [target_uid]\n";
+        std::cerr << "usage: tcp_bench <host> <port> <conns> <duration> <uid_base> <jwt_secret> [target_uid] [dup_count]\n";
         return 1;
     }
     std::string host = argv[1], port = argv[2];
@@ -169,13 +176,14 @@ int main(int argc, char* argv[]) {
     int uidBase = atoi(argv[5]);
     std::string secret = argv[6];
     int targetUid = (argc >= 8) ? atoi(argv[7]) : uidBase + 1;
+    int dupCount = (argc >= 9) ? atoi(argv[8]) : 1;   // 每条消息重发次数，测 0 重复时传 2
 
     auto t0 = steady_clock::now();
     std::vector<std::thread> threads;
     for (int i = 0; i < conns; ++i) {
         int uid = uidBase + i;
         std::string token = makeJwt(uid, secret);
-        threads.emplace_back(worker, host, port, uid, token, targetUid, duration);
+        threads.emplace_back(worker, host, port, uid, token, targetUid, duration, dupCount);
     }
     for (auto& t : threads) t.join();
     long elapsed = duration_cast<seconds>(steady_clock::now() - t0).count();
@@ -192,7 +200,9 @@ int main(int argc, char* argv[]) {
     std::cout << "=== Results ===\n"
               << "Connections : " << conns << "\n"
               << "Duration    : " << elapsed << "s\n"
-              << "Total ACKs  : " << acks << "\n"
+              << "Sent        : " << g_sent.load() << "\n"
+              << "ACKs        : " << acks << "\n"
+              << "Lost        : " << (g_sent.load() - acks) << "\n"
               << "QPS         : " << (acks / elapsed) << "\n"
               << "Avg latency : " << avg << "ms\n"
               << "P50         : " << pct(0.50) << "ms\n"
