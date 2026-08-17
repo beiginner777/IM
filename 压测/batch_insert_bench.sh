@@ -1,10 +1,11 @@
 #!/bin/bash
 # batch_insert_bench.sh —— 场景 3：批量写入 vs 单条写入
 # 用法: sh batch_insert_bench.sh
-# 前提: MySQL 已启动（127.0.0.1:3307），JerryChat 库 + chatmessage 表存在
-# 说明: 用 mysql 客户端直接对比「N 条独立 INSERT」vs「每批 100 条的批量 INSERT」
+# 前提: mysql-master 容器已启动（docker ps 可见），JerryChat 库 + chatmessage 表存在
+# 说明: 进入 mysql-master 容器内，用 mysql 客户端直接对比「N 条独立 INSERT」vs「每批 100 条的批量 INSERT」
 
-MYSQL="mysql -h127.0.0.1 -P3307 -uroot -p123456 JerryChat"
+CONTAINER=mysql-master
+MYSQL="docker exec -i $CONTAINER mysql -uroot -p123456 JerryChat"
 N=1000
 BATCH=100
 
