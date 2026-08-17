@@ -17,6 +17,9 @@
 #include <arpa/inet.h>
 #include <openssl/hmac.h>
 #include <openssl/evp.h>
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
 
 using boost::asio::ip::tcp;
 using namespace std::chrono;
@@ -73,17 +76,12 @@ static std::string makeJwt(int uid, const std::string& secret) {
     return toSign + "." + hex(mac, macLen);
 }
 
-// 36 字符 uuid（压测用，唯一即可，不必严格 UUID）
+// 36 字符 uuid（压测用，全局唯一即可）
+// 原实现只取 LCG 低 4 位(n&15)当字符，周期 16，导致大量重复 uuid，
+// 触发服务端 MessageDeduplicator 按 uuid 串话，返回错误用户的数据。
 static std::string genUuid() {
-    static const char* C = "0123456789abcdef";
-    static std::atomic<int> seed{0};
-    int n = seed.fetch_add(1);
-    std::string s(36, '0');
-    for (int i = 0; i < 36; ++i) {
-        if (i == 8 || i == 13 || i == 18 || i == 23) s[i] = '-';
-        else { n = (n * 1103515245 + 12345) & 0x7fffffff; s[i] = C[n & 15]; }
-    }
-    return s;
+    thread_local boost::uuids::random_generator gen;
+    return boost::uuids::to_string(gen());
 }
 
 // 组帧：36B uuid + 2B msg_id(大端) + 2B len(大端) + body
