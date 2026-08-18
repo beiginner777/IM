@@ -67,6 +67,7 @@ int MysqlDao::registerUser(const std::string& name, const std::string& email, co
 
 int MysqlDao::userLogin(std::string name, std::string password, std::shared_ptr<UserInfo> userInfo)
 {
+    std::cout << "[userLogin] mysqlPool.size() = " << pool_->size() << std::endl;
     std::unique_ptr<SqlConnection> conn = pool_->getConnection();
     if (conn == nullptr) {
         std::cout << "mysqlConn is nullptr, register failed.\n";
