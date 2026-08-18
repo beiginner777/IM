@@ -57,10 +57,10 @@ int MysqlManager::registerUser(const std::string& name, const std::string& email
 }
 int MysqlManager::userLogin(std::string name, std::string password, std::shared_ptr<UserInfo> userInfo)
 {
-	// Bloom pre-check
-	auto bf = getBloomFilter();
-	if (bf && !bf->contains(name)) {
-		return ERROR_USER_NOT_EXIST;
-	}
+	// Bloom pre-check（临时注释：布隆未更新会误判后补用户为「不存在」，改为直接查 MySQL）
+	//auto bf = getBloomFilter();
+	//if (bf && !bf->contains(name)) {
+	//	return ERROR_USER_NOT_EXIST;
+	//}
 	return dao_.userLogin(name, password, userInfo);
 }

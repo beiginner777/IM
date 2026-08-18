@@ -6,7 +6,9 @@
 import socket, struct, json, time, base64, threading, hashlib, hmac
 
 HOST, PORT = "127.0.0.1", 9090
-ID_UPLOAD_FILE_REQ, ID_UPLOAD_FILE_RSP = 1028, 1029
+# 注意：ResourceServer 文件上传实际注册的 handler 是 ID_IMAGE_CHAT_MSG_REQ(1034)/RSP(1035)，
+# ID_UPLOAD_FILE_REQ(1028) 是未注册的废弃枚举值，服务端会报"无法找到 msg_id=1028 的回调函数"
+ID_IMAGE_CHAT_MSG_REQ, ID_IMAGE_CHAT_MSG_RSP = 1034, 1035
 CHUNK = 2048
 WINDOW = 8
 TIMEOUT = 0.5
@@ -50,12 +52,12 @@ def upload(uid: int, token: str, total: int):
 
     def send_one(seq):
         body = json.dumps({
-            "filename": filename, "seq": seq, "lastseq": seq - 1,
+            "filename": filename, "seq": seq, "lastseq": total,
             "transferredsize": (seq - 1) * CHUNK, "totolsize": total * CHUNK,
             "data": base64.b64encode(b"x" * CHUNK).decode(),
             "md5": md5, "type": 0, "uid": uid, "token": token,
         }).encode()
-        s.sendall(frame(ID_UPLOAD_FILE_REQ, body))
+        s.sendall(frame(ID_IMAGE_CHAT_MSG_REQ, body))
         pending[seq] = time.time()
 
     def reader():
@@ -64,14 +66,14 @@ def upload(uid: int, token: str, total: int):
                 mid, body = recv_frame(s)
             except Exception:
                 return
-            if mid == ID_UPLOAD_FILE_RSP:
+            if mid == ID_IMAGE_CHAT_MSG_RSP:
                 r = json.loads(body)
-                seq = r.get("seq") or r.get("last_ack_seq")
+                seq = r.get("seq")
                 if seq:
                     acked.add(int(seq))
 
     threading.Thread(target=reader, daemon=True).start()
-    end = time.time() + 30
+    end = time.time() + 120
     while base <= total and time.time() < end:
         # 发送窗口内未发送的分片
         while nxt < base + WINDOW and nxt <= total:

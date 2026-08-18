@@ -282,6 +282,7 @@ volumes:
   redis-master-data:
   redis-slave1-data:
   redis-slave2-data:
+  upload-data:
 
 networks:
   im-net:

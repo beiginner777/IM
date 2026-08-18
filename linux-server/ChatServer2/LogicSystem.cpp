@@ -10,6 +10,7 @@
 #include "utils.h"
 #include "BatchMessageWriter.h"
 #include "MetricsRegistry.h"
+#include <spdlog/spdlog.h>
 LogicSystem::LogicSystem() : b_stop_(false)
 {
 	registerFunctionCallbacks();
@@ -287,7 +288,7 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 		MetricsRegistry::getInstance()->incCounter("im_msg_latency_count", 1);
 	});
 
-	std::cout << "handle id = " << msgId << std::endl;
+	SPDLOG_DEBUG("handle id = {}", msgId);
 	Json::Reader reader;
 	Json::Value root;
 	reader.parse(msgData, root);
@@ -295,7 +296,7 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 	int touid = root["touid"].asInt();
 	int thread_id = root["thread_id"].asInt();
 	const Json::Value arrays = root["text_array"];
-	std::cout << "uid = " << session->getUserId() << "request to send TextChatMsg to uid = " << touid << std::endl;
+	SPDLOG_DEBUG("uid = {} request to send TextChatMsg to uid = {}", session->getUserId(), touid);
 	Json::Value rtvalue;
 	rtvalue["fromuid"] = uid;
 	rtvalue["touid"] = touid;
@@ -347,7 +348,7 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 	rtvalue["message"] = "Send TextChatMsg success.";
 	auto cfg = ConfigManager::getInstance();
 	auto selfName = cfg["SelfServer"]["Name"];
-	std::cout << "PeerIP: " << peerIP << " " << "SelfIP: " << selfName << std::endl;
+	SPDLOG_DEBUG("PeerIP: {} SelfIP: {}", peerIP, selfName);
 	rtvalue["text_array"] = arrays;
 	if (peerIP == selfName) {
 		auto session = UserManager::getInstance()->GetSession(touid);
@@ -358,7 +359,7 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 		{
 			rtvalue["code"] = ERROE_CODR::ERROR_SEND_MSG_FAILED;
 			rtvalue["message"] = "��??????";
-			std::cout << "Unknow error: can't find session in memory for uid = " << touid << std::endl;
+			SPDLOG_WARN("can't find session in memory for uid = {}", touid);
 		}
 		return;
 	}
@@ -369,8 +370,8 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 	for (const auto& txt_obj : arrays) {
 		auto content = txt_obj["content"].asString();
 		auto msgid = txt_obj["msgid"].asString();
-		std::cout << "content is " << content << std::endl;
-		std::cout << "msgid is " << msgid << std::endl;
+		SPDLOG_DEBUG("content is {}", content);
+		SPDLOG_DEBUG("msgid is {}", msgid);
 		auto* text_msg = text_msg_req.add_textmsgs();
 		text_msg->set_msgid(msgid);
 		text_msg->set_msgcontent(content);
@@ -381,7 +382,7 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 void LogicSystem::receiveFriendApply(std::shared_ptr<CSession> session, short msgId, std::string msgData,
                                      std::string uuid)
 {
-	std::cout << "handle id = " << msgId << std::endl;
+	SPDLOG_DEBUG("handle id = {}", msgId);
 	Json::Value root;
 	Json::Reader reader;
 	if (!reader.parse(msgData, root))
@@ -407,7 +408,7 @@ void LogicSystem::receiveFriendApply(std::shared_ptr<CSession> session, short ms
 
 void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
-	std::cout << "handle id = " << msgId << std::endl;
+	SPDLOG_DEBUG("handle id = {}", msgId);
 	Json::Value root;
 	Json::Reader reader;
 	if (!reader.parse(msgData, root))
@@ -505,7 +506,7 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 
 void LogicSystem::authAccess(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
-	std::cout << "handle id = " << msgId << std::endl;
+	SPDLOG_DEBUG("handle id = {}", msgId);
 	Json::Value root;
 	Json::Reader reader;
 	Json::Value rtvalue;
@@ -562,7 +563,7 @@ void LogicSystem::authAccess(std::shared_ptr<CSession> session, short msgId, std
 	std::string peerIP = RedisManager::getInstance()->Get(peer_ip_key);
 	auto cfg = ConfigManager::getInstance();
 	auto selfName = cfg["SelfServer"]["Name"];
-	std::cout << "PeerIP: " << peerIP << " " << "SelfIP: " << selfName << std::endl;
+	SPDLOG_DEBUG("PeerIP: {} SelfIP: {}", peerIP, selfName);
 	if (peerIP == selfName) {
 		auto session = UserManager::getInstance()->GetSession(fromuid);
 		if (session) {
@@ -590,7 +591,7 @@ void LogicSystem::authAccess(std::shared_ptr<CSession> session, short msgId, std
 
 void LogicSystem::searchHandle(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
-	std::cout << "handle id = " << msgId << std::endl;
+	SPDLOG_DEBUG("handle id = {}", msgId);
 	std::cout << "uid = " << session->getUserId() << " request to search user." << std::endl;
 	Json::Value root;
 	Json::Reader reader;
@@ -624,7 +625,7 @@ void LogicSystem::searchHandle(std::shared_ptr<CSession> session, short msgId, s
 
 void LogicSystem::applyHandle(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
-	std::cout << "handle id = " << msgId << std::endl;
+	SPDLOG_DEBUG("handle id = {}", msgId);
 	Json::Reader reader;
 	Json::Value root;
 	reader.parse(msgData, root);
@@ -722,7 +723,7 @@ void LogicSystem::applyHandle(std::shared_ptr<CSession> session, short msgId, st
 
 void LogicSystem::heartCheck(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
-	std::cout << "handle id = " << msgId << std::endl;
+	SPDLOG_DEBUG("handle id = {}", msgId);
 	Json::Reader reader;
 	Json::Value root;
 	reader.parse(msgData, root);
@@ -738,7 +739,7 @@ void LogicSystem::heartCheck(std::shared_ptr<CSession> session, short msgId, std
 void LogicSystem::heartCheckWithStatusServer(std::shared_ptr<CSession> session, short msgId, std::string msgData,
                                              std::string uuid)
 {
-	std::cout << "handle id = " << msgId << std::endl;
+	SPDLOG_DEBUG("handle id = {}", msgId);
 	Json::Reader reader;
 	Json::Value root;
 	reader.parse(msgData, root);
@@ -755,7 +756,7 @@ void LogicSystem::heartCheckWithStatusServer(std::shared_ptr<CSession> session, 
 
 void LogicSystem::loadChatList(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
-	std::cout << "handle id = " << msgId << std::endl;
+	SPDLOG_DEBUG("handle id = {}", msgId);
 	Json::Reader reader;
 	Json::Value root;
 	Json::Value rtvalue;
@@ -835,7 +836,7 @@ bool LogicSystem::RemoveUserThreadImageMsg(std::string unique_name)
 void LogicSystem::createPrivateThread(std::shared_ptr<CSession> session, short msgId, std::string msgData,
                                       std::string uuid)
 {
-	std::cout << "handle id = " << msgId << std::endl;
+	SPDLOG_DEBUG("handle id = {}", msgId);
 	Json::Reader reader;
 	Json::Value root;
 	Json::Value rtvalue;
@@ -871,7 +872,7 @@ void LogicSystem::createPrivateThread(std::shared_ptr<CSession> session, short m
 
 void LogicSystem::loadConnList(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
 {
-	std::cout << "handle id = " << msgId << std::endl;
+	SPDLOG_DEBUG("handle id = {}", msgId);
 	Json::Reader reader;
 	Json::Value root;
 	Json::Value rtvalue;
