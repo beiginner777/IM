@@ -131,8 +131,9 @@ std::string JWT::generateToken(int uid, const std::string& username,
     Json::Value header;
     header["alg"] = "HS256";
     header["typ"] = "JWT";
+    std::string headerJson = compactJson(header);
     std::string headerB64 = base64UrlEncode(
-        std::vector<unsigned char>(compactJson(header).begin(), compactJson(header).end()));
+        std::vector<unsigned char>(headerJson.begin(), headerJson.end()));
 
     // 2. Payload
     Json::Value payload;
@@ -141,8 +142,9 @@ std::string JWT::generateToken(int uid, const std::string& username,
     payload["client_type"] = clientType;
     payload["iat"] = (int)nowSec;
     payload["exp"] = (int)(nowSec + TOKEN_TTL);
+    std::string payloadJson = compactJson(payload);
     std::string payloadB64 = base64UrlEncode(
-        std::vector<unsigned char>(compactJson(payload).begin(), compactJson(payload).end()));
+        std::vector<unsigned char>(payloadJson.begin(), payloadJson.end()));
 
     // 3. Sign
     std::string toSign = headerB64 + "." + payloadB64;
