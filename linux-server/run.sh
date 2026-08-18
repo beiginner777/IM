@@ -9,6 +9,8 @@
 
 set -e
 
+# 前置：先执行 sh setup_docker.sh 安装 Docker + 配置镜像加速
+
 # 检测 compose 命令（新版 docker compose 或旧版 docker-compose）
 if docker compose version >/dev/null 2>&1; then
     COMPOSE="docker compose"
@@ -27,7 +29,7 @@ cd "$(dirname "$0")/docker"
 wait_mysql() {
     local container="$1"
     for i in $(seq 1 45); do
-        if docker exec "$container" mysqladmin ping -uroot -p123456 --silent 2>/dev/null; then
+        if $COMPOSE exec -T "$container" mysqladmin ping -uroot -p123456 --silent 2>/dev/null; then
             echo "$container 已就绪"
             return 0
         fi
@@ -49,7 +51,7 @@ wait_mysql mysql-slave
 echo ""
 echo "=== 3. 配置 MySQL 主从复制 ==="
 # 3.1 master 创建复制账号（IF NOT EXISTS 保证可重复执行）
-docker exec mysql-master mysql -uroot -p123456 -e \
+$COMPOSE exec -T mysql-master mysql -uroot -p123456 -e \
     "CREATE USER IF NOT EXISTS 'repl'@'%' IDENTIFIED BY '123456'; \
      GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%'; \
      FLUSH PRIVILEGES;"
@@ -58,7 +60,7 @@ docker exec mysql-master mysql -uroot -p123456 -e \
 #     --single-transaction  一致性快照（InnoDB，不锁表）
 #     --master-data=2       在 dump 注释里记录 binlog 位置
 #     --set-gtid-purged=OFF 避免 GTID 干扰（本项目未开 GTID）
-docker exec mysql-master mysqldump -uroot -p123456 \
+$COMPOSE exec -T mysql-master mysqldump -uroot -p123456 \
     --databases JerryChat --single-transaction --master-data=2 --set-gtid-purged=OFF \
     > /tmp/im_master_dump.sql
 
@@ -72,10 +74,10 @@ fi
 echo "master binlog: $MASTER_LOG_FILE @ $MASTER_LOG_POS"
 
 # 3.4 导入 slave（--databases 会生成 CREATE DATABASE + USE，slave 无需预建库）
-docker exec -i mysql-slave mysql -uroot -p123456 < /tmp/im_master_dump.sql
+$COMPOSE exec -T mysql-slave mysql -uroot -p123456 < /tmp/im_master_dump.sql
 
 # 3.5 清除旧复制配置并建立主从关系（幂等，可重复执行）
-docker exec mysql-slave mysql -uroot -p123456 -e \
+$COMPOSE exec -T mysql-slave mysql -uroot -p123456 -e \
     "STOP SLAVE; RESET SLAVE ALL; \
      CHANGE MASTER TO \
        MASTER_HOST='mysql-master', \
@@ -88,7 +90,7 @@ docker exec mysql-slave mysql -uroot -p123456 -e \
 # 3.6 验证复制状态
 echo ""
 echo "MySQL 主从复制状态："
-docker exec mysql-slave mysql -uroot -p123456 -e "SHOW SLAVE STATUS\G" \
+$COMPOSE exec -T mysql-slave mysql -uroot -p123456 -e "SHOW SLAVE STATUS\G" \
     | grep -E "Slave_IO_Running|Slave_SQL_Running|Seconds_Behind_Master" || true
 
 echo ""
@@ -102,5 +104,5 @@ echo "认证服务:           curl http://localhost:8080"
 echo "Prometheus:         http://<公网IP>:19090"
 echo "Grafana:            http://<公网IP>:3000  (admin/admin)"
 echo ""
-echo "验证主从:  docker exec mysql-slave mysql -uroot -p123456 -e 'SHOW SLAVE STATUS\\G'"
+echo "验证主从:  docker compose exec mysql-slave mysql -uroot -p123456 -e 'SHOW SLAVE STATUS\\G'"
 echo "查看日志:  $COMPOSE logs -f <服务名>"
