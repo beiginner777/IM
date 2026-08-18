@@ -49,6 +49,12 @@ if(NOT FMT_LIB)
     message(FATAL_ERROR "fmt not found. apt install libfmt-dev")
 endif()
 
+# libcrypt (libxcrypt) — bcrypt 用 crypt_r
+find_library(CRYPT_LIB crypt)
+if(NOT CRYPT_LIB)
+    message(FATAL_ERROR "libcrypt not found. apt install libxcrypt-dev")
+endif()
+
 # 所有可执行文件输出到 server/bin/
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 
@@ -78,6 +84,7 @@ target_link_libraries(im_common PUBLIC
     ${JSONCPP_LIB}
     ${HIREDIS_LIB}
     ${FMT_LIB}
+    ${CRYPT_LIB}
     ${Protobuf_LIBRARIES}
 )
 
