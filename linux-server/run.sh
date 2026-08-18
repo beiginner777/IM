@@ -9,6 +9,31 @@
 
 set -e
 
+# ============ Docker 环境初始化 ============
+sudo apt update
+sudo apt install -y docker.io
+
+# 配置 Docker 镜像加速（registry-mirrors）
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json > /dev/null <<'EOF'
+{
+  "builder": {
+    "gc": {
+      "defaultKeepStorage": "20GB",
+      "enabled": true
+    }
+  },
+  "experimental": false,
+  "registry-mirrors": [
+    "https://docker.m.daocloud.io",
+    "https://docker.1panel.live",
+    "https://hub.rat.dev"
+  ]
+}
+EOF
+
+sudo systemctl restart docker
+
 # 检测 compose 命令（新版 docker compose 或旧版 docker-compose）
 if docker compose version >/dev/null 2>&1; then
     COMPOSE="docker compose"
