@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libhiredis-dev \
     libspdlog-dev \
     libfmt-dev \
+    libxcrypt-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
@@ -49,6 +50,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libhiredis1.1.0 \
     libfmt9 \
     libspdlog1.12 \
+    libcrypt1 \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
