@@ -32,5 +32,8 @@ echo -n "hiredis:  "; dpkg -s libhiredis-dev | grep Version
 echo -n "spdlog:   "; dpkg -s libspdlog-dev | grep Version
 echo -n "fmt:      "; dpkg -s libfmt-dev | grep Version
 
-echo "=== 4. 环境安装成功 ==="
+echo "=== 4. 安装依赖的python包 ==="
+sudo apt install python3-pymysql -y
+
+echo "=== 5. 环境安装成功 ==="
 
