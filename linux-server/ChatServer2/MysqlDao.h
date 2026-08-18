@@ -188,7 +188,7 @@ private:
 		}
 	}
 private:
-	std::atomic_bool b_stop_;
+	std::atomic_bool b_stop_{false};
 	size_t pool_size_;
 	std::string host_;
 	std::string port_;
