@@ -485,10 +485,11 @@ long long RedisManager::generateMsgId()
 		if (reply != nullptr && reply->type == REDIS_REPLY_INTEGER) {
 			long long id = reply->integer;
 			// WAIT for replication to at least 1 slave (durability guarantee)
-			redisReply* waitReply = (redisReply*)redisCommand(connect_, "WAIT 1 100");
-			if (waitReply != nullptr) {
-				freeReplyObject(waitReply);
-			}
+			//（临时注释：WAIT 同步复制阻塞导致每条消息 ID 生成慢，改为异步复制观察 QPS）
+			//redisReply* waitReply = (redisReply*)redisCommand(connect_, "WAIT 1 100");
+			//if (waitReply != nullptr) {
+			//	freeReplyObject(waitReply);
+			//}
 			freeReplyObject(reply);
 			return id;
 		}
