@@ -164,6 +164,10 @@ services:
     command: AuthServer
     ports:
       - "8080:8080"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     depends_on:
       mysql-master:
         condition: service_healthy
@@ -182,6 +186,10 @@ services:
       - "8090:8090"     # 业务 TCP（客户端聊天）
       - "50053:50053"   # gRPC（跨服务）
       - "9100:9100"     # Prometheus /metrics
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     depends_on:
       mysql-master:
         condition: service_healthy
@@ -200,6 +208,10 @@ services:
       - "8091:8091"
       - "50054:50054"
       - "9101:9101"     # Prometheus /metrics
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     depends_on:
       mysql-master:
         condition: service_healthy
@@ -218,6 +230,10 @@ services:
       - "9090:9090"     # 业务 TCP（文件传输）
       - "51055:51055"   # gRPC
       - "9102:9102"     # Prometheus /metrics
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     depends_on:
       mysql-master:
         condition: service_healthy
@@ -234,6 +250,10 @@ services:
     command: SeckillServer
     ports:
       - "8101:8101"     # HTTP（秒杀业务）
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     depends_on:
       mysql-master:
         condition: service_healthy
