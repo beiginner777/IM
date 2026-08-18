@@ -16,7 +16,8 @@ HOST = "http://127.0.0.1:8100"   # Nginx 统一入口（auth 8080 / seckill 8101
 
 
 def login(uid: int) -> str:
-    r = requests.post(f"{HOST}/api/login", json={
+    # 走 /fe_login（Nginx 有该路由 → authserver）；/api/login 在 Nginx 无路由会被转到 seckill 导致 not found
+    r = requests.post(f"{HOST}/fe_login", json={
         "username": f"test{uid}", "password": "123456",
     }, headers={"X-Forwarded-For": "10.0.0.1"}, timeout=10)
     d = r.json()
