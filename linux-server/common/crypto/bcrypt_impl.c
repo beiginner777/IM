@@ -281,6 +281,7 @@ static void Blowfish_expandstate(blf_ctx *c, const uint8_t *data, uint16_t datab
                     ((uint32_t)key[j+2] << 8) | (uint32_t)key[j+3];
             d[1] ^= ((uint32_t)key[j+4] << 24) | ((uint32_t)key[j+5] << 16) |
                     ((uint32_t)key[j+6] << 8) | (uint32_t)key[j+7];
+            j += 8;
         } else {
             uint16_t t;
             for (t = 0; t < 4; t++) {
@@ -294,8 +295,6 @@ static void Blowfish_expandstate(blf_ctx *c, const uint8_t *data, uint16_t datab
                 if (j >= keybytes) j = 0;
             }
         }
-        j += 8;
-        if (j > keybytes) j = 0;
         Blowfish_encipher(c, d, d + 1);
         c->P[i]     = d[0];
         c->P[i + 1] = d[1];
