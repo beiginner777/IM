@@ -41,6 +41,33 @@ CREATE TABLE `chatmessage` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- 水平分表：chatmessage_0 ~ chatmessage_3（thread_id % 4 路由）
+-- 复合主键 (thread_id, message_id)，message_id 由 Redis INCR 全局生成
+--
+
+DROP TABLE IF EXISTS `chatmessage_0`;
+CREATE TABLE `chatmessage_0` (
+  `message_id` bigint unsigned NOT NULL,
+  `thread_id` bigint unsigned NOT NULL,
+  `sender_id` bigint unsigned NOT NULL,
+  `recv_id` bigint unsigned NOT NULL,
+  `content` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `status` tinyint NOT NULL DEFAULT '0' COMMENT '0=未读 1=已读 2=撤回',
+  `message_type` tinyint NOT NULL DEFAULT '0' COMMENT '消息类型: 0-文本 1-图片 2-表情 3-文件',
+  `client_msg_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`thread_id`, `message_id`),
+  UNIQUE KEY `idx_message_id` (`message_id`),
+  UNIQUE KEY `idx_client_msg_id` (`client_msg_id`),
+  KEY `idx_thread_created` (`thread_id`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `chatmessage_1` LIKE `chatmessage_0`;
+CREATE TABLE `chatmessage_2` LIKE `chatmessage_0`;
+CREATE TABLE `chatmessage_3` LIKE `chatmessage_0`;
+
+--
 -- Dumping data for table `chatmessage`
 --
 
