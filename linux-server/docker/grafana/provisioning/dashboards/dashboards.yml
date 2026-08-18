@@ -1,0 +1,13 @@
+# Grafana 面板自动加载：把 dashboards/ 下的 JSON 自动注册为面板
+apiVersion: 1
+
+providers:
+  - name: 'IM 监控大盘'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

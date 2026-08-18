@@ -54,6 +54,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# 文件上传存储目录（挂载 named volume，容器重启数据不丢）
+RUN mkdir -p /app/upload
+
 # 复制所有二进制（CMakeLists 设了 CMAKE_RUNTIME_OUTPUT_DIRECTORY=bin）
 COPY --from=builder /build/bin/AuthServer       /app/bin/
 COPY --from=builder /build/bin/StatusServer     /app/bin/

@@ -445,7 +445,11 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<HttpConnection> conn)
 	auto it = userBuckets_.find(uid);
 	if (it == userBuckets_.end()) { userBuckets_.emplace(uid, TokenBucket(5.0, 10.0)); it = userBuckets_.find(uid); }
 	if (!it->second.consume(1)) { sendAuthError(conn, "发送过于频繁"); return false; }
-	return RedisManager::getInstance()->checkRateLimit(uid, 100);
+	if (!RedisManager::getInstance()->checkRateLimit(uid, 100)) {
+		sendAuthError(conn, "发送过于频繁");
+		return false;
+	}
+	return true;
 }
 
 void LogicSystem::handlePostRequest(std::shared_ptr<HttpConnection> conn)
