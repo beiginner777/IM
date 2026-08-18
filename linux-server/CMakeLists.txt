@@ -52,7 +52,7 @@ endif()
 # libcrypt (libxcrypt) — bcrypt 用 crypt_r
 find_library(CRYPT_LIB crypt)
 if(NOT CRYPT_LIB)
-    message(FATAL_ERROR "libcrypt not found. apt install libxcrypt-dev")
+    message(FATAL_ERROR "libcrypt not found. apt install libcrypt-dev")
 endif()
 
 # 所有可执行文件输出到 server/bin/

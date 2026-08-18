@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libhiredis-dev \
     libspdlog-dev \
     libfmt-dev \
-    libxcrypt-dev \
+    libcrypt-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
