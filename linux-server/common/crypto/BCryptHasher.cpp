@@ -50,10 +50,9 @@ std::string BCryptHasher::generateHash(const std::string& password, unsigned int
         }
     }
     // Compute bcrypt hash using OpenBSD reference
-    std::string pwdWithNull = password + '\0';
     unsigned char ciphertext[24];
     bcrypt_hash(
-        (const unsigned char*)pwdWithNull.c_str(), pwdWithNull.size(),
+        (const unsigned char*)password.c_str(), password.length(),
         saltBytes, 16,
         cost,
         ciphertext);
@@ -98,10 +97,9 @@ bool BCryptHasher::verifyPassword(const std::string& password, const std::string
         }
     }
     // Compute
-    std::string pwdWithNull = password + '\0';
     unsigned char ciphertext[24];
     bcrypt_hash(
-        (const unsigned char*)pwdWithNull.c_str(), pwdWithNull.size(),
+        (const unsigned char*)password.c_str(), password.length(),
         saltBytes, 16,
         cost,
         ciphertext);
