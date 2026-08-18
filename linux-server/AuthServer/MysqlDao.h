@@ -49,6 +49,11 @@ public:
 		}
 		std::cout << "MysqlConnPool destructed ." << std::endl;
 	}
+	size_t size()
+	{
+		std::lock_guard<std::mutex> locker(mtx_);
+		return connections_.size();
+	}
 	std::unique_ptr<SqlConnection> getConnection()
 	{
 		std::unique_lock<std::mutex> locker_(mtx_);
