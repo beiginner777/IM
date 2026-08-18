@@ -12,12 +12,13 @@
 
 import requests, threading, argparse
 
-HOST = "http://127.0.0.1:8100"   # Nginx 统一入口（auth 8080 / seckill 8101）
+AUTH_HOST   = "http://127.0.0.1:8080"   # authserver 直连（登录 /fe_login）
+SECILL_HOST = "http://127.0.0.1:8101"   # seckillserver 直连（绕过 Nginx 限流，专测防超卖）
 
 
 def login(uid: int) -> str:
     # 走 /fe_login（Nginx 有该路由 → authserver）；/api/login 在 Nginx 无路由会被转到 seckill 导致 not found
-    r = requests.post(f"{HOST}/fe_login", json={
+    r = requests.post(f"{AUTH_HOST}/fe_login", json={
         "username": f"test{uid}", "password": "123456",
     }, headers={"X-Forwarded-For": "10.0.0.1"}, timeout=10)
     d = r.json()
@@ -51,12 +52,12 @@ def main():
         s = requests.Session()
         for _ in range(args.rounds):
             # 1. 买 → 拿 orderId
-            r = s.post(f"{HOST}/buy/1", headers=headers, timeout=5)
+            r = s.post(f"{SECILL_HOST}/buy/1", headers=headers, timeout=5)
             if not r.json().get("success"):
                 continue   # 售罄 / 限流
             oid = r.json()["orderId"]
             # 2. 支付
-            r = s.post(f"{HOST}/order/{oid}/pay", json={"password": "123456"},
+            r = s.post(f"{SECILL_HOST}/order/{oid}/pay", json={"password": "123456"},
                        headers=headers, timeout=5)
             if r.json().get("success"):
                 with lock:
