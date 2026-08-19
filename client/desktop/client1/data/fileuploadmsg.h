@@ -31,7 +31,7 @@ private:
 private:
     bool is_conneted_;
 
-    QTcpSocket* socket_; // 与 ResourceServer 通信的 socket
+    QSslSocket* socket_; // 与 ResourceServer 通信的 socket（TLS）
     QString host_; // 对应的 ResourceServer 主机
     uint16_t port_; // 对应的 ResourceServer 端口
 

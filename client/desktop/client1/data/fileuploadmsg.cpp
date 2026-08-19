@@ -589,7 +589,7 @@ void FileUploadMsg::slotConnToResServer(ServerInfo si)
     qDebug() << "Connecting to ResourceServer...";
     host_ = si.res_host_;
     port_ = static_cast<uint16_t>(si.res_port_.toUInt());
-    socket_->connectToHost(host_, port_);
+    socket_->connectToHostEncrypted(host_, port_);
 }
 
 void FileUploadMsg::slotTcpConnect(ServerInfo si)
@@ -602,7 +602,7 @@ void FileUploadMsg::slotTcpConnect(ServerInfo si)
     qDebug() << "Connecting to server...";
     host_ = si.host;
     port_ = static_cast<uint16_t>(si.port.toUInt());
-    socket_->connectToHost(host_, port_);
+    socket_->connectToHostEncrypted(host_, port_);
 }
 
 void FileUploadMsg::slotSendData(REQUEST_ID reqId,QByteArray data)
@@ -684,7 +684,7 @@ void FileUploadMsg::slotContinueDownloadFile(QString unique_name)
 
 void FileUploadMsg::onThreadStarted()
 {
-    socket_ = new QTcpSocket(this);
+    socket_ = new QSslSocket(this);
     timer_  = new QTimer(this);
     qDebug() << "File Thread: " << QThread::currentThread();
     // 连接信号与槽函数
