@@ -79,6 +79,7 @@ target_link_libraries(im_common PUBLIC
     Boost::system
     Boost::filesystem
     OpenSSL::Crypto
+    OpenSSL::SSL
     Threads::Threads
     ${MYSQLCPP_LIB}
     ${JSONCPP_LIB}

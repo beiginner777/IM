@@ -7,12 +7,26 @@
 CServer::CServer(boost::asio::io_context& ioc, std::string port)
 	: ioc_(ioc),
 	port_(static_cast<unsigned short>(atoi(port.c_str()))),
+	ssl_ctx_(ssl::context::tls_server),
+	ssl_cli_ctx_(ssl::context::tls_client),
 	acceptor_(ioc_, tcp::endpoint(tcp::v4(), port_)),
 	timer_(ioc),
 	heartCheckTimer_(ioc)
 {
+	auto cfg = ConfigManager::getInstance();
+	// 服务器证书：接受客户端连接
+	ssl_ctx_.use_certificate_chain_file(cfg["SSL"]["Cert"]);
+	ssl_ctx_.use_private_key_file(cfg["SSL"]["Key"], ssl::context::pem);
+	ssl_ctx_.set_options(ssl::context::default_workarounds
+		| ssl::context::no_sslv2
+		| ssl::context::no_sslv3
+		| ssl::context::no_tlsv1
+		| ssl::context::no_tlsv1_1);
+	// CA 证书：连接 StatusServer 时校验服务端
+	ssl_cli_ctx_.load_verify_file(cfg["SSL"]["CaCert"]);
+
 	auto& start_server_ioc = AsioIOContextThreadPool::getInstance()->getIOContext();
-	connectionToStatusServer_ = std::make_shared<CSession>(start_server_ioc, this);
+	connectionToStatusServer_ = std::make_shared<CSession>(start_server_ioc, ssl_cli_ctx_, this);
 	if (!connectToStatusServer()) {
 		std::cout << "Connect to StatusServer failed, please check the StatusServer is running or not." << std::endl;
 		exit(-1);
@@ -53,7 +67,7 @@ bool CServer::connectToStatusServer()
 	std::string start_server_host = cfg["StatusServer"]["Host"];
 	std::string start_server_port = cfg["StatusServer"]["TCP_port"];
 	// 打开Socket
-	connectionToStatusServer_->getSocket().open(tcp::v4());
+	connectionToStatusServer_->getSocket().lowest_layer().open(tcp::v4());
 	// 连接服务器
 	boost::system::error_code ec;
 	tcp::resolver resolver(connectionToStatusServer_->getSocket().get_executor());
@@ -63,10 +77,16 @@ bool CServer::connectToStatusServer()
 		std::cout << "error message " << ec.message() << std::endl;
 		return false;
 	}
-	connectionToStatusServer_->getSocket().connect(results->endpoint(), ec);
+	connectionToStatusServer_->getSocket().lowest_layer().connect(results->endpoint(), ec);
 	if (ec.value()) {
 		std::cout << "error code: " << ec.value() << std::endl;
 		std::cout << "error message " << ec.message() << std::endl;
+		return false;
+	}
+	// TLS 握手（client 侧，校验 StatusServer 证书）
+	connectionToStatusServer_->getSocket().handshake(ssl::stream_base::client, ec);
+	if (ec.value()) {
+		std::cout << "TLS handshake to StatusServer failed: " << ec.message() << std::endl;
 		return false;
 	}
 	std::cout << "Connect to StatusServer successfuly." << std::endl;
@@ -85,8 +105,8 @@ bool CServer::connectToStatusServer()
 void CServer::startAccept()
 {
 	auto& ioc = AsioIOContextThreadPool::getInstance()->getIOContext();
-	std::shared_ptr<CSession> session = std::make_shared<CSession>(ioc, this);
-	acceptor_.async_accept(session->getSocket(), std::bind(&CServer::handleAccept,this,session,std::placeholders::_1));
+	std::shared_ptr<CSession> session = std::make_shared<CSession>(ioc, ssl_ctx_, this);
+	acceptor_.async_accept(session->getSocket().lowest_layer(), std::bind(&CServer::handleAccept,this,session,std::placeholders::_1));
 }
 
 void CServer::handleAccept(std::shared_ptr<CSession> session, const boost::system::error_code& ec)
@@ -96,9 +116,19 @@ void CServer::handleAccept(std::shared_ptr<CSession> session, const boost::syste
 		std::cout << "error code: " << ec.value() << std::endl;
 		std::cout << "error message: " << ec.message() << std::endl;
 	} else {
-		session->start();
-		std::lock_guard<std::mutex> locker_(mtx_);
-		sessions_.insert(std::pair<std::string, std::shared_ptr<CSession>>(session->getUuid(),session));
+		// TLS 握手，完成后才开始读写
+		auto self = shared_from_this();
+		session->getSocket().async_handshake(ssl::stream_base::server,
+			[self, session](const boost::system::error_code& ec) {
+				if (ec) {
+					std::cout << "TLS handshake failed: " << ec.message() << std::endl;
+					session->Close();
+					return;
+				}
+				session->start();
+				std::lock_guard<std::mutex> locker_(self->mtx_);
+				self->sessions_.insert(std::pair<std::string, std::shared_ptr<CSession>>(session->getUuid(), session));
+			});
 	}
 	startAccept();
 }

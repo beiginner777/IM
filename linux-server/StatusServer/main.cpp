@@ -6,6 +6,7 @@
 #include "StatusServiceImpl.h"
 #include "CServer.h"
 #include "MetricsServer.h"
+#include "SslUtil.h"
 int main() {
     // 1. 获取配置
     auto cfg = ConfigManager::getInstance();
@@ -22,7 +23,8 @@ int main() {
     StatusServiceImpl status_service;
     status_service.setCServer(session_server.get());
     grpc::ServerBuilder builder;
-    builder.AddListeningPort(status_addr, grpc::InsecureServerCredentials());
+    builder.AddListeningPort(status_addr,
+        sslutil::makeServerCredentials(cfg["SSL"]["Cert"], cfg["SSL"]["Key"]));
     builder.RegisterService(&status_service);
     std::unique_ptr<grpc::Server> status_server(builder.BuildAndStart());
     std::cout << "StatusServer listening on " << status_addr << std::endl;

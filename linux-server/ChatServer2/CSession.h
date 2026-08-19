@@ -7,12 +7,12 @@ class CServer;
 class CSession : public std::enable_shared_from_this<CSession>
 {
 public:
-	CSession(boost::asio::io_context& ioc, CServer* server);
+	CSession(boost::asio::io_context& ioc, boost::asio::ssl::context& ctx, CServer* server);
 	~CSession();
 	void start();
 	void Close();
 	void setUserId(int userId) { userId_ = userId; }
-	tcp::socket& getSocket() { return socket_; }
+	ssl::stream<tcp::socket>& getSocket() { return socket_; }
 	std::string& getUuid() { return uuid_;  }
 	int getUserId() { return userId_; }
 	void Send(const char* msg, size_t max_length, short msgid);
@@ -32,7 +32,7 @@ private:
 private:
 	bool b_close_;
 	boost::asio::io_context& ioc_;
-	boost::asio::ip::tcp::socket socket_;
+	boost::asio::ssl::stream<boost::asio::ip::tcp::socket> socket_;
 	std::string uuid_;
 	int userId_;
 	char data_[MAX_RECV_LENGTH];

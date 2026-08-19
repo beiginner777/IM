@@ -5,6 +5,7 @@
 #include "global.h"
 #include "message.grpc.pb.h"
 #include "ConfigManager.h"
+#include "SslUtil.h"
 #include <unordered_map>
 #include <memory>
 #include <queue>
@@ -22,7 +23,7 @@ public:
     {
         for (std::size_t i = 0; i < poolSize; ++i) {
             auto channel = grpc::CreateChannel(host + ":" + port,
-                grpc::InsecureChannelCredentials());
+                sslutil::makeChannelCredentials(ConfigManager::getInstance()["SSL"]["CaCert"]));
             connections_.push(ChatService::NewStub(channel));
         }
     }

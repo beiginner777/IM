@@ -1,9 +1,13 @@
 #include "StatusClientSession.h"
 StatusClientSession::StatusClientSession(boost::asio::io_context& ioc)
 	: ioc_(ioc)
-	, socket_(ioc)
+	, ssl_ctx_(ssl::context::tls_client)
+	, socket_(ioc, ssl_ctx_)
 	, connected_(false)
 {
+	// 加载 CA 证书，用于校验 StatusServer 的服务器证书
+	auto cfg = ConfigManager::getInstance();
+	ssl_ctx_.load_verify_file(cfg["SSL"]["CaCert"]);
 }
 StatusClientSession::~StatusClientSession()
 {
@@ -23,10 +27,16 @@ bool StatusClientSession::connect()
 		std::cout << "[StatusClientSession] resolve failed, error message: " << ec.message() << std::endl;
 		return false;
 	}
-	socket_.connect(results->endpoint(), ec);
+	socket_.lowest_layer().connect(results->endpoint(), ec);
 	if (ec) {
 		std::cout << "[StatusClientSession] connect StatusServer(" << status_host << ":" << status_port
 			<< ") failed, error message: " << ec.message() << std::endl;
+		return false;
+	}
+	// TLS 握手（client 侧，校验 StatusServer 证书）
+	socket_.handshake(ssl::stream_base::client, ec);
+	if (ec) {
+		std::cout << "[StatusClientSession] TLS handshake failed: " << ec.message() << std::endl;
 		return false;
 	}
 	connected_ = true;
@@ -134,6 +144,6 @@ void StatusClientSession::Close()
 	}
 	connected_ = false;
 	boost::system::error_code ec;
-	socket_.close(ec);
+	socket_.lowest_layer().close(ec);
 	std::cout << "[StatusClientSession] connection to StatusServer closed." << std::endl;
 }

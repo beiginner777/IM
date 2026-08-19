@@ -4,9 +4,20 @@
 CServer::CServer(boost::asio::io_context& ioc, std::string port)
     : ioc_(ioc),
       port_(static_cast<unsigned short>(atoi(port.c_str()))),
+      ssl_ctx_(ssl::context::tls_server),
       acceptor_(ioc_, tcp::endpoint(tcp::v4(), port_)),
       timer_(ioc)
 {
+	// 加载 TLS 证书（自签，路径配置在 config.ini [SSL]）
+	auto cfg = ConfigManager::getInstance();
+	ssl_ctx_.use_certificate_chain_file(cfg["SSL"]["Cert"]);
+	ssl_ctx_.use_private_key_file(cfg["SSL"]["Key"], ssl::context::pem);
+	ssl_ctx_.set_options(ssl::context::default_workarounds
+		| ssl::context::no_sslv2
+		| ssl::context::no_sslv3
+		| ssl::context::no_tlsv1
+		| ssl::context::no_tlsv1_1);
+
 	std::cout << "Server starting on port: " << port_ << std::endl;
 	std::cout << "Local endpoint: " << acceptor_.local_endpoint().address().to_string()
 	          << ":" << acceptor_.local_endpoint().port() << std::endl;
@@ -54,8 +65,8 @@ void CServer::storeInServer(std::shared_ptr<CSession> session, ServerType server
 
 void CServer::startAccept()
 {
-	std::shared_ptr<CSession> session = std::make_shared<CSession>(ioc_, this);
-	acceptor_.async_accept(session->getSocket(),
+	std::shared_ptr<CSession> session = std::make_shared<CSession>(ioc_, ssl_ctx_, this);
+	acceptor_.async_accept(session->getSocket().lowest_layer(),
 	                       std::bind(&CServer::handleAccept, this, session, std::placeholders::_1));
 }
 
@@ -69,7 +80,17 @@ void CServer::handleAccept(std::shared_ptr<CSession> session, const boost::syste
 	}
 	else
 	{
-		session->start();
+		// TLS 握手，完成后才开始读写
+		auto self = shared_from_this();
+		session->getSocket().async_handshake(ssl::stream_base::server,
+			[self, session](const boost::system::error_code& ec) {
+				if (ec) {
+					std::cout << "TLS handshake failed: " << ec.message() << std::endl;
+					session->Close();
+					return;
+				}
+				session->start();
+			});
 	}
 	startAccept();
 }

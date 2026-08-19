@@ -1,5 +1,6 @@
 #include "global.h"
 #include "SingleTon.h"
+#include "SslUtil.h"
 #include "message.grpc.pb.h"
 using namespace grpc;
 using namespace message;
@@ -11,7 +12,7 @@ public:
 	{
 		for (std::size_t i = 0; i < poolSize; ++i)
 		{
-			std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(host + ":" + port, grpc::InsecureChannelCredentials());
+			std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(host + ":" + port, sslutil::makeChannelCredentials(ConfigManager::getInstance()["SSL"]["CaCert"]));
 			connections_.push(ChatService::NewStub(channel));
 		}
 	}

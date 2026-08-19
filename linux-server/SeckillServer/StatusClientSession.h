@@ -25,7 +25,8 @@ private:
 	void handleWrite(boost::system::error_code ec, std::shared_ptr<StatusClientSession> self);
 private:
 	boost::asio::io_context& ioc_;
-	tcp::socket socket_;
+	ssl::context ssl_ctx_;
+	ssl::stream<tcp::socket> socket_;
 	std::atomic_bool connected_;
 	char head_[HEAD_TOTOL_LEN];
 	char body_[MAX_RECV_LENGTH];

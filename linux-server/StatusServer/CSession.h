@@ -7,11 +7,11 @@ class CServer;
 class CSession : public std::enable_shared_from_this<CSession>
 {
 public:
-	CSession(boost::asio::io_context& ioc, CServer* server);
+	CSession(boost::asio::io_context& ioc, boost::asio::ssl::context& ctx, CServer* server);
 	~CSession();
 	void start();
 	void Close();
-	tcp::socket& getSocket() { return socket_; }
+	ssl::stream<tcp::socket>& getSocket() { return socket_; }
 	std::string& getUuid() { return uuid_; }
 	// 发送数据
 	void Send(const char* msg, size_t max_length, short msgid);
@@ -39,7 +39,7 @@ private:
 	// 连接是否关闭
 	bool b_close_;
 	// 当前 CSession 对应的socket，用于与客户端通信
-	boost::asio::ip::tcp::socket socket_;
+	boost::asio::ssl::stream<boost::asio::ip::tcp::socket> socket_;
 	// uuid标识符,存放在CServer的map中
 	std::string uuid_;
 	// 存储接收到的消息

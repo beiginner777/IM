@@ -9,6 +9,7 @@
 #include "MysqlManager.h"
 #include "MetricsServer.h"
 #include "DynamicConfig.h"
+#include "SslUtil.h"
 // to do ...
 // ������ uid_ token_ uip_ ��ʱ����Ҫ�����Լ����ù���ʱ�䡣
 // ��Ҫͬʱ���� tcp���� �� rpc����
@@ -23,7 +24,8 @@ int main()
 		// rpc����
 		std::string serverAddr = host + ":" + RPCPort;
 		::grpc::ServerBuilder builder;
-		builder.AddListeningPort(serverAddr,grpc::InsecureServerCredentials());
+		builder.AddListeningPort(serverAddr,
+			sslutil::makeServerCredentials(cfg["SSL"]["Cert"], cfg["SSL"]["Key"]));
 		ChatServiceImpl service;
 		builder.RegisterService(&service);
 		std::unique_ptr<::grpc::Server> server(builder.BuildAndStart());

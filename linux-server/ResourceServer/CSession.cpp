@@ -1,9 +1,9 @@
 ﻿#include "CSession.h"
 #include "CServer.h"
 #include "LogicSystem.h"
-CSession::CSession(boost::asio::io_context& ioc, CServer* server)
+CSession::CSession(boost::asio::io_context& ioc, boost::asio::ssl::context& ctx, CServer* server)
 	: ioc_(ioc)
-	, socket_(ioc)
+	, socket_(ioc, ctx)
 	, server_(server)
 	, userId_(0)
 	, b_close_(false)
@@ -25,7 +25,7 @@ void CSession::start()
 void CSession::Close()
 {
 	std::lock_guard<std::mutex> locker_(mtx_);
-	socket_.close();
+	socket_.lowest_layer().close();
 	b_close_ = true;
 }
 void CSession::Send(const char* msg, int max_length, short msgid)

@@ -3,9 +3,9 @@
 #include "LogicSystem.h"
 #include "RedisManager.h"
 #include "MessageDeduplicator.h"
-CSession::CSession(boost::asio::io_context& ioc, CServer* server)
+CSession::CSession(boost::asio::io_context& ioc, boost::asio::ssl::context& ctx, CServer* server)
 	: ioc_(ioc)
-	, socket_(ioc)
+	, socket_(ioc, ctx)
 	, server_(server)
 	, userId_(0)
 	, b_close_(false)
@@ -30,7 +30,7 @@ void CSession::Close()
 	if(this->uuid_ == server_->getConnectionToStatusServerUuid()) {
 		std::cout << "Connection to StatusServer is closed." << std::endl;
 		std::lock_guard<std::mutex> locker_(mtx_);
-		socket_.close();
+		socket_.lowest_layer().close();
 		b_close_ = true;
 		return;
 	}
