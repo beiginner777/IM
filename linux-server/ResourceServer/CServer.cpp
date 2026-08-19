@@ -110,18 +110,17 @@ void CServer::handleAccept(std::shared_ptr<CSession> session, const boost::syste
 	}
 	else
 	{
-		// TLS 握手，完成后才开始读写
-		auto self = shared_from_this();
+		// TLS 握手，完成后才开始读写（ResourceServer 的 CServer 是 main 栈对象，捕获 this 而非 shared_from_this）
 		session->getSocket().async_handshake(ssl::stream_base::server,
-			[self, session](const boost::system::error_code& ec) {
+			[this, session](const boost::system::error_code& ec) {
 				if (ec) {
 					std::cout << "TLS handshake failed: " << ec.message() << std::endl;
 					session->Close();
 					return;
 				}
 				session->start();
-				std::lock_guard<std::mutex> locker_(self->mtx_);
-				self->sessions_.insert(std::pair<std::string, std::shared_ptr<CSession>>(session->getUuid(), session));
+				std::lock_guard<std::mutex> locker_(mtx_);
+				sessions_.insert(std::pair<std::string, std::shared_ptr<CSession>>(session->getUuid(), session));
 			});
 	}
 	startAccept();
