@@ -11,7 +11,7 @@ request.interceptors.request.use((config) => {
 })
 
 export function setBaseURL(host: string, port: number) {
-  request.defaults.baseURL = `http://${host}:${port}`
+  request.defaults.baseURL = `https://${host}:${port}`
 }
 export function resetBaseURL() {
   request.defaults.baseURL = '/api'
@@ -39,6 +39,6 @@ request.interceptors.response.use(
 
 // refresh 后从 localStorage 恢复 baseURL
 const saved = getServerInfo()
-if (saved) request.defaults.baseURL = `http://${saved.host}:${saved.port}`
+if (saved) request.defaults.baseURL = `https://${saved.host}:${saved.port}`
 
 export default request
