@@ -8,7 +8,7 @@
 # 前置: openssl (>= 1.1.1，支持 -addext)
 # 产物: ./certs/{ca.key,ca.crt,server.key,server.crt}
 # 注意: 私钥（*.key）只在服务器本地生成，不入 git，不随镜像分发
-set -euo pipefail
+set -eu
 
 CERT_DIR="$(cd "$(dirname "$0")" && pwd)/certs"
 mkdir -p "$CERT_DIR"
