@@ -24,11 +24,12 @@ echo "=== 3. 验证关键库 ==="
 echo -n "Boost:    "; dpkg -s libboost-system-dev | grep Version
 echo -n "OpenSSL:  "; openssl version
 echo -n "Protobuf: "; protoc --version
+echo -n "gRPC:     "; dpkg -s libgrpc++-dev | grep Version
+echo -n "gRPC插件: "; which grpc_cpp_plugin
 echo -n "JsonCpp:  "; dpkg -s libjsoncpp-dev | grep Version
 echo -n "MySQL:    "; dpkg -s libmysqlcppconn-dev | grep Version
 echo -n "hiredis:  "; dpkg -s libhiredis-dev | grep Version
 echo -n "spdlog:   "; dpkg -s libspdlog-dev | grep Version
 
 echo "=== 4. 完成 ==="
-echo "接下来: cd /mnt/e/File/jerry/IM/server && mkdir -p build && cd build"
-echo "       cmake .. -DCMAKE_BUILD_TYPE=Release && make -j\$(nproc)"
+echo "接下来: cd /mnt/e/File/jerry/IM/linux-server && sh build.sh"

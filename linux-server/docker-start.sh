@@ -6,6 +6,12 @@
 
 set -e
 
+# ---------- 前置检查：TLS 证书 ----------
+if [ ! -f docker/certs/server.crt ]; then
+    echo "错误：TLS 证书未生成。请先执行: cd docker && sh gen_certs.sh [公网IP]" >&2
+    exit 1
+fi
+
 # ---------- 网络：容器间通过服务名（redis-master 等）互访 ----------
 docker network create im-net 2>/dev/null || true
 
@@ -19,6 +25,7 @@ docker start mysql-master 2>/dev/null || docker run -d --name mysql-master --net
   -e MYSQL_DATABASE=JerryChat \
   -v $(pwd)/MySQL/master.cnf:/etc/mysql/conf.d/master.cnf:ro \
   -v $(pwd)/MySQL/dump.sql:/docker-entrypoint-initdb.d/dump.sql:ro \
+  -v $(pwd)/MySQL/migrate_shard.sql:/docker-entrypoint-initdb.d/migrate_shard.sql:ro \
   mysql:8.0 --default-authentication-plugin=mysql_native_password
 
 # slave (宿主机 3308) —— 只挂 slave.cnf，不挂 dump.sql（数据靠 binlog 复制，避免"No database selected"报错）
@@ -81,6 +88,51 @@ for i in $(seq 1 30); do
   echo "  MySQL 启动中... ($i/30)"; sleep 2
 done
 
+echo "=== 配置 MySQL 主从复制 ==="
+for i in $(seq 1 30); do
+  if docker exec mysql-slave mysqladmin ping -uroot -p123456 2>/dev/null | grep -q alive; then
+    echo "MySQL slave 已就绪"; break
+  fi
+  echo "  MySQL slave 启动中... ($i/30)"; sleep 2
+done
+
+# master 创建复制账号（IF NOT EXISTS 保证可重复执行）
+docker exec mysql-master mysql -uroot -p123456 -e \
+    "CREATE USER IF NOT EXISTS 'repl'@'%' IDENTIFIED BY '123456'; \
+     GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%'; \
+     FLUSH PRIVILEGES;"
+
+# 从 master 导出（--master-data=2 记录 binlog 位置）
+docker exec mysql-master mysqldump -uroot -p123456 \
+    --databases JerryChat --single-transaction --master-data=2 --set-gtid-purged=OFF \
+    > /tmp/im_master_dump.sql
+
+MASTER_LOG_FILE=$(grep -oP "MASTER_LOG_FILE='\K[^']+" /tmp/im_master_dump.sql | head -1)
+MASTER_LOG_POS=$(grep -oP "MASTER_LOG_POS=\K[0-9]+" /tmp/im_master_dump.sql | head -1)
+if [ -z "$MASTER_LOG_FILE" ] || [ -z "$MASTER_LOG_POS" ]; then
+    echo "错误：未能从 dump 提取 binlog 位置" >&2
+    exit 1
+fi
+echo "master binlog: $MASTER_LOG_FILE @ $MASTER_LOG_POS"
+
+# 导入 slave
+docker exec -i mysql-slave mysql -uroot -p123456 < /tmp/im_master_dump.sql
+
+# 建立主从关系（幂等，可重复执行）
+docker exec mysql-slave mysql -uroot -p123456 -e \
+    "STOP SLAVE; RESET SLAVE ALL; \
+     CHANGE MASTER TO \
+       MASTER_HOST='mysql-master', \
+       MASTER_USER='repl', \
+       MASTER_PASSWORD='123456', \
+       MASTER_LOG_FILE='$MASTER_LOG_FILE', \
+       MASTER_LOG_POS=$MASTER_LOG_POS; \
+     START SLAVE;"
+
+echo "MySQL 主从复制状态："
+docker exec mysql-slave mysql -uroot -p123456 -e "SHOW SLAVE STATUS\G" \
+    | grep -E "Slave_IO_Running|Slave_SQL_Running|Seconds_Behind_Master" || true
+
 echo "=== 等待 Redis master 就绪 ==="
 for i in $(seq 1 15); do
   if docker exec redis-master redis-cli -a 123456 ping 2>/dev/null | grep -q PONG; then
@@ -95,7 +147,7 @@ docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
 echo ""
 echo "=== 提示 ==="
-echo "MySQL 主从复制需手动 CHANGE MASTER TO（脚本只铺好 server-id/log-bin/read-only 配置）"
+echo "MySQL 主从复制已自动配置（CHANGE MASTER TO + START SLAVE）"
 echo "验证哨兵:  docker exec sentinel-1 redis-cli -p 26379 SENTINEL master mymaster"
 echo "验证主从:  docker exec redis-master redis-cli -a 123456 INFO replication | grep connected_slaves"
 echo "改动配置后需先 docker rm 旧容器再重跑本脚本（docker start 不会应用新配置）"

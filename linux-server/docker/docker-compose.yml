@@ -29,6 +29,7 @@ services:
       - mysql-master-data:/var/lib/mysql
       - ../MySQL/master.cnf:/etc/mysql/conf.d/master.cnf:ro
       - ../MySQL/dump.sql:/docker-entrypoint-initdb.d/dump.sql:ro
+      - ../MySQL/migrate_shard.sql:/docker-entrypoint-initdb.d/migrate_shard.sql:ro
     command: --default-authentication-plugin=mysql_native_password
     networks:
       - im-net
