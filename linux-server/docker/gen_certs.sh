@@ -5,7 +5,7 @@
 #   例: ./gen_certs.sh 1.2.3.4    把公网IP加入证书 SAN（客户端通过公网IP访问时需要）
 #       ./gen_certs.sh            不填则只覆盖 localhost / 127.0.0.1 / docker 容器名
 #
-# 前置: openssl (>= 1.1.1，支持 -addext)
+# 前置: openssl（任意版本，SAN 通过 -extfile 临时 cnf 指定）
 # 产物: ./certs/{ca.key,ca.crt,server.key,server.crt}
 # 注意: 私钥（*.key）只在服务器本地生成，不入 git，不随镜像分发
 set -eu
@@ -35,12 +35,21 @@ if [ -n "$SERVER_IP" ]; then
     SAN="$SAN,IP:$SERVER_IP"
 fi
 
-echo "==> [3/3] 用 CA 签发服务器证书"
+echo "==> [3/3] 用 CA 签发服务器证书（-extfile 写 SAN，兼容 openssl < 1.1.1）"
+cat > server_san.cnf <<EOF
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+[req_distinguished_name]
+[v3_req]
+subjectAltName = $SAN
+EOF
+
 openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial \
     -out server.crt -days "$DAYS" -sha256 \
-    -addext "subjectAltName=$SAN"
+    -extfile server_san.cnf -extensions v3_req
 
-rm -f server.csr ca.srl
+rm -f server.csr ca.srl server_san.cnf
 
 echo ""
 echo "✅ 证书生成完毕: $CERT_DIR"
