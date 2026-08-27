@@ -3,6 +3,7 @@
 #include <boost/property_tree/ini_parser.hpp>
 #include <iostream>
 #include <vector>
+#include <cstdlib>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -29,6 +30,13 @@ static void loadIni(const std::string& path,
 
 ConfigManager::ConfigManager()
 {
+    // 0. 环境变量 IM_CONFIG 指定配置路径（裸机部署用，优先级最高）
+    const char* envConfig = std::getenv("IM_CONFIG");
+    if (envConfig && envConfig[0] != '\0') {
+        loadIni(envConfig, configData_);
+        return;
+    }
+
     // 1. 命令行传了路径 → 直接用
     if (!configPath_.empty()) {
         loadIni(configPath_, configData_);

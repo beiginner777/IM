@@ -34,6 +34,8 @@ private:
 	boost::asio::io_context& ioc_;
 	// 需要放在 acceptor 前初始化
 	unsigned short port_;
+	// TLS 上下文（加载服务器证书，供所有 CSession 握手用）
+	ssl::context ssl_ctx_;
 	tcp::acceptor acceptor_;
 	// 存放客户端连接
 	std::map<std::string, std::shared_ptr<CSession>> sessions_;

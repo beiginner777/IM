@@ -526,7 +526,7 @@ void TcpMsg::attemptReconnect()
         qDebug() << "trying to connect to server, continue";
     } else {
         qDebug() << "Reconnect attempt" << (reconnectAttempts_ + 1);
-        socket_->connectToHost(host_,port_);
+        socket_->connectToHostEncrypted(host_,port_);
         reconnectAttempts_++;
     }
     // 如果还没达到最大次数，启动定时器等待下次重连
@@ -986,7 +986,7 @@ void TcpMsg::slotTcpConnect(ServerInfo si)
     qDebug() << "Connecting to ChatServer...";
     host_ = si.host;
     port_ = static_cast<uint16_t>(si.port.toUInt());
-    socket_->connectToHost(host_, port_);
+    socket_->connectToHostEncrypted(host_, port_);
 }
 
 void TcpMsg::slotSendData(REQUEST_ID reqId,QByteArray data)
@@ -1044,7 +1044,7 @@ void TcpMsg::slotSendData(REQUEST_ID reqId,QByteArray data)
 
 void TcpMsg::onThreadStarted()
 {
-    socket_ = new QTcpSocket(this);
+    socket_ = new QSslSocket(this);
     timer_  = new QTimer(this);
     reconnectTimer_ = new QTimer(this);
     reconnectTimer_->setSingleShot(true); // 单次定时器，每次触发后需重新 start

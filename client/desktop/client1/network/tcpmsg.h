@@ -50,7 +50,7 @@ private:
     void attemptReconnect();
 
 private:
-    QTcpSocket* socket_; // 与 ChatServer 通信的 socket
+    QSslSocket* socket_; // 与 ChatServer 通信的 socket（TLS）
     QString host_; // 对应的 ChatServer 主机
     uint16_t port_; // 对应的 ChatServer 端口
     QByteArray buffer_; // 接受缓冲区

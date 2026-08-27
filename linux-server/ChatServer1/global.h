@@ -6,6 +6,7 @@
 #include <boost/beast.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ssl.hpp>
 #include <memory>
 #include <mutex>
 #include <boost/uuid/uuid_io.hpp>
@@ -79,6 +80,7 @@ namespace beast = boost::beast;
 namespace http = boost::beast::http;
 namespace net = boost::asio;
 using tcp = boost::asio::ip::tcp;
+namespace ssl = boost::asio::ssl;
 enum ERROE_CODR
 {
     ERROR_JSON = -1024,

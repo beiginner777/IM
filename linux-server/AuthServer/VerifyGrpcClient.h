@@ -8,6 +8,7 @@
 #include "global.h"
 #include "SingleTon.h"
 #include "ConfigManager.h"
+#include "SslUtil.h"
 using grpc::Channel;
 using grpc::Status;
 using grpc::ClientContext;
@@ -28,7 +29,7 @@ public:
 		for (int i = 0; i < conn_size; ++i)
 		{
 			// 注意这里使用 host + ":" + port 就会导致redisConn--》stub 的status 失败
- 			std::shared_ptr<Channel> channel = grpc::CreateChannel(HOST_PORT, grpc::InsecureChannelCredentials());
+ 			std::shared_ptr<Channel> channel = grpc::CreateChannel(HOST_PORT, sslutil::makeChannelCredentials(ConfigManager::getInstance()["SSL"]["CaCert"]));
 			auto stub = VarifyService::NewStub(channel);
 			std::shared_ptr<VarifyService::Stub> _stub = std::move(stub);
 			connections_.emplace(_stub);

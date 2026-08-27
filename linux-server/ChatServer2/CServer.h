@@ -38,6 +38,10 @@ private:
 	boost::asio::io_context& ioc_;
 	// 需要放在 acceptor 前初始化
 	unsigned short port_;
+	// TLS 上下文：接受客户端连接（服务器证书）
+	ssl::context ssl_ctx_;
+	// TLS 上下文：连接 StatusServer（加载 CA 证书校验服务端）
+	ssl::context ssl_cli_ctx_;
 	// 监听器
 	tcp::acceptor acceptor_;
 	// 存放客户端连接

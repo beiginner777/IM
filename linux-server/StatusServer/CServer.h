@@ -40,6 +40,8 @@ private:
 	boost::asio::io_context& ioc_;
 	// 需要放在 acceptor 前初始化
 	unsigned short port_;
+	// TLS 上下文（加载服务器证书，供所有 CSession 握手用）
+	ssl::context ssl_ctx_;
 	// 负责监听和接受连接
 	tcp::acceptor acceptor_;
 	// 存放连接 uuid : ChatServer_CSession

@@ -7,6 +7,7 @@
 #include "global.h"
 #include "SingleTon.h"
 #include "ConfigManager.h"
+#include "SslUtil.h"
 #include "message.grpc.pb.h"
 using grpc::Channel;
 using grpc::Status;
@@ -33,7 +34,7 @@ public:
 		port_ = port;
 		poolSize_ = conn_size;
 		for (size_t i = 0; i < poolSize_; ++i) {
-			std::shared_ptr<Channel> channel = grpc::CreateChannel(host + ":" + port, grpc::InsecureChannelCredentials());
+			std::shared_ptr<Channel> channel = grpc::CreateChannel(host + ":" + port, sslutil::makeChannelCredentials(ConfigManager::getInstance()["SSL"]["CaCert"]));
 			connections_.push(StatusService::NewStub(channel));
 		}
 	}

@@ -2,9 +2,9 @@
 #include "CServer.h"
 #include "RedisManager.h"
 #include "LogicSystem.h"
-CSession::CSession(boost::asio::io_context& ioc, CServer* server)
+CSession::CSession(boost::asio::io_context& ioc, boost::asio::ssl::context& ctx, CServer* server)
 	: ioc_(ioc)
-	, socket_(ioc)
+	, socket_(ioc, ctx)
 	, server_(server)
 	, b_close_(false)
 	, recv_head_node_ (std::make_shared<RecvNode>(HEAD_TOTOL_LEN,-1))
@@ -29,7 +29,7 @@ void CSession::Close()
 {
 	std::cout << "Session(uuid = " << uuid_ << " ) is closed." << std::endl;
 	std::lock_guard<std::mutex> locker_(mtx_);
-	socket_.close();
+	socket_.lowest_layer().close();
 	b_close_ = true;
 	return;
 }

@@ -1,7 +1,7 @@
 #!/bin/bash
 # 编译 C++ 服务（裸机部署）
 # 用法: sh build.sh
-# 前提: 已跑 sh env.sh 装好依赖
+# 前提: 已跑 sudo sh docker/setup_wsl.sh 装好依赖
 
 set -e
 

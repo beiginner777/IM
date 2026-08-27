@@ -18,6 +18,7 @@
 #include <QSettings>
 #include <QDebug>
 #include <QTcpSocket>
+#include <QSslSocket>
 #include <QString>
 #include <QByteArray>
 #include <QObject>
