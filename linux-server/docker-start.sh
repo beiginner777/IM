@@ -6,9 +6,13 @@
 
 set -e
 
+# 切到脚本所在目录（linux-server/），保证相对路径正确
+cd "$(dirname "$0")"
+
 # ---------- 前置检查：TLS 证书 ----------
 if [ ! -f docker/certs/server.crt ]; then
-    echo "错误：TLS 证书未生成。请先执行: cd docker && sh gen_certs.sh [公网IP]" >&2
+    echo "错误：TLS 证书未生成。未找到 $(pwd)/docker/certs/server.crt" >&2
+    echo "请先执行: cd $(pwd)/docker && bash gen_certs.sh [公网IP]" >&2
     exit 1
 fi
 
