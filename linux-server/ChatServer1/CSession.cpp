@@ -40,7 +40,7 @@ void CSession::Close()
 	}
 	std::cout << "Session(uuid = " << uuid_ << " ) is closed, userId = " << userId_ << std::endl;
 	std::lock_guard<std::mutex> locker_(mtx_);
-	socket_.close();
+	socket_.lowest_layer().close();
 	b_close_ = true;
 	server_->clearSession(uuid_);
 	auto cfg = ConfigManager::getInstance();
