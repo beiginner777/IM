@@ -373,7 +373,7 @@ void TcpMsg::sendImgMsg(REQUEST_ID reqId, int len, QByteArray data)
 void TcpMsg::registerSignal()
 {
     // 与服务器建立连接
-    connect(socket_,&QTcpSocket::connected,[&](){
+    connect(socket_,&QSslSocket::encrypted,[&](){
         qDebug() << "connect to ChatServer(host:"<< host_ << ":" << port_ << ").";
         // 如果是断线重连的，那么就不需要重新打开一个界面
         if(reconnectEnabled_) {

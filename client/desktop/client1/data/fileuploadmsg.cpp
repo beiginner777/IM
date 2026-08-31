@@ -467,7 +467,7 @@ void FileUploadMsg::registerFunctionCallbacks()
 void FileUploadMsg::registerSignal()
 {
     // 与服务器建立连接
-    connect(socket_,&QTcpSocket::connected,[&](){
+    connect(socket_,&QSslSocket::encrypted,[&](){
         qDebug() << "connect to ResourceServer(host:"<< host_ << ":" << port_ << ") success.";
         is_conneted_ = true;
     });
