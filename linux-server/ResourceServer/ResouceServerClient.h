@@ -1,6 +1,7 @@
 #include "global.h"
 #include "SingleTon.h"
 #include "SslUtil.h"
+#include "ConfigManager.h"
 #include "message.grpc.pb.h"
 using namespace grpc;
 using namespace message;
