@@ -15,7 +15,8 @@ public:
 	ssl::stream<tcp::socket>& getSocket() { return socket_; }
 	std::string& getUuid() { return uuid_;  }
 	int getUserId() { return userId_; }
-	void Send(const char* msg, size_t max_length, short msgid);
+	bool isStatusServerConnection();
+	void Send(const char* msg, size_t max_length, short msgid, std::string uuid = "");
 	void Send(std::string msg, short msgid, std::string uuid = "");
 	void notifyOffLine(int uid);
 	void setHeartCheckTime(time_t tm);
