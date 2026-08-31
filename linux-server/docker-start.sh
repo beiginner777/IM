@@ -81,6 +81,7 @@ echo "=== 启动 Nginx ==="
 docker start nginx 2>/dev/null || docker run -d --name nginx \
   --network host \
   -v $(pwd)/docker/nginx.host.conf:/etc/nginx/conf.d/default.conf:ro \
+  -v $(pwd)/docker/certs:/etc/nginx/certs:ro \
   nginx:alpine
 
 # ==================== 等待就绪 ====================
