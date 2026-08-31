@@ -435,7 +435,7 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 		return;
 	}
 	// 作为静态文件返回
-	static const std::string kFeDist = "../../client/React/dist";
+	static const std::string kFeDist = "../client/React/dist";
 	// 根路径 / → 直接返回 index.html（否则会尝试打开目录，is_open 成功但读到空）
 	std::string filePath = (url_ == "/" || url_.empty())
 		? kFeDist + "/index.html"
