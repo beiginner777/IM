@@ -455,6 +455,7 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 		else if (isSuffix(filePath, ".js"))   response.set(http::field::content_type, "application/javascript");
 		else if (isSuffix(filePath, ".svg"))  response.set(http::field::content_type, "image/svg+xml");
 		else if (isSuffix(filePath, ".png"))  response.set(http::field::content_type, "image/png");
+		else if (isSuffix(filePath, ".html")) response.set(http::field::content_type, "text/html");
 		else                              response.set(http::field::content_type, "application/octet-stream");
 		beast::ostream(response.body()) << buffer.str();
 		response.content_length(response.body().size());
