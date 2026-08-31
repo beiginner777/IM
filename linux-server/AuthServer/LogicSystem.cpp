@@ -460,20 +460,10 @@ void LogicSystem::handleGetRequest(std::shared_ptr<HttpConnection> conn)
 		beast::ostream(response.body()) << buffer.str();
 		response.content_length(response.body().size());
 	} else {
-		// 静态文件也不存在 → SPA 回退
-		std::ifstream idx(kFeDist + "/index.html");
-		if (idx.is_open()) {
-			response.result(http::status::ok);
-			std::stringstream buf;
-			buf << idx.rdbuf();
-			response.set(http::field::content_type, "text/html");
-			beast::ostream(response.body()) << buf.str();
-			response.content_length(response.body().size());
-		} else {
-			response.result(http::status::not_found);
-			response.set(http::field::content_type, "text/plain");
-			beast::ostream(response.body()) << "404 not found\n";
-		}
+		// 静态文件不存在 → 直接 404（不做 SPA 回退）
+		response.result(http::status::not_found);
+		response.set(http::field::content_type, "text/plain");
+		beast::ostream(response.body()) << "404 not found\n";
 	}
 	url_ = "";
 	getPrama_.clear();
