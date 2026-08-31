@@ -1045,6 +1045,8 @@ void TcpMsg::slotSendData(REQUEST_ID reqId,QByteArray data)
 void TcpMsg::onThreadStarted()
 {
     socket_ = new QSslSocket(this);
+    // 忽略自签证书校验（开发环境，TLS 用自签证书）
+    socket_->ignoreSslErrors();
     timer_  = new QTimer(this);
     reconnectTimer_ = new QTimer(this);
     reconnectTimer_->setSingleShot(true); // 单次定时器，每次触发后需重新 start

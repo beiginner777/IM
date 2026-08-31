@@ -685,6 +685,8 @@ void FileUploadMsg::slotContinueDownloadFile(QString unique_name)
 void FileUploadMsg::onThreadStarted()
 {
     socket_ = new QSslSocket(this);
+    // 忽略自签证书校验（开发环境，TLS 用自签证书）
+    socket_->ignoreSslErrors();
     timer_  = new QTimer(this);
     qDebug() << "File Thread: " << QThread::currentThread();
     // 连接信号与槽函数
