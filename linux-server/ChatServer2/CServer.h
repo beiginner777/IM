@@ -40,6 +40,8 @@ private:
 	unsigned short port_;
 	// TLS 上下文（加载服务器证书，供所有 CSession 握手用）
 	ssl::context ssl_ctx_;
+	// TLS 客户端上下文（连 StatusServer 时用，校验 StatusServer 证书）
+	ssl::context client_ctx_;
 	// 监听器
 	tcp::acceptor acceptor_;
 	// 存放客户端连接
