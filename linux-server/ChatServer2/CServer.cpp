@@ -25,14 +25,12 @@ CServer::CServer(boost::asio::io_context& ioc, std::string port)
 		| ssl::context::no_tlsv1
 		| ssl::context::no_tlsv1_1);
 
-	//auto& start_server_ioc = AsioIOContextThreadPool::getInstance()->getIOContext();
-	//connectionToStatusServer_ = std::make_shared<CSession>(start_server_ioc, ssl_ctx_, this);
-	//if (!connectToStatusServer()) {
-	//	std::cout << "Connect to StatusServer failed, please check the StatusServer is running or not." << std::endl;
-	//	exit(-1);
-	//}
-	// 绕过 StatusServer，直接开始接收客户端连接
-	startAccept();
+	auto& start_server_ioc = AsioIOContextThreadPool::getInstance()->getIOContext();
+	connectionToStatusServer_ = std::make_shared<CSession>(start_server_ioc, ssl_ctx_, this);
+	if (!connectToStatusServer()) {
+		std::cout << "Connect to StatusServer failed, please check the StatusServer is running or not." << std::endl;
+		exit(-1);
+	}
 }
 CServer::~CServer()
 {
