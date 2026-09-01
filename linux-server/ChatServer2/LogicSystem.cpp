@@ -8,29 +8,52 @@
 #include "ChatGrpcClient.h"
 #include "CServer.h"
 #include "utils.h"
+#include "JWT.h"
 #include "BatchMessageWriter.h"
 #include "MetricsRegistry.h"
+#include "LogicWorker.h"
+#include "SensitiveFilter.h"
 #include <spdlog/spdlog.h>
+
+// 拼接命中词列表（用于日志/审计，逗号分隔）
+static std::string joinWords(const std::vector<std::string>& words)
+{
+	std::string out;
+	for (size_t i = 0; i < words.size(); ++i) {
+		if (i) out += ",";
+		out += words[i];
+	}
+	return out;
+}
+
+#define LOGICWORKER_COUNT 4
+
 LogicSystem::LogicSystem() : b_stop_(false)
 {
 	registerFunctionCallbacks();
-	work_thread_ = std::thread(&LogicSystem::dealTask, this);
+	for (int i = 0; i < LOGICWORKER_COUNT; i++) {
+		workers_.push_back(std::make_shared<LogicWorker>(i, this));
+	}
 }
 LogicSystem::~LogicSystem()
 {
+	b_stop_ = true;
+	workers_.clear();
 	std::cout << "LogicSystem is destructed." << std::endl;
 }
 // 统一限流中间件：在 dealTask 分发到具体 handler 前调用
 // 对所有请求类型生效（文本、图片、登录、好友操作等）
 bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<CSession> session, short msgId)
 {
+	std::lock_guard<std::mutex> lock(rateLimitMtx_);  // 保护 globalBucket_ 和 userBuckets_
+	std::cout << "msg_id = " << msgId << " ============================= " << std::endl;
 	// L1: 全局 QPS（保护 ChatServer 进程，所有请求共享）
 	if (!globalBucket_.consume(1)) {
 		std::cerr << "[RateLimit] Global QPS limit reached, reject msgId=" << msgId << std::endl;
 		Json::Value rt;
 		rt["code"] = ERROR_RATE_LIMITED;
 		rt["message"] = "server busy, please retry later";
-		session->Send(rt.toStyledString(), getRspMsgId(msgId));
+		session->Send(rt.toStyledString(), getRspMsgId(msgId), boost::uuids::to_string(boost::uuids::random_generator()()));
 		return false;
 	}
 	int uid = session->getUserId();
@@ -39,7 +62,7 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<CSession> session, short m
 	// L2: 本地令牌桶（uid 维度，纯内存）
 	auto it = userBuckets_.find(uid);
 	if (it == userBuckets_.end()) {
-		userBuckets_.emplace(uid, TokenBucket(10.0, 15.0));
+		userBuckets_.emplace(uid, TokenBucket(10.0, 50.0));
 		it = userBuckets_.find(uid);
 	}
 	if (!it->second.consume(1)) {
@@ -47,16 +70,16 @@ bool LogicSystem::tryAcquireRateLimit(std::shared_ptr<CSession> session, short m
 		Json::Value rt;
 		rt["code"] = ERROR_RATE_LIMITED;
 		rt["message"] = "发送过于频繁，请稍后重试";
-		session->Send(rt.toStyledString(), msgId + 1);
+		session->Send(rt.toStyledString(), getRspMsgId(msgId), boost::uuids::to_string(boost::uuids::random_generator()()));
 		return false;
 	}
 	// L3: Redis 分布式限流（跨 ChatServer 统一计数，Redis 不可用自动放行）
-	if (!RedisManager::getInstance()->checkRateLimit(uid, 10)) {
+	if (!RedisManager::getInstance()->checkRateLimit(uid, 100)) {
 		std::cerr << "[RateLimit] User " << uid << " exceeded Redis rate limit, msgId=" << msgId << std::endl;
 		Json::Value rt;
 		rt["code"] = ERROR_RATE_LIMITED;
 		rt["message"] = "发送过于频繁，请稍后重试";
-		session->Send(rt.toStyledString(), msgId + 1);
+		session->Send(rt.toStyledString(), getRspMsgId(msgId), boost::uuids::to_string(boost::uuids::random_generator()()));
 		return false;
 	}
 	return true;
@@ -69,7 +92,7 @@ void LogicSystem::dealTask()
 		std::unique_lock<std::mutex> locker(mtx_);
 		while (que_.empty() && !b_stop_)
 		{
-			std::cout << "LoginSystem is waiting for data . . ." << std::endl;
+			//std::cout << "LoginSystem is waiting for data . . ." << std::endl;
 			cond_.wait(locker);
 		}
 		if (b_stop_)
@@ -123,6 +146,7 @@ void LogicSystem::registerFunctionCallbacks()
 	handlers_[ID_LOAD_FRIEND_APPLY_REQ] = std::bind(&LogicSystem::loadFriendApplyList, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 	handlers_[ID_REGISTER_RSP] = std::bind(&LogicSystem::registerToStatusServer, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 	handlers_[ID_HEADT_CHECK_RSP] = std::bind(&LogicSystem::heartCheckWithStatusServer, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
+	handlers_[ID_LOAD_CHAT_MSG_REQ] = std::bind(&LogicSystem::loadChatMsg, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 }
 
 void LogicSystem::registerToStatusServer(std::shared_ptr<CSession> session, short msgId, std::string msgData,
@@ -264,15 +288,27 @@ bool LogicSystem::getUserByName(std::string name, Json::Value& rtvalue)
 void LogicSystem::postMsgToQue(std::shared_ptr<LogicNode> logicNode)
 {
 	// ── 统一限流拦截（入队前）──
-	// 对所有客户端请求生效，StatusServer 内部消息（uid==0）自动跳过
 	short reqId = logicNode->recvNode_->msg_id_;
 	if (!tryAcquireRateLimit(logicNode->session_, reqId)) {
-		// 被限流，不入队，已在 tryAcquireRateLimit 中回包
 		return;
 	}
-	std::lock_guard<std::mutex> locker(mtx_);
-	que_.push(logicNode);
-	cond_.notify_all();
+	std::string msgData(logicNode->recvNode_->data_, logicNode->recvNode_->totol_len_);
+	std::string uuid = logicNode->recvNode_->uuid_;
+
+	// 按 session uuid 哈希路由到 LogicWorker（同一用户的消息串行）
+	std::hash<std::string> hasher;
+	int idx = hasher(logicNode->session_->getUuid()) % workers_.size();
+	workers_[idx]->postMsg(logicNode->session_, reqId, msgData, uuid);
+}
+
+// LogicWorker 回调：单线程内执行具体的 handler
+void LogicSystem::dispatch(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
+{
+	if (handlers_.count(msgId)) {
+		handlers_[msgId](session, msgId, msgData, uuid);
+	} else {
+		std::cout << "system error: can't find handler for msgId=" << msgId << std::endl;
+	}
 }
 
 void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)
@@ -302,11 +338,18 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 	rtvalue["touid"] = touid;
 	rtvalue["thread_id"] = thread_id;
 	std::vector<std::shared_ptr<ChatMessage>> chat_datas;
+	// 过滤后的 text_array：软违规替换为 ***、硬违规剔除，用于转发给接收方
+	Json::Value filtered_arrays(Json::arrayValue);
 	auto redis = RedisManager::getInstance();
 	auto batchWriter = BatchMessageWriter::getInstance();
+	auto sensitiveFilter = SensitiveFilter::getInstance();
 	for (const auto& text_obj : arrays) {
 		std::string content = text_obj["content"].asString();
 		std::string unique_id = text_obj["unique_id"].asString();
+
+		// 敏感词过滤（落库前）：过滤一次，落库/ACK/转发全链路共用过滤后内容
+		auto filterResult = sensitiveFilter->filter(content);
+
 		std::shared_ptr<ChatMessage> chatMsg = std::make_shared<ChatMessage>();
 		// Generate distributed message ID (Redis INCR or Snowflake fallback)
 		chatMsg->message_id = redis->generateMsgId();
@@ -314,12 +357,35 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 		chatMsg->unique_id = unique_id;
 		chatMsg->sender_id = uid;
 		chatMsg->recv_id = touid;
-		chatMsg->content = content;
-		chatMsg->status = 2;
 		chatMsg->chat_time = GetCurrentTimestamp();
 		chatMsg->type = CHAT_MSG_TYPE::TEXT_MSG;
-		// Queue for async batch write (returns immediately, no DB I/O wait)
-		batchWriter->enqueue(chatMsg);
+
+		if (filterResult.hard_violation) {
+			// 硬违规：拦截，不落库不转发；写审计表 + 日志，ACK 标记发送失败
+			chatMsg->content = content;
+			chatMsg->status = MsgStatus::SEND_FAILED;
+			std::string hitStr = joinWords(filterResult.hit_words);
+			if (MysqlManager::getInstance()->addViolationLog(
+					uid, touid, thread_id, chatMsg->message_id, hitStr) != SUCCESS) {
+				SPDLOG_WARN("[SensitiveFilter] write violation_log failed uid={}", uid);
+			}
+			SPDLOG_WARN("[SensitiveFilter] hard violation uid={} msg_id={} words=[{}]",
+				uid, chatMsg->message_id, hitStr);
+		} else {
+			// 软违规/正常：落库存过滤后内容
+			chatMsg->content = filterResult.filtered_content;
+			chatMsg->status = 2;
+			if (!filterResult.hit_words.empty()) {
+				SPDLOG_WARN("[SensitiveFilter] soft violation uid={} msg_id={} words=[{}]",
+					uid, chatMsg->message_id, joinWords(filterResult.hit_words));
+			}
+			// Queue for async batch write (returns immediately, no DB I/O wait)
+			batchWriter->enqueue(chatMsg);
+			// 构建过滤后的转发条目（保留原字段，仅替换 content）
+			Json::Value filtered_obj = text_obj;
+			filtered_obj["content"] = filterResult.filtered_content;
+			filtered_arrays.append(filtered_obj);
+		}
 		chat_datas.push_back(chatMsg);
 	}
 	// Build ACK with pre-generated IDs (respond BEFORE DB write completes)
@@ -335,6 +401,12 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 	Defer defer([session,this,rtvalue,uuid]() {
 		session->Send(rtvalue.toStyledString(), ID_TEXT_CHAT_MSG_RSP, uuid);
 	});
+	// 全部消息都被硬违规拦截：仅回 ACK（各消息已标记 SEND_FAILED），不再转发
+	if (filtered_arrays.empty()) {
+		rtvalue["code"] = ERROE_CODR::SUCCESS;
+		rtvalue["message"] = "all messages blocked by sensitive filter.";
+		return;
+	}
 	auto to_str = std::to_string(touid);
 	auto peer_ip_key = USERIPPREFIX + to_str;
 	std::string peerIP = RedisManager::getInstance()->Get(peer_ip_key);
@@ -349,7 +421,7 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 	auto cfg = ConfigManager::getInstance();
 	auto selfName = cfg["SelfServer"]["Name"];
 	SPDLOG_DEBUG("PeerIP: {} SelfIP: {}", peerIP, selfName);
-	rtvalue["text_array"] = arrays;
+	rtvalue["text_array"] = filtered_arrays;
 	if (peerIP == selfName) {
 		auto session = UserManager::getInstance()->GetSession(touid);
 		if (session) {
@@ -367,7 +439,7 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 	TextChatMsgReq text_msg_req;
 	text_msg_req.set_fromuid(uid);
 	text_msg_req.set_touid(touid);
-	for (const auto& txt_obj : arrays) {
+	for (const auto& txt_obj : filtered_arrays) {
 		auto content = txt_obj["content"].asString();
 		auto msgid = txt_obj["msgid"].asString();
 		SPDLOG_DEBUG("content is {}", content);
@@ -423,39 +495,24 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 	std::string token = root["token"].asString();
 	std::cout << "uid = " << uid << " request login ChatServer,token = " << token << std::endl;
 	Json::Value value;
-	std::string TokenValue = RedisManager::getInstance()->Get(USERUIDPREFIX + std::to_string(uid));
-	if (TokenValue == "")
-	{
-		value["code"] = ERROR_INVALIDUID;
-		value["message"] = "uid does not exists.";
-		session->Send(value.toStyledString(), msgId, uuid);
-		return;
-	}
-	if (TokenValue !=  USERTOKENPREFIX + token)
+	// JWT 验签（HMAC-SHA256，纯 CPU，不查 Redis）
+	// 踢旧设备逻辑已移到 AuthServer（登录时统一处理）
+	int verifiedUid = 0;
+	if (!JWT::verify(token, verifiedUid))
 	{
 		value["code"] = ERROR_INVALIDTOKEN;
-		value["message"] = "Token does not exists.";
+		value["message"] = "Token 无效或已过期，请重新登录";
 		session->Send(value.toStyledString(), msgId, uuid);
 		return;
 	}
-	std::string lock_key = LOCKPREFIX + std::to_string(uid);
-	std::string identifier = RedisManager::getInstance()->acqueireLock(lock_key, LOCK_TIMEOUT, ACQUIRE_TIMEOUT);
-	std::string ip = RedisManager::getInstance()->Get(USERIPPREFIX + std::to_string(uid));
+	if (verifiedUid != uid)
+	{
+		value["code"] = ERROR_INVALIDUID;
+		value["message"] = "Token 与用户不匹配";
+		session->Send(value.toStyledString(), msgId, uuid);
+		return;
+	}
 	auto cfg = ConfigManager::getInstance();
-	if (ip == "") {
-	}
-	else if (ip == cfg["SelfServer"]["Name"]) {
-		auto oldSession = UserManager::getInstance()->GetSession(uid);
-		if (oldSession) {
-			oldSession->notifyOffLine(uid);
-			std::cout << "old session = " << oldSession->getUuid() << std::endl;
-		}
-	}
-	else {
-		KickUserReq req;
-		req.set_uid(uid);
-		ChatGrpcClient::getInstance()->NotifyKickUser(ip, req);
-	}
 	std::string uid_str = std::to_string(uid);
 	if (!getUserByUid(uid_str, value)) {
 		session->Send(value.toStyledString(), ID_CHAT_LOGIN_RSP, uuid);
@@ -495,13 +552,10 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 	session->setUserId(uid);
 	std::string ipkey = USERIPPREFIX + std::to_string(uid);
 	RedisManager::getInstance()->Set(ipkey, name);
-	std::cout << "after user login: " << std::endl;
-	UserManager::getInstance()->printSessions();
+	//std::cout << "after user login: " << std::endl;
+	//UserManager::getInstance()->printSessions();
 	UserManager::getInstance()->addSession(uid, session);
 	session->Send(value.toStyledString(), ID_CHAT_LOGIN_RSP, uuid);
-	std::cout << "after user login: " << std::endl;
-	UserManager::getInstance()->printSessions();
-	RedisManager::getInstance()->releaseLock(lock_key, identifier);
 }
 
 void LogicSystem::authAccess(std::shared_ptr<CSession> session, short msgId, std::string msgData, std::string uuid)

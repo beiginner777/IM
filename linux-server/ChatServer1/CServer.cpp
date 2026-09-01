@@ -8,6 +8,7 @@ CServer::CServer(boost::asio::io_context& ioc, std::string port)
 	: ioc_(ioc),
 	port_(static_cast<unsigned short>(atoi(port.c_str()))),
 	ssl_ctx_(ssl::context::tls_server),
+	client_ctx_(ssl::context::tls_client),
 	acceptor_(ioc_, tcp::endpoint(tcp::v4(), port_)),
 	timer_(ioc),
 	heartCheckTimer_(ioc)
@@ -18,6 +19,8 @@ CServer::CServer(boost::asio::io_context& ioc, std::string port)
 	std::string key = cfg["SSL"]["Key"];
 	ssl_ctx_.use_certificate_chain_file(cert);
 	ssl_ctx_.use_private_key_file(key, ssl::context::pem);
+	// 客户端上下文加载 CA 证书（连 StatusServer 时校验其服务器证书）
+	client_ctx_.load_verify_file(cfg["SSL"]["CaCert"]);
 	// 禁用不安全的老协议，只保留 TLSv1.2+
 	ssl_ctx_.set_options(ssl::context::default_workarounds
 		| ssl::context::no_sslv2
@@ -25,14 +28,12 @@ CServer::CServer(boost::asio::io_context& ioc, std::string port)
 		| ssl::context::no_tlsv1
 		| ssl::context::no_tlsv1_1);
 
-	//auto& start_server_ioc = AsioIOContextThreadPool::getInstance()->getIOContext();
-	//connectionToStatusServer_ = std::make_shared<CSession>(start_server_ioc, ssl_ctx_, this);
-	//if (!connectToStatusServer()) {
-	//	std::cout << "Connect to StatusServer failed, please check the StatusServer is running or not." << std::endl;
-	//	exit(-1);
-	//}
-	// 绕过 StatusServer，直接开始接收客户端连接
-	startAccept();
+	auto& start_server_ioc = AsioIOContextThreadPool::getInstance()->getIOContext();
+	connectionToStatusServer_ = std::make_shared<CSession>(start_server_ioc, client_ctx_, this);
+	if (!connectToStatusServer()) {
+		std::cout << "Connect to StatusServer failed, please check the StatusServer is running or not." << std::endl;
+		exit(-1);
+	}
 }
 CServer::~CServer()
 {
@@ -87,6 +88,12 @@ bool CServer::connectToStatusServer()
 		return false;
 	}
 	std::cout << "Connect to StatusServer successfuly." << std::endl;
+	// TLS 握手（客户端，校验 StatusServer 证书）
+	connectionToStatusServer_->getSocket().handshake(ssl::stream_base::client, ec);
+	if (ec) {
+		std::cout << "TLS handshake failed: " << ec.message() << std::endl;
+		return false;
+	}
 	// 连接成功之后，开启接收StatuaServer消息的功能
 	connectionToStatusServer_->start();
 	// 连接成功，发送注册消息

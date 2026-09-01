@@ -68,6 +68,24 @@ CREATE TABLE `chatmessage_2` LIKE `chatmessage_0`;
 CREATE TABLE `chatmessage_3` LIKE `chatmessage_0`;
 
 --
+-- 违规审计表：硬违规敏感词消息拦截时留痕（消息本身不落 chatmessage 表）
+--
+
+DROP TABLE IF EXISTS `violation_log`;
+CREATE TABLE `violation_log` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `uid` bigint unsigned NOT NULL COMMENT '发送者 uid',
+  `touid` bigint unsigned NOT NULL DEFAULT '0' COMMENT '接收者 uid',
+  `thread_id` bigint unsigned NOT NULL DEFAULT '0',
+  `message_id` bigint unsigned NOT NULL DEFAULT '0' COMMENT '拦截消息 ID（该消息不落 chatmessage 表）',
+  `hit_words` varchar(512) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '命中的敏感词（逗号分隔）',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_uid` (`uid`),
+  KEY `idx_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
 -- Dumping data for table `chatmessage`
 --
 

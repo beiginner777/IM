@@ -120,7 +120,8 @@ enum ERROE_CODR
     ERROR_CHATIMG_NOT_EXIST_IN_CHATSERVER,
     ERROR_MODIFY_MSG_STATUS,
     ERROR_LOAD_CHAT_MESSAGE,
-ERROR_RATE_LIMITED,   // 发送频率超限
+    ERROR_RATE_LIMITED,   // 发送频率超限
+    ERROR_SENSITIVE_WORD, // 消息命中硬违规敏感词，被拦截
     SUCCESS = 0,
 };
 enum REQUEST_ID
@@ -202,6 +203,7 @@ inline short getRspMsgId(short reqId)
 	case ID_IMG_CHAT_CONTINUE_UPLOAD_REQ: return ID_IMG_CHAT_CONTINUE_UPLOAD_RSP;
 	case ID_LOAD_CHAT_MSG_REQ:       return ID_LOAD_CHAT_MSG_RSP;
 	case ID_FILE_CONTINUE_DOWNLOAD_REQ: return ID_FILE_CONTINUE_DOWNLOAD_RSP;
+	case ID_REGISTER_REQ:            return ID_REGISTER_RSP;
 	case ID_HEADT_CHECK_REQ:         return ID_HEADT_CHECK_RSP;
 	default:                         return reqId;  // 通知类消息不需要回包，返回自身
 	}

@@ -18,11 +18,10 @@ int main()
 	try
 	{
 		ConfigManager cfg = ConfigManager::getInstance();
-		std::string host = cfg["SelfServer"]["Host"];
 		std::string port = cfg["SelfServer"]["Port"];
 		std::string RPCPort = cfg["SelfServer"]["RPCPort"];
 		// rpc����
-		std::string serverAddr = host + ":" + RPCPort;
+		std::string serverAddr = "0.0.0.0:" + RPCPort;
 		::grpc::ServerBuilder builder;
 		builder.AddListeningPort(serverAddr,
 			sslutil::makeServerCredentials(cfg["SSL"]["Cert"], cfg["SSL"]["Key"]));

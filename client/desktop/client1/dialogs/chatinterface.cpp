@@ -349,6 +349,7 @@ void ChatInterface::UpdateChatInterface(std::shared_ptr<ChatDataBase> data)
     QString unique_id = data->GetUniqueId();
     int status = data->GetStatus();
     QDateTime chat_time = data->GetChatTime();
+    ui->chatDateList->updateMsgContent(unique_id, data->GetContent());
     ui->chatDateList->updateMsgStatus(unique_id, (MsgStatus)status);
     ui->chatDateList->updateMsgChatTime(unique_id, chat_time);
 }

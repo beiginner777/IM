@@ -12,7 +12,19 @@
 #include "BatchMessageWriter.h"
 #include "MetricsRegistry.h"
 #include "LogicWorker.h"
+#include "SensitiveFilter.h"
 #include <spdlog/spdlog.h>
+
+// 拼接命中词列表（用于日志/审计，逗号分隔）
+static std::string joinWords(const std::vector<std::string>& words)
+{
+	std::string out;
+	for (size_t i = 0; i < words.size(); ++i) {
+		if (i) out += ",";
+		out += words[i];
+	}
+	return out;
+}
 
 #define LOGICWORKER_COUNT 4
 
@@ -326,11 +338,18 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 	rtvalue["touid"] = touid;
 	rtvalue["thread_id"] = thread_id;
 	std::vector<std::shared_ptr<ChatMessage>> chat_datas;
+	// 过滤后的 text_array：软违规替换为 ***、硬违规剔除，用于转发给接收方
+	Json::Value filtered_arrays(Json::arrayValue);
 	auto redis = RedisManager::getInstance();
 	auto batchWriter = BatchMessageWriter::getInstance();
+	auto sensitiveFilter = SensitiveFilter::getInstance();
 	for (const auto& text_obj : arrays) {
 		std::string content = text_obj["content"].asString();
 		std::string unique_id = text_obj["unique_id"].asString();
+
+		// 敏感词过滤（落库前）：过滤一次，落库/ACK/转发全链路共用过滤后内容
+		auto filterResult = sensitiveFilter->filter(content);
+
 		std::shared_ptr<ChatMessage> chatMsg = std::make_shared<ChatMessage>();
 		// Generate distributed message ID (Redis INCR or Snowflake fallback)
 		chatMsg->message_id = redis->generateMsgId();
@@ -338,12 +357,35 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 		chatMsg->unique_id = unique_id;
 		chatMsg->sender_id = uid;
 		chatMsg->recv_id = touid;
-		chatMsg->content = content;
-		chatMsg->status = 2;
 		chatMsg->chat_time = GetCurrentTimestamp();
 		chatMsg->type = CHAT_MSG_TYPE::TEXT_MSG;
-		// Queue for async batch write (returns immediately, no DB I/O wait)
-		batchWriter->enqueue(chatMsg);
+
+		if (filterResult.hard_violation) {
+			// 硬违规：拦截，不落库不转发；写审计表 + 日志，ACK 标记发送失败
+			chatMsg->content = content;
+			chatMsg->status = MsgStatus::SEND_FAILED;
+			std::string hitStr = joinWords(filterResult.hit_words);
+			if (MysqlManager::getInstance()->addViolationLog(
+					uid, touid, thread_id, chatMsg->message_id, hitStr) != SUCCESS) {
+				SPDLOG_WARN("[SensitiveFilter] write violation_log failed uid={}", uid);
+			}
+			SPDLOG_WARN("[SensitiveFilter] hard violation uid={} msg_id={} words=[{}]",
+				uid, chatMsg->message_id, hitStr);
+		} else {
+			// 软违规/正常：落库存过滤后内容
+			chatMsg->content = filterResult.filtered_content;
+			chatMsg->status = 2;
+			if (!filterResult.hit_words.empty()) {
+				SPDLOG_WARN("[SensitiveFilter] soft violation uid={} msg_id={} words=[{}]",
+					uid, chatMsg->message_id, joinWords(filterResult.hit_words));
+			}
+			// Queue for async batch write (returns immediately, no DB I/O wait)
+			batchWriter->enqueue(chatMsg);
+			// 构建过滤后的转发条目（保留原字段，仅替换 content）
+			Json::Value filtered_obj = text_obj;
+			filtered_obj["content"] = filterResult.filtered_content;
+			filtered_arrays.append(filtered_obj);
+		}
 		chat_datas.push_back(chatMsg);
 	}
 	// Build ACK with pre-generated IDs (respond BEFORE DB write completes)
@@ -359,6 +401,12 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 	Defer defer([session,this,rtvalue,uuid]() {
 		session->Send(rtvalue.toStyledString(), ID_TEXT_CHAT_MSG_RSP, uuid);
 	});
+	// 全部消息都被硬违规拦截：仅回 ACK（各消息已标记 SEND_FAILED），不再转发
+	if (filtered_arrays.empty()) {
+		rtvalue["code"] = ERROE_CODR::SUCCESS;
+		rtvalue["message"] = "all messages blocked by sensitive filter.";
+		return;
+	}
 	auto to_str = std::to_string(touid);
 	auto peer_ip_key = USERIPPREFIX + to_str;
 	std::string peerIP = RedisManager::getInstance()->Get(peer_ip_key);
@@ -373,7 +421,7 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 	auto cfg = ConfigManager::getInstance();
 	auto selfName = cfg["SelfServer"]["Name"];
 	SPDLOG_DEBUG("PeerIP: {} SelfIP: {}", peerIP, selfName);
-	rtvalue["text_array"] = arrays;
+	rtvalue["text_array"] = filtered_arrays;
 	if (peerIP == selfName) {
 		auto session = UserManager::getInstance()->GetSession(touid);
 		if (session) {
@@ -391,7 +439,7 @@ void LogicSystem::dealTextChatMsg(std::shared_ptr<CSession> session, short msgId
 	TextChatMsgReq text_msg_req;
 	text_msg_req.set_fromuid(uid);
 	text_msg_req.set_touid(touid);
-	for (const auto& txt_obj : arrays) {
+	for (const auto& txt_obj : filtered_arrays) {
 		auto content = txt_obj["content"].asString();
 		auto msgid = txt_obj["msgid"].asString();
 		SPDLOG_DEBUG("content is {}", content);

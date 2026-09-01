@@ -121,6 +121,7 @@ enum ERROE_CODR
     ERROR_MODIFY_MSG_STATUS,
     ERROR_LOAD_CHAT_MESSAGE,
     ERROR_RATE_LIMITED,   // 发送频率超限
+    ERROR_SENSITIVE_WORD, // 消息命中硬违规敏感词，被拦截
     SUCCESS = 0,
 };
 enum REQUEST_ID

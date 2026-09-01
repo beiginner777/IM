@@ -175,7 +175,7 @@ private:
 				sql::mysql::MySQL_Driver* driver = sql::mysql::get_mysql_driver_instance();
 				auto conn = driver->connect(hostName, user, passwd);
 				conn->setSchema(schema);
-				std::cout << "Mysql Connect success.";
+				std::cout << "Mysql Connect success." << std::endl;
 				auto currentTime = std::chrono::system_clock::now().time_since_epoch();
 				long long timeStamp = std::chrono::duration_cast<std::chrono::seconds>(currentTime).count();
 				connections_.push(std::make_unique<SqlConnection>(conn, timeStamp));
@@ -204,7 +204,7 @@ private:
 class MysqlDao
 {
 	friend class MysqlManager;
-public:
+public: 
 	MysqlDao();
 	~MysqlDao();
 	int registerUser(const std::string& name, const std::string& email, const std::string& password);
@@ -218,6 +218,7 @@ public:
 	int GetUserThreadInfos(int uid, int last_thread_id, int page_size, std::vector<std::shared_ptr<ChatThreadInfo>>& infos, bool& load_more, int& max_thread_id, bool forceMaster = false);
 	int createPrivateThread(int user1_id, int user2_id, int& thread_id);
 	int AddChatMsg(int shardIndex, std::vector<std::shared_ptr<ChatMessage>>& chat_datas);
+	int addViolationLog(int uid, int touid, int thread_id, int message_id, const std::string& hit_words);
 	int getUserFriendListByLastId(int uid, int last_friend_id, std::map<int, std::shared_ptr<UserInfo>>& friend_list, bool forceMaster = false);
 	int getUserFriendApplyByLastId(int uid, int last_friend_id, int page_size, std::vector<std::shared_ptr<ApplyInfo>>& applyList, bool& load_more, int& max_friend_apply_id, bool forceMaster = false);
 	int updateChatMsgStatus(int shardIndex, int thread_id, int message_id, MsgStatus status);

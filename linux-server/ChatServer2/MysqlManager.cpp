@@ -163,6 +163,10 @@ int MysqlManager::AddChatMsg(std::vector<std::shared_ptr<ChatMessage>>& chat_dat
 	}
 	return anyFailed ? ERROR_SEND_MSG_FAILED : SUCCESS;
 }
+int MysqlManager::addViolationLog(int uid, int touid, int thread_id, int message_id, const std::string& hit_words)
+{
+	return dao_.addViolationLog(uid, touid, thread_id, message_id, hit_words);
+}
 int MysqlManager::getUserFriendListByLastId(int uid, int last_friend_id, std::map<int, std::shared_ptr<UserInfo>>& friend_list, bool forceMaster)
 {
 	return dao_.getUserFriendListByLastId( uid, last_friend_id, friend_list, forceMaster);
