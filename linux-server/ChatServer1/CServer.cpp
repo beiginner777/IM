@@ -85,6 +85,12 @@ bool CServer::connectToStatusServer()
 		return false;
 	}
 	std::cout << "Connect to StatusServer successfuly." << std::endl;
+	// TLS 握手（客户端，校验 StatusServer 证书）
+	connectionToStatusServer_->getSocket().handshake(ssl::stream_base::client, ec);
+	if (ec) {
+		std::cout << "TLS handshake failed: " << ec.message() << std::endl;
+		return false;
+	}
 	// 连接成功之后，开启接收StatuaServer消息的功能
 	connectionToStatusServer_->start();
 	// 连接成功，发送注册消息
