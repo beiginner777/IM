@@ -11,6 +11,22 @@ cd "$(dirname "$0")"
 
 mkdir -p logs upload
 
+# ---------- 等待基础设施就绪（docker 重启后容器恢复需要时间） ----------
+echo "等待 MySQL 就绪..."
+for i in $(seq 1 30); do
+  if docker exec mysql-master mysqladmin ping -uroot -p123456 2>/dev/null | grep -q alive; then
+    echo "MySQL 已就绪"; break
+  fi
+  sleep 2
+done
+echo "等待 Redis 就绪..."
+for i in $(seq 1 15); do
+  if docker exec redis-master redis-cli -a 123456 --no-auth-warning ping 2>/dev/null | grep -q PONG; then
+    echo "Redis 已就绪"; break
+  fi
+  sleep 1
+done
+
 # ---------- 按顺序启动（StatusServer 注册中心最先） ----------
 
 echo "启动 StatusServer..."
