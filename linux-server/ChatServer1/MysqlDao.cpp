@@ -591,6 +591,39 @@ int MysqlDao::AddChatMsg(int shardIndex, std::vector<std::shared_ptr<ChatMessage
     }
 }
 
+int MysqlDao::addViolationLog(int uid, int touid, int thread_id, int message_id, const std::string& hit_words)
+{
+    auto conn = getConn(true);
+    if (!conn) {
+        std::cerr << "[ViolationLog] get mysqlConn failed.\n";
+        return ERROR_SEND_MSG_FAILED;
+    }
+    Defer defer([this, &conn]() {
+        returnConn(std::move(conn));
+        });
+    try {
+        std::unique_ptr<sql::PreparedStatement> pstmt(conn->con_->prepareStatement(
+            "INSERT INTO violation_log (uid, touid, thread_id, message_id, hit_words) "
+            "VALUES (?, ?, ?, ?, ?)"));
+        pstmt->setInt(1, uid);
+        pstmt->setInt(2, touid);
+        pstmt->setInt(3, thread_id);
+        pstmt->setInt(4, message_id);
+        pstmt->setString(5, hit_words);
+        int rowAffected = pstmt->executeUpdate();
+        if (rowAffected <= 0) {
+            std::cerr << "[ViolationLog] insert failed, uid=" << uid << std::endl;
+            return ERROR_SEND_MSG_FAILED;
+        }
+        return SUCCESS;
+    }
+    catch (sql::SQLException& e) {
+        std::cerr << "SQLException in addViolationLog: " << e.what()
+                  << " (MySQL error code: " << e.getErrorCode() << ")" << std::endl;
+        return ERROR_SEND_MSG_FAILED;
+    }
+}
+
 int MysqlDao::getUserFriendListByLastId(int uid, int last_friend_id, std::map<int, std::shared_ptr<UserInfo>>& friend_list, bool forceMaster)
 {
     auto conn = getConn(forceMaster);
