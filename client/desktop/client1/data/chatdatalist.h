@@ -86,6 +86,7 @@ public:
 
     void resetChatDataItems(std::shared_ptr<ChatThreadData> thread_data);
 
+    void updateItemContent(QString unique_id, QString content); // 更新消息内容
     void updateItemStatus(QString unique_id, MsgStatus status); // 更新消息状态
     void updateMsgChatTime(QString unique_id, QDateTime chat_time); // 更新消息的时间
     void updateFileTransfer(const QString &unique_id, qint64 trans, qint64 total, TRANSFER_STATE st, QString error_reason); // 更新 Pic/File 文件的传输信息
@@ -243,6 +244,7 @@ public:
 
     void resetAllItems(std::shared_ptr<ChatThreadData> cur_thread_data); // 清空所有的消息 // to do ... del
 
+    void updateMsgContent(QString unique_id, QString content);
     void updateMsgStatus(QString unique_id, MsgStatus status);
     void updateMsgChatTime(QString unique_id,QDateTime chat_time);
 

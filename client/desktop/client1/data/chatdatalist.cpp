@@ -73,6 +73,11 @@ void ChatDataList::updateMsgStatus(QString unique_id, MsgStatus status)
     model_->updateItemStatus(unique_id, status);
 }
 
+void ChatDataList::updateMsgContent(QString unique_id, QString content)
+{
+    model_->updateItemContent(unique_id, content);
+}
+
 void ChatDataList::updateMsgChatTime(QString unique_id, QDateTime chat_time)
 {
     model_->updateMsgChatTime(unique_id, chat_time);
@@ -346,6 +351,27 @@ void ChatDataModel::resetChatDataItems(std::shared_ptr<ChatThreadData> thread_da
     appendChatDataItems(un_thread_data_vector);
     endResetModel();
 }
+
+void ChatDataModel::updateItemContent(QString unique_id, QString content)
+{
+    auto it = row_by_id_.find(unique_id);
+    if (it == row_by_id_.end()){
+        qDebug() << "[ERROR]: can not find ChatDataItem by unique_id.";
+        return;
+    }
+    const int row = it.value();
+    if (row < 0 || row >= int(items_.size())){
+        qDebug() << "[ERROR]: row is illegal.";
+        return;
+    }
+    ChatDataItem &item = items_[row];
+    if(item.content_ != content) {
+        item.content_ = content;
+        const QModelIndex idx = index(row, 0);
+        emit dataChanged(idx, idx, { ContentRole });
+    }
+}
+
 
 void ChatDataModel::updateItemStatus(QString unique_id, MsgStatus status)
 {
