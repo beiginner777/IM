@@ -358,6 +358,8 @@ void TcpMsg::sendImgMsg(REQUEST_ID reqId, int len, QByteArray data)
     send_data["lastseq"] = last_seq;
     file_info->current_size_ += buffer.size();
     send_data["uid"] = UserManager::GetInstance()->getUid();
+    send_data["token"] = UserManager::GetInstance()->GetToken();
+    send_data["md5"] = file_info->md5_;
     send_data["data"] = baseData64;
     send_data["totolsize"] = file.size();
     send_data["transferredsize"] = file_info->current_size_;

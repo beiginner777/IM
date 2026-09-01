@@ -105,6 +105,7 @@ void FileUploadMsg::upload_head_icon(REQUEST_ID req_id, int msg_length, QByteArr
 
     QJsonObject send_msg;
     send_msg["uid"] = uid;
+    send_msg["token"] = UserManager::GetInstance()->GetToken();
     send_msg["filename"] = fileName;
     send_msg["seq"] = seq;
     send_msg["lastseq"] = last_seq;
@@ -448,7 +449,7 @@ void FileUploadMsg::fileContinueDownload(REQUEST_ID req_id, int msg_length, QByt
     send_obj["total_size"] = total_size;
     send_obj["client_save_path"] = client_save_path;
     send_obj["uid"] = uid;
-    send_obj["toktn"] = UserManager::GetInstance()->GetToken();
+    send_obj["token"] = UserManager::GetInstance()->GetToken();
     send_obj["download_file_type"] = download_file_type;
     QJsonDocument send_doc(send_obj);
     QByteArray send_data = send_doc.toJson(QJsonDocument::Compact);
@@ -719,6 +720,8 @@ void FileUploadMsg::sendWindow(std::shared_ptr<MsgInfo> info)
         // 构造消息并发送
         QJsonObject msg;
         msg["filename"] = info->unique_name_;
+        msg["uid"] = UserManager::GetInstance()->getUid();
+        msg["token"] = UserManager::GetInstance()->GetToken();
         msg["seq"] = seq;
         msg["lastseq"] = info->last_seq_;
         msg["transferredsize"] = qMin((qint64)(seq) * MAX_FILE_LEN, info->total_size_);
@@ -762,6 +765,8 @@ void FileUploadMsg::scanWindow()
             QByteArray buffer = info->chunk_cache_[seq];
             QJsonObject msg;
             msg["filename"] = info->unique_name_;
+            msg["uid"] = UserManager::GetInstance()->getUid();
+            msg["token"] = UserManager::GetInstance()->GetToken();
             msg["seq"] = seq;
             msg["lastseq"] = info->last_seq_;
             msg["transferredsize"] = qMin((qint64)(seq) * MAX_FILE_LEN, info->total_size_);

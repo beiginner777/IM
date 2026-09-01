@@ -383,7 +383,7 @@ void FileWorker::handleUploadHeadIcon(std::shared_ptr<FileTask> task)
 	rtvalue["trans_size"] = transferredSize;
 	if (seq == lastSeq) {
 		// 删除上传文件的信息
-		LogicSystem::getInstance()->DeleteMd5FileInfo(serverName);
+		LogicSystem::getInstance()->DeleteMd5FileInfo(fileName);
 		// 将redis中的用户信息删除(to do ... 最好是重新设置新的数据)
 		std::string base_info = USERBASEINFO + std::to_string(uid);
 		RedisManager::getInstance()->Del(base_info);
@@ -399,7 +399,7 @@ void FileWorker::handleUploadHeadIcon(std::shared_ptr<FileTask> task)
 		notifyFriendNewHeadIcon(uid, serverName);
 	}
 		else {
-		    /* if (!LogicSystem::getInstance()->addMd5FileInfo(serverName, fi))
+		    /* if (!LogicSystem::getInstance()->addMd5FileInfo(fileName, fi))
 		    {
 				std::cerr << "[ResourceServer] CRITICAL: save FileInfo to Redis failed, file="
 				          << serverName << " last_acked=" << lastAcked << std::endl;
@@ -482,7 +482,7 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 	// 计算连续确认的 last_acked（支持乱序到达 + 重传 + 死锁恢复）
 	int lastAcked = 0;
 	
-	auto fi = LogicSystem::getInstance()->getFileInfo(serverName);
+	auto fi = LogicSystem::getInstance()->getFileInfo(fileName);
 	if (fi) {
 		fi->seq_ = seq;
 		fi->transfferredSize_ = transferredSize;
@@ -517,7 +517,7 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 	}
 	
 	if (lastAcked == lastSeq) {
-		//LogicSystem::getInstance()->DeleteMd5FileInfo(serverName);
+		//LogicSystem::getInstance()->DeleteMd5FileInfo(fileName);
 		std::string key = USERIPPREFIX + std::to_string(session->getUserId());
 		std::string server_ip = RedisManager::getInstance()->Get(key);
 		if (server_ip == "") {
@@ -533,7 +533,7 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 			std::cout << "Notify Client ChatImg failed.\n";
 		}
 	}
-	if (!LogicSystem::getInstance()->addMd5FileInfo(serverName, fi)) {
+	if (!LogicSystem::getInstance()->addMd5FileInfo(fileName, fi)) {
 		std::cerr << "[ResourceServer] CRITICAL: save FileInfo to Redis failed, file="
 				    << serverName << " last_acked=" << lastAcked << std::endl;
 	}
