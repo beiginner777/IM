@@ -23,7 +23,7 @@ docker network create im-net 2>/dev/null || true
 echo "=== 启动 MySQL 主从 ==="
 
 # master (宿主机 3307) —— 挂 master.cnf + dump.sql 首次初始化
-docker start mysql-master 2>/dev/null || docker run -d --name mysql-master --network im-net \
+docker start mysql-master 2>/dev/null || docker run -d --restart=always --name mysql-master --network im-net \
   -p 3307:3306 \
   -e MYSQL_ROOT_PASSWORD=123456 \
   -e MYSQL_DATABASE=JerryChat \
@@ -33,7 +33,7 @@ docker start mysql-master 2>/dev/null || docker run -d --name mysql-master --net
   mysql:8.0 --default-authentication-plugin=mysql_native_password
 
 # slave (宿主机 3308) —— 只挂 slave.cnf，不挂 dump.sql（数据靠 binlog 复制，避免"No database selected"报错）
-docker start mysql-slave 2>/dev/null || docker run -d --name mysql-slave --network im-net \
+docker start mysql-slave 2>/dev/null || docker run -d --restart=always --name mysql-slave --network im-net \
   -p 3308:3306 \
   -e MYSQL_ROOT_PASSWORD=123456 \
   -v $(pwd)/MySQL/slave.cnf:/etc/mysql/conf.d/slave.cnf:ro \
@@ -42,17 +42,17 @@ docker start mysql-slave 2>/dev/null || docker run -d --name mysql-slave --netwo
 # ==================== Redis 主从 ====================
 echo "=== 启动 Redis 主从 ==="
 
-docker start redis-master 2>/dev/null || docker run -d --name redis-master --network im-net \
+docker start redis-master 2>/dev/null || docker run -d --restart=always --name redis-master --network im-net \
   -p 6380:6379 \
   -v $(pwd)/Redis/sentinel/redis-master.conf:/usr/local/etc/redis/redis.conf:ro \
   redis:7-alpine redis-server /usr/local/etc/redis/redis.conf
 
-docker start redis-slave-1 2>/dev/null || docker run -d --name redis-slave-1 --network im-net \
+docker start redis-slave-1 2>/dev/null || docker run -d --restart=always --name redis-slave-1 --network im-net \
   -p 6381:6379 \
   -v $(pwd)/Redis/sentinel/redis-slave.conf:/usr/local/etc/redis/redis.conf:ro \
   redis:7-alpine redis-server /usr/local/etc/redis/redis.conf --slaveof redis-master 6379 --masterauth 123456
 
-docker start redis-slave-2 2>/dev/null || docker run -d --name redis-slave-2 --network im-net \
+docker start redis-slave-2 2>/dev/null || docker run -d --restart=always --name redis-slave-2 --network im-net \
   -p 6382:6379 \
   -v $(pwd)/Redis/sentinel/redis-slave.conf:/usr/local/etc/redis/redis.conf:ro \
   redis:7-alpine redis-server /usr/local/etc/redis/redis.conf --slaveof redis-master 6379 --masterauth 123456
@@ -60,17 +60,17 @@ docker start redis-slave-2 2>/dev/null || docker run -d --name redis-slave-2 --n
 # ==================== Redis 哨兵 ====================
 echo "=== 启动 Redis 哨兵 ==="
 
-docker start sentinel-1 2>/dev/null || docker run -d --name sentinel-1 --network im-net \
+docker start sentinel-1 2>/dev/null || docker run -d --restart=always --name sentinel-1 --network im-net \
   -p 26379:26379 \
   -v $(pwd)/Redis/sentinel/sentinel-1.conf:/usr/local/etc/redis/sentinel.conf \
   redis:7-alpine redis-sentinel /usr/local/etc/redis/sentinel.conf
 
-docker start sentinel-2 2>/dev/null || docker run -d --name sentinel-2 --network im-net \
+docker start sentinel-2 2>/dev/null || docker run -d --restart=always --name sentinel-2 --network im-net \
   -p 26380:26379 \
   -v $(pwd)/Redis/sentinel/sentinel-2.conf:/usr/local/etc/redis/sentinel.conf \
   redis:7-alpine redis-sentinel /usr/local/etc/redis/sentinel.conf
 
-docker start sentinel-3 2>/dev/null || docker run -d --name sentinel-3 --network im-net \
+docker start sentinel-3 2>/dev/null || docker run -d --restart=always --name sentinel-3 --network im-net \
   -p 26381:26379 \
   -v $(pwd)/Redis/sentinel/sentinel-3.conf:/usr/local/etc/redis/sentinel.conf \
   redis:7-alpine redis-sentinel /usr/local/etc/redis/sentinel.conf
@@ -78,7 +78,7 @@ docker start sentinel-3 2>/dev/null || docker run -d --name sentinel-3 --network
 # ==================== Nginx（host 网络，代理宿主机 C++ 服务） ====================
 echo "=== 启动 Nginx ==="
 
-docker start nginx 2>/dev/null || docker run -d --name nginx \
+docker start nginx 2>/dev/null || docker run -d --restart=always --name nginx \
   --network host \
   -v $(pwd)/docker/nginx.host.conf:/etc/nginx/conf.d/default.conf:ro \
   -v $(pwd)/docker/certs:/etc/nginx/certs:ro \
