@@ -34,6 +34,7 @@ std::unique_ptr<SqlConnection> MysqlDao::getConn(bool forceMaster)
 	tlsMysqlPoolIdx = 1;
 	return conn;
 }
+
 void MysqlDao::returnConn(std::unique_ptr<SqlConnection> conn)
 {
 	if (!conn) return;
@@ -46,6 +47,7 @@ void MysqlDao::returnConn(std::unique_ptr<SqlConnection> conn)
 MysqlDao::~MysqlDao()
 {
 }
+
 int MysqlDao::registerUser(const std::string& name, const std::string& email, const std::string& password)
 {
 	std::unique_ptr<SqlConnection> conn = getConn(true);
@@ -90,6 +92,7 @@ int MysqlDao::registerUser(const std::string& name, const std::string& email, co
 		return ERROR_REGISTER;
 	}
 }
+
 int MysqlDao::addFriendApply(int fromuid, int touid, int& current_id, std::string& apply_time)
 {
     auto con = getConn(true);
@@ -163,6 +166,7 @@ int MysqlDao::addFriendApply(int fromuid, int touid, int& current_id, std::strin
         return ERROR_FRIEND_APPLY;
     }
 }
+
 int MysqlDao::getUserFriendApply(int uid, std::vector<std::shared_ptr<ApplyInfo>>& applyList, bool forceMaster)
 {
     auto con = getConn(forceMaster);
@@ -193,6 +197,7 @@ int MysqlDao::getUserFriendApply(int uid, std::vector<std::shared_ptr<ApplyInfo>
         return ERROR_GET_FRIEND_APPLY_LIST;
     }
 }
+
 int MysqlDao::getUserFriendList(int uid, std::vector<std::shared_ptr<UserInfo>>& friendList, bool forceMaster)
 {
     auto con = getConn(forceMaster);
@@ -226,6 +231,7 @@ int MysqlDao::getUserFriendList(int uid, std::vector<std::shared_ptr<UserInfo>>&
     }
     return true;
 }
+
 int MysqlDao::addFriendRelation(int fromuid, int touid, int& thread_id1, int& thread_id2, int& friend_id1, int& friend_id2)
 {
     auto conn = getConn(true);
@@ -309,6 +315,7 @@ int MysqlDao::addFriendRelation(int fromuid, int touid, int& thread_id1, int& th
         return ERROR_ADD_FRIEND_RELATION;
     }
 }
+
 std::shared_ptr<UserInfo> MysqlDao::getUserByUid(int uid, bool forceMaster)
 {
     auto con = forceMaster ? getConn(true) : getConn();
@@ -344,6 +351,7 @@ std::shared_ptr<UserInfo> MysqlDao::getUserByUid(int uid, bool forceMaster)
         return nullptr;
     }
 }
+
 std::shared_ptr<UserInfo> MysqlDao::getUserByName(std::string name, bool forceMaster)
 {
     auto con = forceMaster ? getConn(true) : forceMaster ? getConn(true) : getConn();
@@ -379,6 +387,7 @@ std::shared_ptr<UserInfo> MysqlDao::getUserByName(std::string name, bool forceMa
         return nullptr;
     }
 }
+
 int MysqlDao::setFriendApplyStatus(int fromuid, int touid, int status)
 {
     auto conn = getConn(true);
@@ -411,6 +420,7 @@ int MysqlDao::setFriendApplyStatus(int fromuid, int touid, int status)
         return ERROR_MODIFLY_APPLY_STATUS_FAILED;
     }
 }
+
 int MysqlDao::GetUserThreadInfos(int uid, int last_thread_id, int page_size, std::vector<std::shared_ptr<ChatThreadInfo>>& infos, bool& load_more, int& max_thread_id, bool forceMaster)
 {
     auto conn = forceMaster ? getConn(true) : getConn();
@@ -480,6 +490,7 @@ int MysqlDao::GetUserThreadInfos(int uid, int last_thread_id, int page_size, std
 	}
     return SUCCESS;
 }
+
 int MysqlDao::createPrivateThread(int user1_id, int user2_id, int& thread_id)
 {
     auto conn = getConn(true);
@@ -521,6 +532,7 @@ int MysqlDao::createPrivateThread(int user1_id, int user2_id, int& thread_id)
         return ERROR_MODIFLY_APPLY_STATUS_FAILED;
     }
 }
+
 int MysqlDao::AddChatMsg(int shardIndex, std::vector<std::shared_ptr<ChatMessage>>& chat_datas)
 {
     auto conn = getConn(true);
@@ -578,6 +590,7 @@ int MysqlDao::AddChatMsg(int shardIndex, std::vector<std::shared_ptr<ChatMessage
         return ERROR_SEND_MSG_FAILED;
     }
 }
+
 int MysqlDao::getUserFriendListByLastId(int uid, int last_friend_id, std::map<int, std::shared_ptr<UserInfo>>& friend_list, bool forceMaster)
 {
     auto conn = getConn(forceMaster);
@@ -629,6 +642,7 @@ int MysqlDao::getUserFriendListByLastId(int uid, int last_friend_id, std::map<in
         return ERROR_LOAD_MORE_FRIEND;
     }
 }
+
 int MysqlDao::getUserFriendApplyByLastId(int uid, int last_friend_id, int page_size, std::vector<std::shared_ptr<ApplyInfo>>& applyList, bool& load_more, int& max_friend_apply_id, bool forceMaster)
 {
     auto conn = getConn(forceMaster);
@@ -703,6 +717,7 @@ int MysqlDao::getUserFriendApplyByLastId(int uid, int last_friend_id, int page_s
         return ERROR_LOAD_FRIEND_APPLY;
     }
 }
+
 int MysqlDao::updateChatMsgStatus(int shardIndex, int thread_id, int message_id, MsgStatus status)
 {
     auto conn = getConn(true);
@@ -740,6 +755,7 @@ int MysqlDao::updateChatMsgStatus(int shardIndex, int thread_id, int message_id,
         return ERROR_MODIFY_MSG_STATUS;
     }
 }
+
 int MysqlDao::loadChatMessage(int shardIndex, int thread_id, int& min_message_id, int& max_message_id, int page_size, bool& is_more, std::vector<ChatMessage>& msgs, bool forceMaster)
 {
     auto conn = getConn(forceMaster);

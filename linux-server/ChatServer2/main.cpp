@@ -39,7 +39,7 @@ int main()
 		boost::asio::signal_set signals(ioc, SIGINT, SIGTERM);
 		std::shared_ptr<CServer> s = std::make_shared<CServer>(ioc, port);
 		// 设置 Snowflake 降级的 server_id（不同服务器用不同编号）
-		RedisManager::getInstance()->setServerId(1);
+		RedisManager::getInstance()->setServerId(2);
 		// 构建布隆过滤器（从 MySQL 加载用户列表，用户搜索加速）
 		MysqlManager::getInstance()->initBloomFilter();
 		// 启动异步批量写入线程
