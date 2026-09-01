@@ -123,6 +123,12 @@ enum ERROE_CODR
 	ERROR_FILE_OFFSET_INVALID, // 文件偏移量无效
 	ERROR_READ_FILE, // 读取文件失败
     ERROR_USER_IP_NOT_FIND, // 根据uip_无法查找到用户所在的ChatServer
+	ERROR_FILE_SEQ_INVALID, // 文件分片参数非法（seq/lastSeq）
+	ERROR_FILE_SIZE_TOO_LARGE, // 文件总大小超限
+	ERROR_FILE_CHUNK_TOO_LARGE, // 单分片大小超限
+	ERROR_FILE_MD5_INVALID, // 文件 md5 非法（非 32 位 hex）
+	ERROR_FILE_TYPE_NOT_ALLOWED, // 文件类型不在白名单
+	ERROR_FILE_MAGIC_MISMATCH, // 文件魔数与扩展名不匹配
     SUCCESS = 0,
 };
 enum REQUEST_ID

@@ -5,6 +5,10 @@
 #include "MysqlManager.h"
 #include "RedisManager.h"
 #include "ResouceServerClient.h"
+#include <cctype>
+#include <cstdlib>
+#include <algorithm>
+#include <unordered_set>
 FileWorker::FileWorker()
 	: b_stop_(false)
 {
@@ -96,6 +100,129 @@ std::string FileWorker::base64_decode(const std::string& in)
 		}
 	}
 	return out;
+}
+
+// ===== 文件上传安全校验（治路径穿越 / 稀疏文件 DoS / 恶意文件）=====
+
+// md5 校验：严格 32 位 hex，防止恶意字符串混入落盘名
+static bool isValidMd5(const std::string& md5)
+{
+	if (md5.size() != 32) return false;
+	for (char c : md5) {
+		if (!isxdigit((unsigned char)c)) return false;
+	}
+	return true;
+}
+
+// 提取扩展名（小写）
+static std::string extractExt(const std::string& name)
+{
+	size_t dot = name.find_last_of('.');
+	if (dot == std::string::npos || dot + 1 >= name.size()) return "";
+	std::string ext = name.substr(dot + 1);
+	std::transform(ext.begin(), ext.end(), ext.begin(),
+		[](unsigned char c) { return (char)::tolower(c); });
+	return ext;
+}
+
+// 扩展名白名单
+static bool isExtensionAllowed(const std::string& ext)
+{
+	static const std::unordered_set<std::string> whitelist = {
+		"jpg", "jpeg", "png", "gif", "webp",   // 图片
+		"pdf", "doc", "docx", "txt",           // 文档
+		"zip",                                  // 压缩包
+		"mp4", "mp3"                            // 音视频
+	};
+	return whitelist.count(ext) > 0;
+}
+
+// 魔数校验：读文件头判断真实类型，防「改扩展名伪装」
+static bool validateMagicBytes(const std::string& ext, const std::string& data)
+{
+	if (data.empty()) return false;
+	auto b = [&data](size_t i) { return (unsigned char)data[i]; };
+	if (ext == "jpg" || ext == "jpeg") {
+		return data.size() >= 3 && b(0) == 0xFF && b(1) == 0xD8 && b(2) == 0xFF;
+	}
+	if (ext == "png") {
+		return data.size() >= 4 && b(0) == 0x89 && b(1) == 0x50 && b(2) == 0x4E && b(3) == 0x47;
+	}
+	if (ext == "gif") {
+		return (data.size() >= 6 && data.compare(0, 6, "GIF87a") == 0) ||
+		       (data.size() >= 6 && data.compare(0, 6, "GIF89a") == 0);
+	}
+	if (ext == "webp") {
+		return data.size() >= 12 && data.compare(0, 4, "RIFF") == 0 && data.compare(8, 4, "WEBP") == 0;
+	}
+	if (ext == "pdf") {
+		return data.size() >= 4 && data.compare(0, 4, "%PDF") == 0;
+	}
+	if (ext == "zip" || ext == "docx") {
+		return data.size() >= 4 && b(0) == 0x50 && b(1) == 0x4B;
+	}
+	if (ext == "mp4") {
+		return data.size() >= 12 && data.compare(4, 4, "ftyp") == 0;
+	}
+	if (ext == "mp3") {
+		return (data.size() >= 3 && data.compare(0, 3, "ID3") == 0) ||
+		       (data.size() >= 2 && b(0) == 0xFF && (b(1) & 0xE0) == 0xE0);
+	}
+	// doc/txt 无可靠魔数，白名单兜底放行
+	return true;
+}
+
+// 显示名清洗：白名单字符 + 长度 ≤ 128，防日志/响应注入
+static std::string sanitizeDisplayName(const std::string& name)
+{
+	std::string out;
+	out.reserve(name.size());
+	for (char c : name) {
+		if (isalnum((unsigned char)c) || c == '.' || c == '_' || c == '-') {
+			out.push_back(c);
+		}
+		if (out.size() >= 128) break;
+	}
+	return out;
+}
+
+// 校验上传参数 + 生成服务端落盘名。返回 0 成功，非 0 为错误码
+static int validateUploadAndBuildName(int uid, const std::string& md5, const std::string& fileName,
+                                      int seq, int lastSeq, int totolSize, size_t chunkLen,
+                                      std::string& serverName, std::string& displayName, std::string& ext)
+{
+	// 分片参数校验（防稀疏文件 DoS）
+	if (seq < 1 || lastSeq < 1 || seq > lastSeq) {
+		return ERROR_FILE_SEQ_INVALID;
+	}
+	if (chunkLen > (size_t)MAX_FILE_LEN) {
+		return ERROR_FILE_CHUNK_TOO_LARGE;
+	}
+	auto cfg = ConfigManager::getInstance();
+	long long maxFileSize = std::atoll(cfg["FileLimit"]["MaxFileSize"].c_str());
+	int maxSeq = std::atoi(cfg["FileLimit"]["MaxSeq"].c_str());
+	if (maxFileSize <= 0) maxFileSize = 104857600;  // 默认 100MB
+	if (maxSeq <= 0) maxSeq = 51200;
+	if (lastSeq > maxSeq) {
+		return ERROR_FILE_SEQ_INVALID;
+	}
+	if ((long long)totolSize > maxFileSize) {
+		return ERROR_FILE_SIZE_TOO_LARGE;
+	}
+	// md5 校验（32 位 hex，杜绝客户端可控字符进路径）
+	if (!isValidMd5(md5)) {
+		return ERROR_FILE_MD5_INVALID;
+	}
+	// 扩展名白名单
+	ext = extractExt(fileName);
+	if (!isExtensionAllowed(ext)) {
+		return ERROR_FILE_TYPE_NOT_ALLOWED;
+	}
+	// 生成服务端落盘名（不含任何客户端可控字符）
+	serverName = std::to_string(uid) + "_" + md5 + "." + ext;
+	// 显示名清洗
+	displayName = sanitizeDisplayName(fileName);
+	return 0;
 }
 
 void FileWorker::taskHandler(std::shared_ptr<FileTask> task)
@@ -204,9 +331,22 @@ void FileWorker::handleUploadHeadIcon(std::shared_ptr<FileTask> task)
 	std::string data = task->data_;
 	// 对base64编码的数据进行解码
 	std::string decodedData = base64_decode(task->data_);
+	// 安全校验 + 生成服务端落盘名（防路径穿越 / 稀疏文件 DoS / 恶意文件）
+	std::string serverName, displayName, ext;
+	int vret = validateUploadAndBuildName(uid, md5, fileName, seq, lastSeq, totolSize, decodedData.size(), serverName, displayName, ext);
+	if (vret != 0) {
+		rtvalue["code"] = vret;
+		rtvalue["message"] = "file upload rejected";
+		return;
+	}
+	if (seq == 1 && !validateMagicBytes(ext, decodedData)) {
+		rtvalue["code"] = ERROR_FILE_MAGIC_MISMATCH;
+		rtvalue["message"] = "file magic bytes mismatch";
+		return;
+	}
 	auto cfg = ConfigManager::getInstance();
 	std::string uploadPath = cfg["SelfServer"]["UploadPath"];
-	std::string fullPath = uploadPath + "/" + fileName;
+	std::string fullPath = uploadPath + "/" + serverName;
 	std::ofstream ofs;
 	// 定位写入（非追加）：乱序/重传包也写到正确的文件偏移
 	if (seq == 1) {
@@ -233,22 +373,22 @@ void FileWorker::handleUploadHeadIcon(std::shared_ptr<FileTask> task)
 		return;
 	}
 	ofs.close();
-	std::cout << "write " << fileName << "(" << seq << "/ " << lastSeq << ")" << " into " << fullPath << " success." << std::endl;
+	std::cout << "write " << displayName << " -> " << serverName << "(" << seq << "/ " << lastSeq << ")" << " into " << fullPath << " success." << std::endl;
 	rtvalue["uid"] = uid;
 	rtvalue["seq"] = seq;
 	rtvalue["lastseq"] = lastSeq;
-	rtvalue["file"] = fileName;
+	rtvalue["file"] = serverName;
 	rtvalue["md5"] = md5;
 	rtvalue["totol_size"] = totolSize;
 	rtvalue["trans_size"] = transferredSize;
 	if (seq == lastSeq) {
 		// 删除上传文件的信息
-		LogicSystem::getInstance()->DeleteMd5FileInfo(fileName);
+		LogicSystem::getInstance()->DeleteMd5FileInfo(serverName);
 		// 将redis中的用户信息删除(to do ... 最好是重新设置新的数据)
 		std::string base_info = USERBASEINFO + std::to_string(uid);
 		RedisManager::getInstance()->Del(base_info);
 		// 将头像信息修改到Mysql数据库
-		int ret = MysqlManager::getInstance()->updateUserIcon(uid, fileName);
+		int ret = MysqlManager::getInstance()->updateUserIcon(uid, serverName);
 		if (ret != 0) {
 			std::cout << "update user icon in mysql failed. uid = " << uid << std::endl;
 			rtvalue["code"] = ERROR_UPDATE_HEAD_ICON;
@@ -256,13 +396,13 @@ void FileWorker::handleUploadHeadIcon(std::shared_ptr<FileTask> task)
 			return;
 		}
 		// 通知好友有新的头像上传
-		notifyFriendNewHeadIcon(uid, fileName);
+		notifyFriendNewHeadIcon(uid, serverName);
 	}
 		else {
-		    /* if (!LogicSystem::getInstance()->addMd5FileInfo(fileName, fi))
+		    /* if (!LogicSystem::getInstance()->addMd5FileInfo(serverName, fi))
 		    {
 				std::cerr << "[ResourceServer] CRITICAL: save FileInfo to Redis failed, file="
-				          << fileName << " last_acked=" << lastAcked << std::endl;
+				          << serverName << " last_acked=" << lastAcked << std::endl;
 			}*/
 	}
 }
@@ -288,9 +428,22 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 	int type = task->type_;
 	// 对base64编码的数据进行解码
 	std::string decodedData = base64_decode(task->data_);
+	// 安全校验 + 生成服务端落盘名（防路径穿越 / 稀疏文件 DoS / 恶意文件）
+	std::string serverName, displayName, ext;
+	int vret = validateUploadAndBuildName(uid, md5, fileName, seq, lastSeq, totolSize, decodedData.size(), serverName, displayName, ext);
+	if (vret != 0) {
+		rtvalue["code"] = vret;
+		rtvalue["message"] = "file upload rejected";
+		return;
+	}
+	if (seq == 1 && !validateMagicBytes(ext, decodedData)) {
+		rtvalue["code"] = ERROR_FILE_MAGIC_MISMATCH;
+		rtvalue["message"] = "file magic bytes mismatch";
+		return;
+	}
 	auto cfg = ConfigManager::getInstance();
 	std::string uploadPath = cfg["SelfServer"]["UploadPath"];
-	std::string fullPath = uploadPath + "/" + fileName;
+	std::string fullPath = uploadPath + "/" + serverName;
 	std::ofstream ofs;
 	// 定位写入（非追加）：乱序/重传包也写到正确的文件偏移
 	if (seq == 1) {
@@ -317,10 +470,10 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 		return;
 	}
 	ofs.close();
-	std::cout << "write " << fileName << "(" << seq << "/ " << lastSeq << ")" << " into " << fullPath << " success." << std::endl;
+	std::cout << "write " << displayName << " -> " << serverName << "(" << seq << "/ " << lastSeq << ")" << " into " << fullPath << " success." << std::endl;
 	rtvalue["seq"] = seq;
 	rtvalue["lastseq"] = lastSeq;
-	rtvalue["file"] = fileName;
+	rtvalue["file"] = serverName;
 	rtvalue["md5"] = md5;
 	rtvalue["totol_size"] = totolSize;
 	rtvalue["trans_size"] = transferredSize;
@@ -329,7 +482,7 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 	// 计算连续确认的 last_acked（支持乱序到达 + 重传 + 死锁恢复）
 	int lastAcked = 0;
 	
-	auto fi = LogicSystem::getInstance()->getFileInfo(fileName);
+	auto fi = LogicSystem::getInstance()->getFileInfo(serverName);
 	if (fi) {
 		fi->seq_ = seq;
 		fi->transfferredSize_ = transferredSize;
@@ -342,7 +495,7 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 				fi->last_acked_seq_++;
 			}
 			if (fi->last_acked_seq_ > seq) {
-				std::cout << "[ResourceServer] catch-up: file=" << fileName
+				std::cout << "[ResourceServer] catch-up: file=" << serverName
 					        << " last_acked " << seq << " -> " << fi->last_acked_seq_ << std::endl;
 			}
 			lastAcked = fi->last_acked_seq_;
@@ -350,12 +503,12 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 		else if (seq > fi->last_acked_seq_ + 1) 
 		{
 			fi->pending_seqs_.insert(seq);
-			std::cout << "[ResourceServer] PACKET LOSS: file=" << fileName
+			std::cout << "[ResourceServer] PACKET LOSS: file=" << serverName
 			        << " expected=" << (fi->last_acked_seq_ + 1)
 			        << " received=" << seq << " pending=" << fi->pending_seqs_.size() << std::endl;
 		}
 		rtvalue["last_acked"] = lastAcked;
-		std::cout << "[ResourceServer] ACK: file=" << fileName
+		std::cout << "[ResourceServer] ACK: file=" << serverName
 				<< " seq=" << seq << " last_acked=" << lastAcked << std::endl;
 	} 
 	else
@@ -364,7 +517,7 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 	}
 	
 	if (lastAcked == lastSeq) {
-		//LogicSystem::getInstance()->DeleteMd5FileInfo(fileName);
+		//LogicSystem::getInstance()->DeleteMd5FileInfo(serverName);
 		std::string key = USERIPPREFIX + std::to_string(session->getUserId());
 		std::string server_ip = RedisManager::getInstance()->Get(key);
 		if (server_ip == "") {
@@ -374,15 +527,15 @@ void FileWorker::handleUploadFile(std::shared_ptr<FileTask> task)
 		std::cout << "Call ChatServer to Notify uid = " << session->getUserId() << " ImageMsg success.\n";
 		NotifyChatServerImgReq req;
 		req.set_uid(session->getUserId());
-		req.set_unique_name(fileName);
+		req.set_unique_name(serverName);
 		NotifyChatServerImgRsp rsp = ResouceServerClient::getInstance()->NotifyChatServerImg(server_ip, req);
 		if (rsp.error() != 0) {
 			std::cout << "Notify Client ChatImg failed.\n";
 		}
 	}
-	if (!LogicSystem::getInstance()->addMd5FileInfo(fileName, fi)) {
+	if (!LogicSystem::getInstance()->addMd5FileInfo(serverName, fi)) {
 		std::cerr << "[ResourceServer] CRITICAL: save FileInfo to Redis failed, file="
-				    << fileName << " last_acked=" << lastAcked << std::endl;
+				    << serverName << " last_acked=" << lastAcked << std::endl;
 	}
 }
 

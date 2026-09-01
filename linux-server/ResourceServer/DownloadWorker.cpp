@@ -2,6 +2,7 @@
 #include "CSession.h"
 #include "ConfigManager.h"
 #include "LogicSystem.h"
+#include <cstdlib>
 DownloadWorker::DownloadWorker()
 {
 	work_thread_ = std::thread(&DownloadWorker::dealTask, this);
@@ -69,6 +70,28 @@ void DownloadWorker::taskHandler(std::shared_ptr<DownloadTask> task)
 		rtvalue["code"] = ERROE_CODR::ERROR_FILE_NOT_EXIST;
 		rtvalue["message"] = "download file failed, file not exist.";
 		return;
+	}
+	// 下载侧路径校验：realpath 规范化 + 前缀校验（封读侧路径穿越）
+	{
+		std::string canonicalUploadPath = boost::filesystem::absolute(uploadPath).string();
+		char* resolved = ::realpath(fullPath.c_str(), nullptr);
+		if (resolved == nullptr) {
+			std::cerr << "realpath 解析失败: " << fullPath << std::endl;
+			rtvalue["code"] = ERROE_CODR::ERROR_FILE_NOT_EXIST;
+			rtvalue["message"] = "download file failed, invalid path.";
+			return;
+		}
+		std::string canonicalFullPath = resolved;
+		::free(resolved);
+		// 规范路径必须落在 DownloadPath 目录内（防止 ../ 穿越到其他目录）
+		if (canonicalFullPath.compare(0, canonicalUploadPath.size(), canonicalUploadPath) != 0 ||
+		    (canonicalFullPath.size() > canonicalUploadPath.size() &&
+		     canonicalFullPath[canonicalUploadPath.size()] != '/')) {
+			std::cerr << "下载路径穿越攻击: " << fullPath << std::endl;
+			rtvalue["code"] = ERROE_CODR::ERROR_FILE_NOT_EXIST;
+			rtvalue["message"] = "download file failed, invalid path.";
+			return;
+		}
 	}
 	// 打开文件
 	std::ifstream infile(fullPath, std::ios::binary);
