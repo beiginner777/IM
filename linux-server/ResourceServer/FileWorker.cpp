@@ -218,8 +218,14 @@ static int validateUploadAndBuildName(int uid, const std::string& md5, const std
 	if (!isExtensionAllowed(ext)) {
 		return ERROR_FILE_TYPE_NOT_ALLOWED;
 	}
-	// 生成服务端落盘名（不含任何客户端可控字符）
-	serverName = std::to_string(uid) + "_" + md5 + "." + ext;
+	// 文件名白名单校验：仅允许 [a-zA-Z0-9._-]，拒绝路径穿越字符（../ \ 等）
+	for (char c : fileName) {
+		if (!(isalnum((unsigned char)c) || c == '.' || c == '_' || c == '-')) {
+			return ERROR_FILE_TYPE_NOT_ALLOWED;
+		}
+	}
+	// 落盘名 = 校验后的 fileName（客户端 UUID 名天然安全，白名单兜底防穿越）
+	serverName = fileName;
 	// 显示名清洗
 	displayName = sanitizeDisplayName(fileName);
 	return 0;
