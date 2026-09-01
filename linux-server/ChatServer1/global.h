@@ -122,6 +122,7 @@ enum ERROE_CODR
     ERROR_LOAD_CHAT_MESSAGE,
     ERROR_RATE_LIMITED,   // 发送频率超限
     ERROR_SENSITIVE_WORD, // 消息命中硬违规敏感词，被拦截
+    ERROR_LOGIN_BUSY,     // 登录互斥锁等待超时（并发登录冲突）
     SUCCESS = 0,
 };
 enum REQUEST_ID

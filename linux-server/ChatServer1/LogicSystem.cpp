@@ -2,6 +2,7 @@
 #include "MsgNode.h"
 #include "CSession.h"
 #include "RedisManager.h"
+#include "RedisDistributedLock.h"
 #include "MysqlManager.h"
 #include "MessageDeduplicator.h"
 #include "UserManager.h"
@@ -515,6 +516,14 @@ void LogicSystem::loginHandle(std::shared_ptr<CSession> session, short msgId, st
 	auto cfg = ConfigManager::getInstance();
 	std::string uid_str = std::to_string(uid);
 	if (!getUserByUid(uid_str, value)) {
+		session->Send(value.toStyledString(), ID_CHAT_LOGIN_RSP, uuid);
+		return;
+	}
+	// 分布式锁：防止同一 uid 并发登录竞态（可重入 + 自动续期，RAII 作用域结束自动释放）
+	RedisDistributedLock lock(LOCKPREFIX + std::to_string(uid), ACQUIRE_TIMEOUT * 1000);
+	if (!lock.tryLock(LOCK_TIMEOUT * 1000)) {
+		value["code"] = ERROR_LOGIN_BUSY;
+		value["message"] = "登录过于频繁，请稍后重试";
 		session->Send(value.toStyledString(), ID_CHAT_LOGIN_RSP, uuid);
 		return;
 	}
