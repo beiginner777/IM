@@ -202,7 +202,7 @@ void LoginDialog::login(QJsonObject obj)
    if(obj["code"] != ERRORCODE::SUCCESS)
    {
        qDebug() << "login failed";
-       qDebug() << "error code: " << obj["code"];
+       qDebug() << "error code: " << obj["code"].toInt();
        return;
    }
 
@@ -214,6 +214,9 @@ void LoginDialog::login(QJsonObject obj)
    si.res_host_ = obj["res_host"].toString();
    si.res_port_ = obj["res_port"].toString();
 
+   qDebug() << "[chatserver]: " << si.host << ", " << si.port;
+   qDebug() << "[resourceserver]: " << si.res_host_ << ", " << si.res_port_;
+
    uid_ = si.uid;
    token_ = si.token;
    si_ = si;
@@ -224,21 +227,21 @@ void LoginDialog::login(QJsonObject obj)
 // 登录对应的槽函数
 void LoginDialog::on_login_button_clicked()
 {
-    ServerInfo si;
-    si.uid = 1;
-    si.host = "127.0.0.1";
-    si.port = "8090";
-    si.token = "dev_token";  // 绕过 GateServer，直接给一个开发用 token
-    si.res_host_ = "0.0.0.0";
-    si.res_port_ = "9090";
-    uid_ = si.uid;
-    token_ = si.token;
-    si_ = si;
-    emit signalConnTcp(si);
-    /*QJsonObject obj;
+//    ServerInfo si;
+//    si.uid = 1;
+//    si.host = "127.0.0.1";
+//    si.port = "8090";
+//    si.token = "dev_token";  // 绕过 GateServer，直接给一个开发用 token
+//    si.res_host_ = "0.0.0.0";
+//    si.res_port_ = "9090";
+//    uid_ = si.uid;
+//    token_ = si.token;
+//    si_ = si;
+//    emit signalConnTcp(si);
+    QJsonObject obj;
     obj["username"] = ui->user_lineedit->text();
     obj["password"] = ui->password_lineedit->text();
-    HttpManager::GetInstance()->sendPostRequest(QUrl(Auth_Url_Prefix + loginAddr),obj,ID_LOGIN,LOGINMOD);*/
+    HttpManager::GetInstance()->sendPostRequest(QUrl(Auth_Url_Prefix + loginAddr),obj,ID_LOGIN,LOGINMOD);
 }
 
 void LoginDialog::handleSignals(QString res, ERRORCODE err, REQUEST_ID req_id)
@@ -286,8 +289,8 @@ void LoginDialog::slotTcpConnFinish(bool isSuccess)
         emit TcpMsg::GetInstance()->signalSendData(REQUEST_ID::ID_CHAT_LOGIN,data);
 
         // 同时向ResourceServer发送建立socket请求
-        si_.res_host_ = "127.0.0.1";
-        si_.res_port_ = "9090";
+//        si_.res_host_ = "127.0.0.1";
+//        si_.res_port_ = "9090";
         emit FileUploadMsg::GetInstance()->signalConnToResServer(si_);
     }
     else
